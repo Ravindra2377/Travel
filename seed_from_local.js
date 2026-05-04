@@ -430,27 +430,17 @@ async function uploadBatch(deals) {
     browser = await chromium.launch({
       headless: true,
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-blink-features=AutomationControlled',
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-blink-features=AutomationControlled",
       ],
     });
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
       viewport: { width: 1280, height: 800 },
     });
     const page = await context.newPage();
-
-    // Block common ad/analytics/tracking requests to reduce noise and speed up loads
-    await page.route('**/*', (route) => {
-      const url = route.request().url();
-      if (
-        /google-analytics|googlesyndication|doubleclick|adsbygoogle|amazon-adsystem|facebook|adservice|analytics|mpc2-prod|pagead2|m\.media-amazon|ad-events/.test(url)
-      ) {
-        return route.abort();
-      }
-      return route.continue();
-    });
 
     const stats = { Amazon: 0, Blinkit: 0, BigBasket: 0, Zepto: 0 };
     const allDeals = [];
