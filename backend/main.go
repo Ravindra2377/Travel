@@ -14,11 +14,13 @@ import (
 )
 
 func main() {
-	// Initialize Database
+	// Initialize Database (with graceful error handling)
 	database.Connect()
-	database.DB.AutoMigrate(&models.User{})
+	if database.DB != nil {
+		database.DB.AutoMigrate(&models.User{})
+	}
 
-	// Initialize Meilisearch
+	// Initialize Meilisearch (with graceful error handling)
 	search.Connect()
 
 	// Initialize Scraper Service
@@ -49,17 +51,27 @@ func main() {
 	})
 
 	e.GET("/health", func(c echo.Context) error {
-		sqlDB, err := database.DB.DB()
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"status": "db_connection_error"})
-		}
-		if err := sqlDB.Ping(); err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"status": "db_ping_failed"})
-		}
-		return c.JSON(http.StatusOK, map[string]string{
+		status := map[string]interface{}{
 			"status": "up",
-			"db":     "connected",
-		})
+		}
+		
+		// Check database if available
+		if database.DB != nil {
+			sqlDB, err := database.DB.DB()
+			if err == nil {
+				if err := sqlDB.Ping(); err == nil {
+					status["db"] = "connected"
+				} else {
+					status["db"] = "error"
+				}
+			} else {
+				status["db"] = "unavailable"
+			}
+		} else {
+			status["db"] = "not_initialized"
+		}
+		
+		return c.JSON(http.StatusOK, status)
 	})
 
 	// Auth Routes
