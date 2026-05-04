@@ -432,15 +432,17 @@ async function uploadBatch(deals) {
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
         "--disable-blink-features=AutomationControlled",
       ],
+      ignoreHTTPSErrors: true,
     });
-    const context = await browser.newContext({
+    const page = await browser.newPage({
       userAgent:
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       viewport: { width: 1280, height: 800 },
+      locale: "en-IN",
     });
-    const page = await context.newPage();
 
     const stats = { Amazon: 0, Blinkit: 0, BigBasket: 0, Zepto: 0 };
     const allDeals = [];
