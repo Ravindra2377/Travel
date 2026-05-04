@@ -452,12 +452,13 @@ async function uploadBatch(deals) {
     for (const query of SEED_QUERIES) {
       console.log(`\n📦 Seeding: "${query}"`);
 
-      const results = await Promise.allSettled([
-        scrapeAmazon(page, query),
-        scrapeBlinkit(page, query),
-        scrapeBigBasket(page, query),
-        scrapeZepto(page, query),
-      ]);
+      // Scrape platforms sequentially (not in parallel) to avoid overwhelming network
+      const results = [
+        await scrapeAmazon(page, query),
+        await scrapeBlinkit(page, query),
+        await scrapeBigBasket(page, query),
+        await scrapeZepto(page, query),
+      ];
 
       const queryDeals = [
         ...(results[0].value || []),
@@ -467,11 +468,14 @@ async function uploadBatch(deals) {
       ]
         .map((d) => ({ ...d, hotScore: calculateHotScore(d) }))
         .sort((a, b) => b.hotScore - a.hotScore);
+        ...(results[1].value || []),
+        ...(results[2].value || []),
+        ...(results[3].value || []),
 
-      stats.Amazon += (results[0].value || []).length;
-      stats.Blinkit += (results[1].value || []).length;
-      stats.BigBasket += (results[2].value || []).length;
-      stats.Zepto += (results[3].value || []).length;
+      stats.Amazon += (results[0] || []).length;
+      stats.Blinkit += (results[1] || []).length;
+      stats.BigBasket += (results[2] || []).length;
+      stats.Zepto += (results[3] || []).length;
 
       allDeals.push(...queryDeals);
 
