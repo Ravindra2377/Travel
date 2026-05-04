@@ -13,7 +13,6 @@
  */
 
 const { chromium } = require("playwright");
-const fetch = require("node-fetch");
 
 // ── Configuration ──────────────────────────────────
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8080";
@@ -461,16 +460,13 @@ async function uploadBatch(deals) {
       ];
 
       const queryDeals = [
-        ...(results[0].value || []),
-        ...(results[1].value || []),
-        ...(results[2].value || []),
-        ...(results[3].value || []),
+        ...(results[0] || []),
+        ...(results[1] || []),
+        ...(results[2] || []),
+        ...(results[3] || []),
       ]
         .map((d) => ({ ...d, hotScore: calculateHotScore(d) }))
         .sort((a, b) => b.hotScore - a.hotScore);
-        ...(results[1].value || []),
-        ...(results[2].value || []),
-        ...(results[3].value || []),
 
       stats.Amazon += (results[0] || []).length;
       stats.Blinkit += (results[1] || []).length;
