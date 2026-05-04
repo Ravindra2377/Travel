@@ -54,7 +54,7 @@ func main() {
 		status := map[string]interface{}{
 			"status": "up",
 		}
-		
+
 		// Check database if available
 		if database.DB != nil {
 			sqlDB, err := database.DB.DB()
@@ -70,7 +70,7 @@ func main() {
 		} else {
 			status["db"] = "not_initialized"
 		}
-		
+
 		return c.JSON(http.StatusOK, status)
 	})
 
