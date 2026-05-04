@@ -69,7 +69,7 @@ async function scrapeAmazon(page, query) {
   try {
     await page.goto(
       `https://www.amazon.in/s?k=${encodeURIComponent(query)}&i=grocery`,
-      { waitUntil: "domcontentloaded", timeout: 30000 },
+      { waitUntil: "domcontentloaded", timeout: 60000 },
     );
 
     try {
@@ -163,7 +163,7 @@ async function scrapeBlinkit(page, query) {
 
     await page.goto("https://blinkit.com", {
       waitUntil: "domcontentloaded",
-      timeout: 25000,
+      timeout: 60000,
     });
 
     // Set Bengaluru pincode
@@ -174,7 +174,7 @@ async function scrapeBlinkit(page, query) {
 
     await page.goto(`https://blinkit.com/s/?q=${encodeURIComponent(query)}`, {
       waitUntil: "networkidle",
-      timeout: 25000,
+      timeout: 60000,
     });
     await page.waitForTimeout(2000);
 
@@ -243,7 +243,7 @@ async function scrapeBigBasket(page, query) {
   try {
     await page.goto(
       `https://www.bigbasket.com/ps/?q=${encodeURIComponent(query)}&nc=as`,
-      { waitUntil: "networkidle", timeout: 30000 },
+      { waitUntil: "networkidle", timeout: 60000 },
     );
     await page.waitForTimeout(2000);
 
@@ -320,7 +320,7 @@ async function scrapeZepto(page, query) {
 
     await page.goto(
       `https://www.zeptonow.com/search?query=${encodeURIComponent(query)}`,
-      { waitUntil: "networkidle", timeout: 30000 },
+      { waitUntil: "networkidle", timeout: 60000 },
     );
     await page.waitForTimeout(2000);
 
@@ -427,8 +427,30 @@ async function uploadBatch(deals) {
 
   let browser;
   try {
-    browser = await chromium.launch({ headless: false });
-    const page = await browser.newPage();
+    browser = await chromium.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+      ],
+    });
+    const context = await browser.newContext({
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+      viewport: { width: 1280, height: 800 },
+    });
+    const page = await context.newPage();
+
+    // Block common ad/analytics/tracking requests to reduce noise and speed up loads
+    await page.route('**/*', (route) => {
+      const url = route.request().url();
+      if (
+        /google-analytics|googlesyndication|doubleclick|adsbygoogle|amazon-adsystem|facebook|adservice|analytics|mpc2-prod|pagead2|m\.media-amazon|ad-events/.test(url)
+      ) {
+        return route.abort();
+      }
+      return route.continue();
+    });
 
     const stats = { Amazon: 0, Blinkit: 0, BigBasket: 0, Zepto: 0 };
     const allDeals = [];
