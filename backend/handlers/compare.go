@@ -107,3 +107,51 @@ func CompareProducts(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, result)
 }
+
+// RefreshDealsAutomatically handles GET /refresh-deals
+// Called every 4 hours by cron-job.org to keep deals fresh
+func RefreshDealsAutomatically(c echo.Context) error {
+	secret := c.QueryParam("secret")
+	if secret != "auto-refresh-secret-key" { // TODO: use env var
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error": "Invalid secret",
+		})
+	}
+
+	if ScraperSvc == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Scraper service not initialized",
+		})
+	}
+
+	// Popular search queries to refresh
+	queries := []string{
+		"Milk", "Eggs", "Bread", "Rice", "Dal", "Oil", "Sugar",
+		"Tea", "Coffee", "Biscuits", "Chips", "Butter",
+	}
+
+	log.Println("🔄 Starting automatic deals refresh...")
+	totalDeals := 0
+
+	for _, query := range queries {
+		ctx := c.Request().Context()
+		result, err := ScraperSvc.Compare(ctx, query, 12.9716, 77.5946, nil)
+		if err != nil {
+			log.Printf("⚠️  Error scraping '%s': %v", query, err)
+			continue
+		}
+
+		if result != nil {
+			dealCount := len(result.Products)
+			totalDeals += dealCount
+			log.Printf("✅ Refreshed '%s': %d products", query, dealCount)
+		}
+	}
+
+	log.Printf("🎉 Deals refresh complete: %d total products updated", totalDeals)
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status":         "success",
+		"total_products": totalDeals,
+		"queries_updated": len(queries),
+	})
+}

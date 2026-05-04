@@ -101,6 +101,9 @@ func main() {
 	e.GET("/compare", handlers.CompareProducts)     // Legacy scraper endpoint
 	e.POST("/tokens", handlers.BulkConnectAccounts) // Redirect to new endpoint
 
+	// Auto-Refresh Route (called every 4 hours by cron-job.org)
+	e.GET("/refresh-deals", handlers.RefreshDealsAutomatically)
+
 	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
