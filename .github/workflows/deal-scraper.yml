@@ -1,0 +1,45 @@
+name: 🔥 Deal Scraper — Every 4 Hours
+
+on:
+  schedule:
+    - cron: '0 */4 * * *' # Runs every 4 hours
+  workflow_dispatch: # Allows manual trigger from Actions tab
+
+jobs:
+  scrape:
+    name: 🛒 Scrape Latest Deals
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📥 Install dependencies
+        working-directory: scripts
+        run: |
+          npm init -y
+          npm install playwright
+
+      - name: 🌐 Install Playwright Chromium
+        working-directory: scripts
+        run: npx playwright install chromium --with-deps
+
+      - name: 🔥 Run Deal Scraper
+        working-directory: .
+        run: node scripts/deal_scraper.js
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+
+      - name: 📊 Upload results as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraped-deals
+          path: scripts/output/deals.json
