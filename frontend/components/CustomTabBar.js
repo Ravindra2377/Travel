@@ -6,6 +6,7 @@ import {
   Animated,
   Platform,
   Dimensions,
+  Text,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
@@ -73,6 +74,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 
               switch (route.name) {
                 case "Home": iconName = isFocused ? "home" : "home-outline"; break;
+                case "Deals": iconName = isFocused ? "pricetags" : "pricetags-outline"; break;
                 case "Search": iconName = isFocused ? "search" : "search-outline"; break;
                 case "Wishlist": iconName = isFocused ? "heart" : "heart-outline"; break;
                 case "Profile": iconName = isFocused ? "person" : "person-outline"; break;
@@ -80,13 +82,14 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 
               return (
                 <View style={styles.tabItem}>
-                  <View style={styles.iconWrapper}>
-                    <Ionicons
-                      name={iconName}
-                      size={24}
-                      color={isFocused ? COLORS.brandPurple : "#A0A0A0"}
-                    />
-                  </View>
+                  <Ionicons
+                    name={iconName}
+                    size={22}
+                    color={isFocused ? COLORS.primary : "#A0A0A0"}
+                  />
+                  <Text style={[styles.tabLabel, isFocused && styles.activeTabLabel]}>
+                    {route.name}
+                  </Text>
                 </View>
               );
             };
@@ -160,6 +163,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+  },
+  tabLabel: {
+    fontSize: 10,
+    color: "#A0A0A0",
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  activeTabLabel: {
+    color: COLORS.primary,
+    fontWeight: "600",
   },
 });
 

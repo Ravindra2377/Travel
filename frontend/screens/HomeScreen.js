@@ -8,8 +8,12 @@ import {
   StatusBar,
   Animated,
   Dimensions,
+  Image,
+  Linking,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
 import {
@@ -19,60 +23,45 @@ import {
   SHADOWS,
   FONTS,
 } from "../config/theme";
+import * as Haptics from "expo-haptics";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const H_PADDING = SPACING.xl;
 
-const CATEGORIES = [
-  { id: "1", name: "Eggs", icon: "egg-outline", query: "eggs" },
-  { id: "2", name: "Milk", icon: "water-outline", query: "milk" },
-  { id: "3", name: "Bread", icon: "pizza-outline", query: "bread" },
-  { id: "4", name: "Rice", icon: "leaf-outline", query: "rice" },
-  { id: "5", name: "Chicken", icon: "restaurant-outline", query: "chicken" },
-  { id: "6", name: "Atta", icon: "bag-outline", query: "atta" },
-  { id: "7", name: "Oil", icon: "flask-outline", query: "oil" },
-  { id: "8", name: "Snacks", icon: "fast-food-outline", query: "chips" },
-];
 
-const TRENDING = [
-  { id: "1", name: "White Eggs (10 pcs)", best: "₹79", platform: "Zepto", saving: "₹16" },
-  { id: "2", name: "Amul Butter 500g", best: "₹265", platform: "Zepto", saving: "₹15" },
-  { id: "3", name: "Aashirvaad Atta 5kg", best: "₹275", platform: "BigBasket", saving: "₹24" },
-  { id: "4", name: "Tata Tea Gold 500g", best: "₹275", platform: "Blinkit", saving: "₹20" },
+const DIRECT_PLATFORMS = [
+  { id: "1", name: "Amazon", source: { uri: "https://www.google.com/s2/favicons?sz=256&domain=amazon.in" }, url: "https://www.amazon.in/" },
+  { id: "2", name: "Flipkart", source: { uri: "https://www.google.com/s2/favicons?sz=256&domain=flipkart.com" }, url: "https://www.flipkart.com/" },
+  { id: "3", name: "Blinkit", source: { uri: "https://www.google.com/s2/favicons?sz=256&domain=blinkit.com" }, url: "https://blinkit.com/" },
+  { id: "4", name: "Zepto", source: { uri: "https://www.google.com/s2/favicons?sz=256&domain=zeptonow.com" }, url: "https://www.zepto.com/" },
+  { id: "5", name: "BigBasket", source: require("../assets/bigbasket-logo.png"), url: "https://www.bigbasket.com/" },
 ];
 
 // --- Sub-components ---
 
-const CategoryPill = ({ cat, navigation }) => (
+const BrowseCard = ({ item, navigation }) => (
   <TouchableOpacity
-    activeOpacity={0.7}
-    style={styles.categoryPill}
-    onPress={() => navigation.navigate("Search", { query: cat.query })}
+    style={styles.browseCardWrapper}
+    activeOpacity={0.8}
+    onPress={() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Linking.openURL(item.url).catch((err) => {
+        console.log("App link failed, falling back to internal browser:", err);
+        navigation.navigate("InAppBrowser", { url: item.url, title: item.name, platform: item.name });
+      });
+    }}
   >
-    <View style={styles.categoryIconWrap}>
-      <Ionicons name={cat.icon} size={20} color={COLORS.textPrimary} />
+    <View style={styles.browseIconWrap}>
+      <Image 
+        source={item.source} 
+        style={styles.browseLogoImg} 
+        resizeMode="contain" 
+      />
     </View>
-    <Text style={styles.categoryLabel}>{cat.name}</Text>
+    <Text style={styles.browseName}>{item.name}</Text>
   </TouchableOpacity>
 );
 
-const TrendingCard = ({ item, navigation }) => (
-  <TouchableOpacity
-    style={styles.trendCard}
-    activeOpacity={0.7}
-    onPress={() => navigation.navigate("Search", { query: item.name.split(" (")[0] })}
-  >
-    <View style={styles.trendLeft}>
-      <Text style={styles.trendName} numberOfLines={1}>{item.name}</Text>
-      <Text style={styles.trendMeta}>{item.platform}</Text>
-    </View>
-    <View style={styles.trendRight}>
-      <Text style={styles.trendPrice}>{item.best}</Text>
-      <Text style={styles.trendSave}>save {item.saving}</Text>
-    </View>
-    <Ionicons name="chevron-forward" size={16} color={COLORS.textTertiary} />
-  </TouchableOpacity>
-);
 
 // --- Main Screen ---
 
@@ -81,16 +70,24 @@ const HomeScreen = ({ navigation }) => {
 
   const fadeHero = React.useRef(new Animated.Value(0)).current;
   const fadeContent = React.useRef(new Animated.Value(0)).current;
+  const floatAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     Animated.stagger(200, [
       Animated.timing(fadeHero, { toValue: 1, duration: 600, useNativeDriver: true }),
       Animated.timing(fadeContent, { toValue: 1, duration: 500, useNativeDriver: true }),
     ]).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: 1, duration: 3000, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 3000, useNativeDriver: true }),
+      ])
+    ).start();
   }, []);
 
   const slideUp = (anim) => ({
-    opacity: anim,
+    opacity: 1, // Fix Detox visibility issue
     transform: [
       {
         translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }),
@@ -99,8 +96,9 @@ const HomeScreen = ({ navigation }) => {
   });
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -134,28 +132,47 @@ const HomeScreen = ({ navigation }) => {
             </View>
 
             {/* Stats row */}
-            <View style={styles.statsRow}>
+            <Animated.View style={[
+              styles.statsRow,
+              {
+                transform: [
+                  { translateY: floatAnim.interpolate({ inputRange: [0, 1], outputRange: [-4, 4] }) }
+                ]
+              }
+            ]}>
+              <TouchableOpacity 
+                style={styles.statItem} 
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  navigation.navigate("Accounts");
+                }}
+              >
+                <Ionicons name="apps-outline" size={16} color="rgba(255,255,255,0.6)" style={{ marginBottom: 4 }} />
+                <Text style={styles.statValue}>5-in-1</Text>
+                <Text style={styles.statLabel}>Search</Text>
+              </TouchableOpacity>
+              <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>5</Text>
-                <Text style={styles.statLabel}>Platforms</Text>
+                <Ionicons name="sync-outline" size={16} color="rgba(255,255,255,0.6)" style={{ marginBottom: 4 }} />
+                <Text style={styles.statValue}>Live</Text>
+                <Text style={styles.statLabel}>Sync</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>200+</Text>
-                <Text style={styles.statLabel}>Products</Text>
+                <Ionicons name="wallet-outline" size={16} color={COLORS.secondary} style={{ marginBottom: 4 }} />
+                <Text style={[styles.statValue, { color: COLORS.secondary }]}>Best</Text>
+                <Text style={styles.statLabel}>Price</Text>
               </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: COLORS.secondary }]}>30%</Text>
-                <Text style={styles.statLabel}>Max Savings</Text>
-              </View>
-            </View>
+            </Animated.View>
 
             {/* CTA Button */}
             <TouchableOpacity
               style={styles.ctaButton}
               activeOpacity={0.85}
-              onPress={() => navigation.navigate("Search")}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                navigation.navigate("Search");
+              }}
               testID="homeSearchCta"
             >
               <Text style={styles.ctaText}>Start Comparing</Text>
@@ -166,46 +183,35 @@ const HomeScreen = ({ navigation }) => {
 
         {/* ── Light Collection Section ── */}
         <Animated.View style={[styles.lightSection, slideUp(fadeContent)]}>
-          {/* Categories */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Browse</Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Search")}>
-              <Text style={styles.seeAll}>See All</Text>
-            </TouchableOpacity>
+
+          {/* ── Browse Directly Section ── */}
+          <View style={[styles.sectionHeader, { marginTop: SPACING.xl, marginBottom: SPACING.md }]}>
+            <View>
+              <Text style={styles.sectionTitle}>Browse Directly: All in One</Text>
+              <Text style={styles.sectionSubtitle}>Browse directly on top platforms without installing the app</Text>
+            </View>
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesScroll}
-          >
-            {CATEGORIES.map((cat) => (
-              <CategoryPill key={cat.id} cat={cat} navigation={navigation} />
-            ))}
-          </ScrollView>
-
-          {/* Trending section */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Trending Deals</Text>
-          </View>
-
-          <View style={styles.trendingList}>
-            {TRENDING.map((item) => (
-              <TrendingCard key={item.id} item={item} navigation={navigation} />
+          <View style={styles.browseGrid}>
+            {DIRECT_PLATFORMS.map((item) => (
+              <BrowseCard key={item.id} item={item} navigation={navigation} />
             ))}
           </View>
-
-          {/* Quick search CTA removed - redundant with footer and hero CTA */}
         </Animated.View>
 
         {/* Extra space to ensure last cards are fully visible above floating navbar */}
         <View style={{ height: 120 }} />
       </ScrollView>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -226,7 +232,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: SPACING.huge,
+    marginBottom: SPACING.xl,
   },
   heroEyebrow: {
     ...FONTS.eyebrow,
@@ -310,71 +316,9 @@ const styles = StyleSheet.create({
     color: COLORS.textAccent,
   },
 
-  // ── Categories ──
-  categoriesScroll: {
-    paddingHorizontal: H_PADDING,
-    gap: SPACING.md,
-    marginBottom: SPACING.xxl,
-  },
-  categoryPill: {
-    alignItems: "center",
-    gap: SPACING.sm,
-  },
-  categoryIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    ...SHADOWS.sm,
-  },
-  categoryLabel: {
+  sectionSubtitle: {
     ...FONTS.caption,
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontWeight: "600",
-  },
-
-  // ── Trending ──
-  trendingList: {
-    paddingHorizontal: H_PADDING,
-    marginBottom: SPACING.xxl,
-  },
-  trendCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: SPACING.lg,
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
-    marginBottom: SPACING.sm,
-    gap: SPACING.md,
-    ...SHADOWS.sm,
-  },
-  trendLeft: {
-    flex: 1,
-  },
-  trendName: {
-    ...FONTS.bodyBold,
-    marginBottom: SPACING.xs,
-  },
-  trendMeta: {
-    ...FONTS.caption,
-    fontSize: 12,
-  },
-  trendRight: {
-    alignItems: "flex-end",
-    marginRight: SPACING.sm,
-  },
-  trendPrice: {
-    ...FONTS.priceSmall,
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  trendSave: {
-    ...FONTS.caption,
-    fontSize: 11,
-    color: COLORS.savings,
+    marginTop: 2,
   },
 
   // ── Search CTA ──
@@ -393,6 +337,39 @@ const styles = StyleSheet.create({
     ...FONTS.body,
     color: COLORS.textTertiary,
     flex: 1,
+  },
+
+  // ── Browse Directly ──
+  browseGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
+    paddingHorizontal: H_PADDING,
+    marginTop: SPACING.sm,
+  },
+  browseCardWrapper: {
+    width: "33.33%",
+    alignItems: "center",
+    marginBottom: SPACING.lg,
+  },
+  browseIconWrap: {
+    width: 60,
+    height: 60,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: SPACING.sm,
+  },
+  browseLogoImg: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  browseName: {
+    ...FONTS.caption,
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textPrimary,
+    textAlign: "center",
   },
 });
 

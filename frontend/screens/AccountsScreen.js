@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  Alert,
   StatusBar,
+  Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -66,7 +67,7 @@ const PLATFORMS = [
   },
 ];
 
-export default function AccountsScreen() {
+export default function AccountsScreen({ navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [currentPlatform, setCurrentPlatform] = useState(null);
   const [connected, setConnected] = useState({});
@@ -91,12 +92,10 @@ export default function AccountsScreen() {
             return;
           }
 
-          // Other platforms: Check if any required token exists
           const hasRequiredToken = platform.requiredTokens.some(
             (tokenKey) => {
               const fromVal = platformTokens[tokenKey];
               const fromCookie = platformTokens.cookie && platformTokens.cookie.includes(tokenKey);
-              
               return !!(fromVal || fromCookie);
             }
           );
@@ -183,7 +182,6 @@ export default function AccountsScreen() {
       const existing = await AsyncStorage.getItem("userTokens");
       const tokens = existing ? JSON.parse(existing) : {};
 
-      // Merge tokens
       tokens[platformId] = {
         ...tokens[platformId],
         ...newTokens,
@@ -193,7 +191,6 @@ export default function AccountsScreen() {
       await AsyncStorage.setItem("userTokens", JSON.stringify(tokens));
       console.log(`[Tokens] Saved tokens for ${platformId} locally`);
 
-      // Upload to backend for backup/analytics
       try {
         await api.post("/accounts/connect", {
           platform: platformId,
@@ -205,7 +202,6 @@ export default function AccountsScreen() {
           `[Tokens] Backend upload failed (non-critical):`,
           backendErr?.message,
         );
-        // Continue even if backend fails - local storage is primary
       }
     } catch (e) {
       console.error("[Tokens] Save error:", e);
@@ -213,310 +209,209 @@ export default function AccountsScreen() {
     }
   };
 
-  // Enhanced token capture script with better detection
   const INJECTED_JAVASCRIPT = `
     (function() {
       let hasProcessed = false;
-      
       function log(msg) {
         try {
           window.ReactNativeWebView.postMessage(JSON.stringify({type: 'LOG', message: msg}));
         } catch(e) {}
       }
-
       function sendTokens() {
         if (hasProcessed) return;
-        
         const host = window.location.hostname;
         const cookies = document.cookie;
         const ls = {...localStorage};
-        
-        log('Scanning ' + host + ' (keys: ' + Object.keys(ls).length + ')');
-
         let payload = {};
         let isValid = false;
-
-        // BLINKIT
         if (host.includes('blinkit')) {
-          try {
-            // Auth token
-            if (ls.auth) {
-              payload['auth'] = ls.auth;
-              const authObj = JSON.parse(ls.auth);
-              if (authObj.accessToken) {
-                log('✓ Found Blinkit accessToken: ' + authObj.accessToken.substring(0, 20) + '...');
-                isValid = true;
-              }
-            }
-            
-            // Auth key
-            if (ls.authKey) {
-              payload['authKey'] = ls.authKey;
-              log('✓ Found authKey');
-              isValid = true;
-            }
-            
-            // Location
-            if (ls.location) {
-              payload['location'] = ls.location;
-            }
-            
-            // User data
-            if (ls.user) {
-              payload['user'] = ls.user;
-            }
-            
-            // Device ID
-            if (ls.deviceId) {
-              payload['deviceId'] = ls.deviceId;
-            }
-            
-            // Capture cookies
-            if (cookies && (cookies.includes('gr_1_accessToken') || cookies.includes('gr_1_deviceId'))) {
-              payload['cookie'] = cookies;
-              log('✓ Found session cookies');
-              isValid = true;
-            }
-          } catch (e) {
-            log('Error parsing Blinkit tokens: ' + e.message);
+          if (ls.auth || ls.authKey || (cookies && cookies.includes('gr_1_accessToken'))) {
+            payload['auth'] = ls.auth; payload['authKey'] = ls.authKey; payload['cookie'] = cookies; isValid = true;
           }
-        }
-
-        // ZEPTO
-        else if (host.includes('zepto')) {
-          try {
-            // User auth
-            if (ls.user) {
-              payload['user'] = ls.user;
-              const userObj = JSON.parse(ls.user);
-              if (userObj.state && userObj.state.isAuth) {
-                log('✓ Zepto user authenticated');
-                isValid = true;
-              }
-            }
-            
-            // Location
-            if (ls['user-position']) {
-              payload['location'] = ls['user-position'];
-            }
-            
-            // Store ID
-            if (ls['header-store']) {
-              payload['storeId'] = ls['header-store'];
-            }
-            
-            // Cart
-            if (ls.cart) {
-              payload['cart'] = ls.cart;
-            }
-            
-            // Cookies
-            if (cookies && cookies.includes('session_id')) {
-              payload['cookie'] = cookies;
-              log('✓ Found Zepto session');
-              isValid = true;
-            }
-          } catch (e) {
-            log('Error parsing Zepto tokens: ' + e.message);
+        } else if (host.includes('zepto')) {
+          if (ls.user || (cookies && cookies.includes('session_id'))) {
+            payload['user'] = ls.user; payload['cookie'] = cookies; isValid = true;
           }
-        }
-
-        // BIGBASKET
-        else if (host.includes('bigbasket')) {
+        } else if (host.includes('bigbasket')) {
           if (cookies && (cookies.includes('sessionid') || cookies.includes('_bb_vid'))) {
-            payload['cookie'] = cookies;
-            log('✓ Found BigBasket session');
-            isValid = true;
+            payload['cookie'] = cookies; isValid = true;
           }
-          
-          // CSRF token if present in localStorage
-          for (let key in ls) {
-            if (key.toLowerCase().includes('csrf') || key.toLowerCase().includes('token')) {
-              payload[key] = ls[key];
-            }
-          }
-        }
-
-        // AMAZON
-        else if (host.includes('amazon')) {
+        } else if (host.includes('amazon')) {
           if (cookies && cookies.includes('session-id')) {
-            payload['cookie'] = cookies;
-            log('✓ Found Amazon session cookies');
-            isValid = true;
+            payload['cookie'] = cookies; isValid = true;
           }
-        }
-
-        // FLIPKART
-        else if (host.includes('flipkart')) {
+        } else if (host.includes('flipkart')) {
           if (cookies && cookies.includes('T=')) {
-            payload['cookie'] = cookies;
-            if (ls.snData) payload['snData'] = ls.snData;
-            log('✓ Found Flipkart session cookies');
-            isValid = true;
+            payload['cookie'] = cookies; isValid = true;
           }
         }
-        
-
-        // Send if valid
         if (isValid && Object.keys(payload).length > 0) {
-          log('✅ Sending ' + Object.keys(payload).length + ' tokens for ' + host);
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'TOKENS', 
-            payload: payload
-          }));
+          window.ReactNativeWebView.postMessage(JSON.stringify({type: 'TOKENS', payload: payload}));
           hasProcessed = true;
-        } else {
-          log('⏳ No valid session yet for ' + host);
         }
       }
-      
-      // Check immediately and then periodically
       sendTokens();
-      const interval = setInterval(sendTokens, 3000);
-      
-      // Stop after 2 minutes to avoid memory leaks
-      setTimeout(() => clearInterval(interval), 120000);
+      setInterval(sendTokens, 3000);
     })();
   `;
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" />
 
-      <LinearGradient colors={COLORS.gradientCard} style={styles.header}>
-        <Text style={styles.headerTitle}>Link Accounts</Text>
-        <Text style={styles.headerSubtitle}>
-          Login once to enable price comparisons
-        </Text>
-      </LinearGradient>
-
-      <ScrollView contentContainerStyle={styles.list}>
-        <View style={styles.infoCard}>
-          <Ionicons name="information-circle" size={24} color={COLORS.accentGold} />
-          <Text style={styles.infoText}>
-            Tap "Connect" and log in to each platform. Your credentials stay
-            secure in the app.
+        <LinearGradient colors={COLORS.gradientHero} style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+          >
+            <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Link Accounts</Text>
+          <Text style={styles.headerSubtitle}>
+            Login once to enable price comparisons
           </Text>
-        </View>
+        </LinearGradient>
 
-        {PLATFORMS.map((platform) => (
-          <View key={platform.id} style={styles.card}>
-            <View style={styles.cardLeft}>
-              <View
-                style={[
-                  styles.iconContainer,
-                  { backgroundColor: platform.color },
-                ]}
-              >
-                <Ionicons name={platform.icon} size={24} color="#fff" />
-              </View>
-              <View style={styles.cardInfo}>
-                <Text style={styles.platformName}>{platform.name}</Text>
-                <Text style={styles.platformStatus}>
-                  {connected[platform.id] ? (
-                    <Text style={styles.statusConnected}>● Connected</Text>
-                  ) : (
-                    <Text style={styles.statusDisconnected}>
-                      ○ Not connected
-                    </Text>
-                  )}
-                </Text>
-              </View>
-            </View>
+        <ScrollView contentContainerStyle={styles.list}>
+          <View style={styles.infoCard}>
+            <Ionicons name="information-circle" size={24} color={COLORS.accentGold} />
+            <Text style={styles.infoText}>
+              Tap "Connect" and log in to each platform. Your credentials stay
+              secure in the app.
+            </Text>
+          </View>
 
-            <View style={styles.cardButtons}>
-              {connected[platform.id] ? (
-                <>
+          {PLATFORMS.map((platform) => (
+            <View key={platform.id} style={styles.card}>
+              <View style={styles.cardLeft}>
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { backgroundColor: platform.color },
+                  ]}
+                >
+                  <Ionicons name={platform.icon} size={24} color="#fff" />
+                </View>
+                <View style={styles.cardInfo}>
+                  <Text style={styles.platformName}>{platform.name}</Text>
+                  <Text style={styles.platformStatus}>
+                    {connected[platform.id] ? (
+                      <Text style={styles.statusConnected}>● Connected</Text>
+                    ) : (
+                      <Text style={styles.statusDisconnected}>
+                        ○ Not connected
+                      </Text>
+                    )}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.cardButtons}>
+                {connected[platform.id] ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.buttonReconnect}
+                      onPress={() => openLogin(platform)}
+                    >
+                      <Ionicons name="refresh" size={18} color="#666" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.buttonDisconnect}
+                      onPress={() => disconnectAccount(platform.id)}
+                    >
+                      <Ionicons name="close-circle" size={18} color="#ff4444" />
+                    </TouchableOpacity>
+                  </>
+                ) : (
                   <TouchableOpacity
-                    style={styles.buttonReconnect}
+                    style={styles.buttonConnect}
                     onPress={() => openLogin(platform)}
                   >
-                    <Ionicons name="refresh" size={18} color="#666" />
+                    <Text style={styles.buttonConnectText}>Connect</Text>
+                    <Ionicons name="arrow-forward" size={16} color="#fff" />
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.buttonDisconnect}
-                    onPress={() => disconnectAccount(platform.id)}
-                  >
-                    <Ionicons name="close-circle" size={18} color="#ff4444" />
-                  </TouchableOpacity>
-                </>
-              ) : (
+                )}
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+
+        <Modal
+          visible={modalVisible}
+          animationType="slide"
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <SafeAreaView style={styles.safeArea}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHeaderLeft}>
+                  <Text style={styles.modalTitle}>{currentPlatform?.name}</Text>
+                  <Text style={styles.modalSubtitle}>
+                    Please log in to continue
+                  </Text>
+                </View>
                 <TouchableOpacity
-                  style={styles.buttonConnect}
-                  onPress={() => openLogin(platform)}
-                  testID={`connectBtn_${platform.id}`}
+                  style={styles.modalCloseButton}
+                  onPress={() => setModalVisible(false)}
                 >
-                  <Text style={styles.buttonConnectText}>Connect</Text>
-                  <Ionicons name="arrow-forward" size={16} color="#fff" />
+                  <Ionicons name="close" size={28} color={COLORS.textPrimary} />
                 </TouchableOpacity>
+              </View>
+
+              {currentPlatform && (
+                <WebView
+                  ref={webViewRef}
+                  source={{ uri: currentPlatform.loginUrl }}
+                  injectedJavaScriptBeforeContentLoaded={INJECTED_JAVASCRIPT}
+                  onMessage={handleWebViewMessage}
+                  style={styles.webview}
+                  userAgent={
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                  }
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                  sharedCookiesEnabled={true}
+                  thirdPartyCookiesEnabled={true}
+                />
               )}
             </View>
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* Login Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <View style={styles.modalHeaderLeft}>
-              <Text style={styles.modalTitle}>{currentPlatform?.name}</Text>
-              <Text style={styles.modalSubtitle}>
-                Please log in to continue
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <Ionicons name="close" size={28} color={COLORS.textPrimary} />
-            </TouchableOpacity>
-          </View>
-
-          {currentPlatform && (
-            <WebView
-              ref={webViewRef}
-              source={{ uri: currentPlatform.loginUrl }}
-              injectedJavaScriptBeforeContentLoaded={INJECTED_JAVASCRIPT}
-              onMessage={handleWebViewMessage}
-              style={styles.webview}
-              userAgent={
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-              }
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              sharedCookiesEnabled={true}
-              thirdPartyCookiesEnabled={true}
-              onLoadStart={() =>
-                console.log(`[WebView] Loading ${currentPlatform.name}...`)
-              }
-              onLoadEnd={() =>
-                console.log(`[WebView] Loaded ${currentPlatform.name}`)
-              }
-              onError={(e) => console.log(`[WebView] Error:`, e.nativeEvent)}
-            />
-          )}
-        </View>
-      </Modal>
-    </View>
+          </SafeAreaView>
+        </Modal>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: 64,       // Normalized
-    paddingBottom: SPACING.xxxl,
+    paddingTop: 32,
+    paddingBottom: SPACING.xxl,
     paddingHorizontal: SPACING.xl,
-    borderBottomLeftRadius: RADIUS.lg,
-    borderBottomRightRadius: RADIUS.lg,
+    borderBottomLeftRadius: RADIUS.xl,
+    borderBottomRightRadius: RADIUS.xl,
+    ...SHADOWS.md,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: SPACING.md,
+    ...SHADOWS.sm,
   },
   headerTitle: {
     ...FONTS.h1Dark,
@@ -598,7 +493,6 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.full,
     alignItems: "center",
-    borderWidth: 0,
     gap: SPACING.sm,
   },
   buttonConnectText: {
@@ -635,7 +529,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: SPACING.xl,
-    paddingTop: 64,       // Normalized
+    paddingTop: SPACING.xl,
     paddingBottom: SPACING.lg,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,

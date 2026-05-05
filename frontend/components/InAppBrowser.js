@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
-  Share,
   Platform,
+  Share,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import LocationService from "../services/LocationService";
 import * as Haptics from "expo-haptics";
@@ -84,7 +84,8 @@ const InAppBrowser = ({ navigation, route }) => {
     : LocationService.getGeolocationInjectionScript();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
       {/* Header */}
@@ -188,14 +189,19 @@ const InAppBrowser = ({ navigation, route }) => {
           <Ionicons name="reload" size={20} color={COLORS.textPrimary} />
         </TouchableOpacity>
       </View>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: "#FFFFFF",
+  },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: "row",

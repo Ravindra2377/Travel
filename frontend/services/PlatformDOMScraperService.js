@@ -344,11 +344,27 @@ class PlatformDOMScraperService {
                     }
 
                     const price = priceText ? parseFloat(priceText.replace(/[^0-9.]/g, '')) : 0;
-                    const imgEl = card.querySelector('img');
-                    let image = imgEl ? (imgEl.src || imgEl.getAttribute('data-src') || '') : '';
+                    const imgEl = card.querySelector('img') || card.parentElement.querySelector('img');
+                    let image = '';
+                    if (imgEl) {
+                      image = imgEl.getAttribute('data-src') || imgEl.getAttribute('srcset')?.split(' ')[0] || imgEl.src || '';
+                      if (image.includes('data:image') || image.includes('placeholder')) {
+                          image = imgEl.getAttribute('data-original') || imgEl.getAttribute('data-lazy-src') || image;
+                      }
+                    } else {
+                      // Ultra-broad fallback for images in Blinkit cards
+                      const allImgs = Array.from(card.querySelectorAll('img, [style*="background-image"]'));
+                      for (const item of allImgs) {
+                        const src = item.src || (item.style?.backgroundImage?.match(/url\(['"]?([^'"]+)['"]?\)/) || [])[1];
+                        if (src && !src.includes('data:image') && !src.includes('transparent')) {
+                          image = src;
+                          break;
+                        }
+                      }
+                    }
                     // Blinkit optimization: use higher resolution image if possible
-                    if (image && image.includes('w=90')) {
-                      image = image.replace('w=90', 'w=450');
+                    if (image && image.includes('w=')) {
+                      image = image.replace(/w=\d+/, 'w=450');
                     }
                     const nestedAnchor = card.querySelector('a[href]');
                     const closestAnchor = card.closest ? card.closest('a[href]') : null;
@@ -528,7 +544,9 @@ class PlatformDOMScraperService {
                   if (t.length >= 10 && t.length <= 2000 && hasPriceAndAdd(t)) cardCount++;
                 });
                 log('Poll @' + (elapsed / 1000) + 's: candidates=' + cardCount + ', divs=' + allDivs.length);
-                if (cardCount >= MIN_CARDS || elapsed >= MAX_WAIT_MS) {
+                
+                const isPDP = window.location.href.includes('/prn/') || window.location.href.includes('/product/') || (window.location.pathname.split('/').length > 2 && !window.location.href.includes('/s/'));
+                if (cardCount >= MIN_CARDS || isPDP || elapsed >= MAX_WAIT_MS) {
                   doExtract();
                 } else {
                   setTimeout(pollForCards, POLL_MS);
@@ -987,7 +1005,14 @@ class PlatformDOMScraperService {
                     const card = p._card;
                     let image = '';
                     
-                    const allImgs = card.querySelectorAll('img');
+                    const allImgs = Array.from(card.querySelectorAll('img'));
+                    // Sort to put probable product images first
+                    allImgs.sort((a, b) => {
+                       const aScore = (a.className.includes('product') || a.className.includes('listing') || a.parentElement.className.includes('image')) ? 1 : 0;
+                       const bScore = (b.className.includes('product') || b.className.includes('listing') || b.parentElement.className.includes('image')) ? 1 : 0;
+                       return bScore - aScore;
+                    });
+
                     for (const img of allImgs) {
                       const attrs = [img.getAttribute('srcset'), img.getAttribute('data-srcset'), img.getAttribute('src'), img.getAttribute('data-src')];
                       for (const a of attrs) {
@@ -1471,7 +1496,13 @@ class PlatformDOMScraperService {
                     }
                     
                     const imgEl = card.querySelector('img');
-                    let image = imgEl ? (imgEl.src || imgEl.getAttribute('data-src') || '') : '';
+                    let image = '';
+                    if (imgEl) {
+                        image = imgEl.getAttribute('data-src') || imgEl.getAttribute('srcset')?.split(' ')[0] || imgEl.src || '';
+                        if (image.includes('data:image') || image.includes('placeholder')) {
+                            image = imgEl.getAttribute('data-original') || imgEl.getAttribute('data-lazy-src') || image;
+                        }
+                    }
                     if (image && image.includes('w=')) {
                       image = image.replace(/w=\d+/, 'w=450');
                     }
@@ -1610,7 +1641,8 @@ class PlatformDOMScraperService {
                 const linkCount = document.querySelectorAll('a').length;
                 log('Poll @' + (pollElapsed / 1000).toFixed(1) + 's: productLinks=' + productLinks.length + ', divs=' + divCount + ', links=' + linkCount);
 
-                if (productLinks.length > 0 || pollElapsed >= MAX_WAIT_MS) {
+                const isPDP = window.location.href.includes('/pn/') || window.location.href.includes('/product/');
+                if (productLinks.length > 0 || isPDP || pollElapsed >= MAX_WAIT_MS) {
                   if (observer) { try { observer.disconnect(); } catch(e) {} }
                   doExtract();
                 } else {
@@ -1652,11 +1684,12 @@ class PlatformDOMScraperService {
               }
             })();
           `,
-        },
+      },
 
-        Amazon: {
-          searchUrl: (query) => `https://www.amazon.in/s?k=${encodeURIComponent(query)}`,
-          parseScript: (tokens) => `
+      Amazon: {
+        searchUrl: (query) =>
+          `https://www.amazon.in/s?k=${encodeURIComponent(query)}`,
+        parseScript: (tokens) => `
             (function() {
               const log = (msg) => {
                 try { window.ReactNativeWebView.postMessage(JSON.stringify({type: 'LOG', message: '[Amazon-DOM] ' + msg})); } catch(e) {}
@@ -1674,150 +1707,103 @@ class PlatformDOMScraperService {
 
               const extractProducts = () => {
                 const products = [];
-                const cards = document.querySelectorAll('div.s-result-item, div[data-component-type="s-search-result"], div[data-asin]');
+                // Broaden selectors for different Amazon mobile layouts
+                const cards = document.querySelectorAll('div.s-result-item, div[data-component-type="s-search-result"], div[data-asin], .s-item-container, [class*="s-result-item"]');
+                log('extractProducts: Processing ' + cards.length + ' potential cards');
                 
                 cards.forEach((card, i) => {
                   try {
+                    // Skip hidden or tiny cards
+                    if (card.offsetHeight < 50 && card.offsetWidth < 50) return;
+                    
                     // Quick skip for non-product structural elements
                     if (card.classList && (card.classList.contains('s-widget-container') || card.classList.contains('AdHolder'))) {
-                         if (!card.querySelector('h2')) return;
+                         if (!card.querySelector('h2, .a-size-base-plus, .a-size-medium, .s-line-clamp-2, [class*="title"]')) return;
                     }
 
-                    // Amazon mobile WebView: DOM structures vary wildly between cards.
-                    // Brand and title are often split across multiple disparate elements.
-                    // Gather all potential text fragments and concatenate them.
-                    var nameFragments = [];
-                    var textNodes = card.querySelectorAll('h2, span.a-size-mini, span.a-size-base-plus, span.a-text-normal, span.a-size-medium, .s-title-instructions-style span');
-                    
-                    for (var j = 0; j < textNodes.length; j++) {
-                        var txt = textNodes[j].textContent.trim();
-                        // Filter out empty, very short, prices, and UI garbage
-                        if (txt && txt.length > 2 && !txt.includes('₹') && txt !== 'More like this' && txt !== 'Results') {
-                            // Deduplicate (handles nested elements like h2 > span where both have the same text)
-                            var isDuplicate = false;
-                            for (var k = 0; k < nameFragments.length; k++) {
-                                // If the fragment is already fully contained in an existing fragment, or exactly matches
-                                if (nameFragments[k] === txt || nameFragments[k].indexOf(txt) !== -1 || txt.indexOf(nameFragments[k]) !== -1) {
-                                    // Keep the longer and more descriptive one
-                                    if (txt.length > nameFragments[k].length) {
-                                        nameFragments[k] = txt;
-                                    }
-                                    isDuplicate = true;
-                                    break;
-                                }
-                            }
-                            if (!isDuplicate) {
-                                nameFragments.push(txt);
-                            }
-                        }
-                    }
-                    
-                    var name = nameFragments.join(' ').trim();
-                    
-                    if (i < 5) {
-                        log('Card ' + i + ': Fragments=' + JSON.stringify(nameFragments) + ', FINAL="' + (name || '').substring(0, 80) + '"');
-                    }
-                    
-                    if (!name || name.length < 5) {
-                        return;
-                    }
-                    
-                    const priceWrapper = card.querySelector('.a-price');
-                    const priceEl = priceWrapper ? priceWrapper.querySelector('.a-price-whole') : card.querySelector('.a-price-whole');
-                    let price = 0;
-                    
-                    if (i < 3) {
-                        log('Card ' + i + ': name="' + name.substring(0, 50) + '", hasPriceWrapper=' + !!priceWrapper + ', hasPriceEl=' + !!priceEl + ', priceElText="' + (priceEl ? priceEl.textContent : 'N/A') + '"');
-                    }
-                    
-                    if (!priceEl) {
-                        log('Card ' + i + ': No .a-price-whole found, trying text content for price.');
-                        const rupeeMatch = card.textContent.match(/₹[ ]*([0-9,]+([.][0-9]+)?)/);
-                        if (rupeeMatch) {
-                            price = parseFloat(rupeeMatch[1].replace(/,/g, ''));
-                            log('Card ' + i + ': Price from text content: ' + price);
-                        } else {
-                            log('Card ' + i + ': No price found. text=' + card.textContent.substring(0, 150));
-                            return;
-                        }
+                    // Amazon mobile/Fresh: DOM structures vary.
+                    var name = '';
+                    const titleEl = card.querySelector('h2, .s-line-clamp-2, .s-line-clamp-3, .a-size-base-plus.a-color-base.a-text-normal, [class*="title"], [class*="name"]');
+                    if (titleEl && titleEl.textContent.trim().length > 3) {
+                        name = titleEl.textContent.trim();
                     } else {
-                        const priceMatch = (priceEl.textContent || '').replace(/,/g, '').match(/[0-9]+([.][0-9]+)?/);
+                        // Fallback: Gather all potential text fragments
+                        var nameFragments = [];
+                        var textNodes = card.querySelectorAll('h2, span.a-size-mini, span.a-size-base-plus, span.a-text-normal, span.a-size-medium, .s-title-instructions-style span');
+                        for (var j = 0; j < textNodes.length; j++) {
+                            var txt = textNodes[j].textContent.trim();
+                            if (txt && txt.length > 2 && !txt.includes('₹') && !/^\d+\.?\d*$/.test(txt)) {
+                                if (nameFragments.indexOf(txt) === -1) nameFragments.push(txt);
+                            }
+                        }
+                        name = nameFragments.join(' ').trim();
+                    }
+                    
+                    if (!name || name.length < 3) return;
+                    
+                    let price = 0;
+                    // Mobile/Fresh price structure
+                    const priceEl = card.querySelector('.a-price-whole, span.a-color-price, .a-size-base.a-color-price, [class*="price-whole"]');
+                    if (priceEl) {
+                        const priceMatch = priceEl.textContent.replace(/,/g, '').match(/[0-9]+([.][0-9]+)?/);
                         price = priceMatch ? parseFloat(priceMatch[0]) : 0;
-                        log('Card ' + i + ': Price from .a-price-whole: ' + price);
+                    } 
+                    
+                    if (price <= 0) {
+                        // Desktop price structure fallback
+                        const desktopPrice = card.querySelector('.a-price span.a-offscreen') || card.querySelector('.a-price');
+                        if (desktopPrice) {
+                           const m = desktopPrice.textContent.replace(/,/g, '').match(/[0-9]+([.][0-9]+)?/);
+                           if (m) price = parseFloat(m[0]);
+                        }
                     }
                     
                     if (price <= 0) {
-                        log('Card ' + i + ': Price is zero or negative: ' + price);
+                        const cardText = card.textContent || '';
+                        const rupeeMatch = cardText.match(/[₹₹\u20b9]\s*([0-9,]+([.][0-9]+)?)/);
+                        if (rupeeMatch) {
+                            price = parseFloat(rupeeMatch[1].replace(/,/g, ''));
+                        }
+                    }
+
+                    if (price <= 0) {
+                        if (i < 3) log('Card ' + i + ': No price found for "' + name.substring(0, 30) + '..." (likely unavailable)');
                         return;
                     }
                     
-                    const mrpEl = card.querySelector('.a-text-price .a-offscreen');
-                    const mrpMatch = mrpEl ? (mrpEl.textContent || '').replace(/,/g, '').match(/[0-9]+([.][0-9]+)?/) : null;
+                    const mrpEl = card.querySelector('.a-text-price .a-offscreen, .a-ot-price .a-offscreen, .a-price.a-text-price span');
+                    const mrpMatch = mrpEl ? mrpEl.textContent.replace(/,/g, '').match(/[0-9]+([.][0-9]+)?/) : null;
                     const mrp = mrpMatch ? parseFloat(mrpMatch[0]) : price;
                     
                     let image = '';
-                    const allImgs = card.querySelectorAll('.s-image, img');
-                    
-                    if (i === 0 && allImgs.length > 0) {
-                      const firstImg = allImgs[0];
-                      const attrs = Array.from(firstImg.attributes).map(a => a.name + '="' + a.value + '"').join(', ');
-                      log('DEBUG IMG ATTRS: ' + attrs);
-                    }
-
-                    for (let img of allImgs) {
-                      // Try data-a-dynamic-image (JSON of resolutions)
-                      const dynamicImage = img.getAttribute('data-a-dynamic-image');
-                      if (dynamicImage) {
-                        try {
-                          const urls = Object.keys(JSON.parse(dynamicImage));
-                          if (urls.length > 0) image = urls[urls.length - 1]; // Pick last (usually highest res)
-                        } catch(e) {}
+                    const imgEl = card.querySelector('.s-image, img, [class*="image"] img, [class*="product"] img');
+                    if (imgEl) {
+                      image = imgEl.getAttribute('data-src') || imgEl.getAttribute('srcset')?.split(' ')[0] || imgEl.getAttribute('data-a-hires') || imgEl.src || '';
+                      if (image.includes('data:image') || image.includes('placeholder')) {
+                          image = imgEl.getAttribute('data-original') || imgEl.getAttribute('data-lazy-src') || imgEl.getAttribute('data-a-hires') || image;
                       }
-                      
-                      // Fallback to srcset / src
-                      if (!image) {
-                        const attrs = [img.getAttribute('srcset'), img.getAttribute('data-srcset'), img.getAttribute('src'), img.getAttribute('data-src')];
-                        for (let a of attrs) {
-                          if (!a) continue;
-                          const parts = a.split(',');
-                          for (let p of parts) {
-                             const url = p.trim().split(' ')[0];
-                             if (url && !url.startsWith('data:') && !url.includes('grey-pixel') && !url.includes('.svg') && !url.includes('sprite')) {
-                               image = url;
-                               break;
-                             }
-                          }
-                          if (image) break;
+                    }
+                    if (!image) {
+                        // Fallback: search for any large image in the card
+                        const allImgs = Array.from(card.querySelectorAll('img'));
+                        for (const img of allImgs) {
+                            const src = img.getAttribute('data-src') || img.src;
+                            if (src && !src.includes('data:image') && !src.includes('logo') && !src.includes('icon')) {
+                                image = src;
+                                break;
+                            }
                         }
-                      }
-                      if (image) break;
                     }
 
-                    if (i < 2) log('Card ' + i + ' final image: ' + (image || 'EMPTY'));
-                    if (image) {
-                      image = String(image).trim().replace(/^['\"]|['\"]$/g, '');
-                      if (image.startsWith('//')) image = 'https:' + image;
-                      if (image.startsWith('/')) image = 'https://www.amazon.in' + image;
-                      if (image.includes(' ')) image = image.split(' ')[0];
-                      if (image.includes('&amp;')) image = image.replace(/&amp;/g, '&');
-                    }
-
-                    // Try multiple selectors for product links on Amazon mobile
                     const urlEl = card.querySelector('h2 a') 
                                || card.querySelector('a[href*="/dp/"]') 
                                || card.querySelector('a[href*="/gp/"]')
-                               || card.querySelector('a.a-link-normal[href*="/"]');
-                    // Extract raw path to build an intent
-                    let rawHref = urlEl ? urlEl.getAttribute('href') : '';
-                    // Handle both absolute and relative URLs
-                    let finalUrl = '';
-                    if (rawHref) {
-                        finalUrl = rawHref.startsWith('http') ? rawHref : 'https://www.amazon.in' + rawHref;
-                    }
-                    let deepLink = finalUrl;
+                               || card.querySelector('a.a-link-normal');
                     
-                    if (rawHref) {
-                        // Create an Android intent that strongly requests the Amazon app
+                    let rawHref = urlEl ? urlEl.getAttribute('href') : '';
+                    let finalUrl = rawHref ? (rawHref.startsWith('http') ? rawHref : 'https://www.amazon.in' + rawHref) : '';
+                    let deepLink = finalUrl;
+                    if (rawHref && !rawHref.startsWith('http')) {
                         deepLink = 'intent://www.amazon.in' + rawHref + '#Intent;scheme=https;package=in.amazon.mShop.android.shopping;end';
                     }
 
@@ -1834,24 +1820,26 @@ class PlatformDOMScraperService {
                       weight: '',
                       platform: 'Amazon'
                     });
-                    
-                    if (products.length <= 3) {
-                       log('Extracted valid Amazon product: ' + name + ', image: ' + (image || 'EMPTY'));
-                    }
-                  } catch(e) {}
+                  } catch(e) {
+                    log('Error on card ' + i + ': ' + e.message);
+                  }
                 });
                 return products;
               };
 
               try {
                 let attempt = 0;
-                const maxAttempts = 16;
-                const pollInterval = 500;
+                const maxAttempts = 20;
+                const pollInterval = 600;
                 
                 const poll = () => {
                   attempt++;
-                  const cards = document.querySelectorAll('div.s-result-item, div[data-component-type="s-search-result"], div[data-asin]');
-                  const isCaptcha = document.title.toLowerCase().includes('robot') || !!document.querySelector('form[action*="validateCaptcha"]');
+                  // Only pick elements with a valid ASIN that looks like a product (10 chars usually)
+                  const cards = Array.from(document.querySelectorAll('div[data-asin]')).filter(c => {
+                     const asin = c.getAttribute('data-asin');
+                     return asin && asin.length >= 10 && !asin.startsWith('B0000'); // Filter out some generic headers
+                  });
+                  const isCaptcha = document.title.toLowerCase().includes('robot') || document.title.toLowerCase().includes('captcha') || !!document.querySelector('form[action*="validateCaptcha"]');
                   
                   if (isCaptcha) {
                     log('CAPTCHA detected! Manual intervention might be needed.');
@@ -1861,7 +1849,40 @@ class PlatformDOMScraperService {
 
                   log('Poll @' + (attempt * pollInterval / 1000).toFixed(1) + 's: DOM cards=' + cards.length + ', title=' + document.title.substring(0,30));
                   
-                  if (cards.length > 0) {
+                  if (cards.length === 0 && attempt > 3) {
+                    const titleEl = document.querySelector('#productTitle, #title');
+                    if (titleEl && titleEl.textContent) {
+                      let name = titleEl.textContent.trim();
+                      let priceWhole = document.querySelector('.a-price-whole, span.a-color-price, #priceblock_ourprice, .a-price');
+                      let price = 0;
+                      if (priceWhole) {
+                          const match = priceWhole.textContent.replace(/,/g, '').match(/[0-9]+([.][0-9]+)?/);
+                          if (match) price = parseFloat(match[0]);
+                      }
+                      let image = '';
+                      const img = document.querySelector('#landingImage, #imgBlkFront');
+                      if (img) image = img.getAttribute('data-old-hires') || img.src;
+                      
+                      if (name && price > 0) {
+                          sendResults([{
+                              product_name: name,
+                              raw_product_name: name,
+                              brand: '',
+                              price: price,
+                              mrp: price,
+                              image_url: image || '',
+                              product_url: window.location.href,
+                              deep_link: window.location.href,
+                              in_stock: true,
+                              weight: '',
+                              platform: 'Amazon'
+                          }], true, null);
+                          return;
+                      }
+                    }
+                  }
+
+                  if (cards.length > 5 || (cards.length > 0 && attempt > 4)) {
                     const products = extractProducts();
                     log('Extracted ' + products.length + ' valid products from ' + cards.length + ' DOM cards');
                     if (products.length > 0) {
@@ -1871,41 +1892,51 @@ class PlatformDOMScraperService {
                   }
                   
                   if (attempt >= maxAttempts) {
-                    log('Timeout: no Amazon search results found after ' + (maxAttempts * pollInterval / 1000) + 's');
-                    sendResults([], false, 'No Amazon search results after timeout');
+                    log('Timeout: found ' + cards.length + ' cards, but 0 valid products after ' + (maxAttempts * pollInterval / 1000) + 's');
+                    const lastTry = extractProducts();
+                    sendResults(lastTry, lastTry.length > 0, lastTry.length === 0 ? 'No Amazon search results after timeout' : null);
                     return;
                   }
                   
                   setTimeout(poll, pollInterval);
                 };
                 
-                setTimeout(poll, 1500);
+                setTimeout(poll, 1200);
               } catch(e) {
-                log('Error: ' + e.message);
+                log('FATAL Error: ' + e.message);
                 sendResults([], false, e.message);
               }
             })();
           `,
-        },
+      },
 
-        Flipkart: {
-          searchUrl: (query) => `https://www.flipkart.com/search?q=${encodeURIComponent(query)}`,
-          parseScript: (tokens) => `
+      Flipkart: {
+        searchUrl: (query) =>
+          `https://www.flipkart.com/search?q=${encodeURIComponent(query)}`,
+        parseScript: (tokens) => `
             (function() {
               const log = (msg) => {
-                try { window.ReactNativeWebView.postMessage(JSON.stringify({type: 'LOG', message: '[Flipkart-DOM] ' + msg})); } catch(e) {}
+                try { 
+                  const send = window.__rnMsg || (window.ReactNativeWebView && window.ReactNativeWebView.postMessage.bind(window.ReactNativeWebView));
+                  if (send) send(JSON.stringify({type: 'LOG', message: '[Flipkart-DOM] ' + msg})); 
+                } catch(e) {}
               };
 
               const sendResults = (products, success, error) => {
                 log('Sending ' + (products ? products.length : 0) + ' results (success=' + success + ')');
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'SEARCH_RESULTS',
-                  platform: 'Flipkart',
-                  sessionId: window.__CompareZ_SESSION_ID__ || null,
-                  success: success,
-                  products: products,
-                  error: error || null
-                }));
+                try {
+                  const send = window.__rnMsg || (window.ReactNativeWebView && window.ReactNativeWebView.postMessage.bind(window.ReactNativeWebView));
+                  if (send) {
+                    send(JSON.stringify({
+                      type: 'SEARCH_RESULTS',
+                      platform: 'Flipkart',
+                      sessionId: window.__CompareZ_SESSION_ID__ || null,
+                      success: success,
+                      products: products,
+                      error: error || null
+                    }));
+                  }
+                } catch (e) { log('Error sending results: ' + e.message); }
               };
 
               const extractProducts = () => {
@@ -1939,7 +1970,13 @@ class PlatformDOMScraperService {
                     if (title && title.length > group.name.length) group.name = title;
 
                     const img = a.querySelector('img');
-                    if (img && img.src && !group.image) group.image = img.src;
+                    if (img && !group.image) {
+                        let src = img.getAttribute('data-src') || img.getAttribute('srcset')?.split(' ')[0] || img.src || '';
+                        if (src.includes('data:image') || src.includes('placeholder')) {
+                            src = img.getAttribute('data-original') || img.getAttribute('data-lazy-src') || src;
+                        }
+                        if (src) group.image = src;
+                    }
 
                     // .sl_M_D is a common grid container, div[data-id] is common in list view
                     // Also check for k7wcnx (link itself as card)
@@ -2019,9 +2056,9 @@ class PlatformDOMScraperService {
                     // C: Last resort regex - ONLY if still 0
                     if (price <= 0) {
                       // Split by ₹ to avoid smashing numbers
-                      const parts = cardText.split(/[₹\u20b9]/);
+                      const parts = cardText.split(/[₹\\u20b9]/);
                       const vals = parts.map(p => {
-                        const m = p.match(/^([0-9,]+(?:\.[0-9]+)?)/);
+                        const m = p.match(/^([0-9,]+(?:\\.[0-9]+)?)/);
                         return m ? parseVal(m[1]) : 0;
                       }).filter(v => v > 0);
 
@@ -2039,7 +2076,14 @@ class PlatformDOMScraperService {
                     let image = group.image;
                     if (!image) {
                       const imgEl = card.querySelector('img');
-                      image = imgEl ? imgEl.src : '';
+                      if (imgEl) {
+                          image = imgEl.getAttribute('data-src') || imgEl.getAttribute('srcset')?.split(' ')[0] || imgEl.src || '';
+                          if (image.includes('data:image') || image.includes('placeholder')) {
+                              image = imgEl.getAttribute('data-original') || imgEl.getAttribute('data-lazy-src') || image;
+                          }
+                      } else {
+                          image = '';
+                      }
                     }
 
                     products.push({
@@ -2059,50 +2103,229 @@ class PlatformDOMScraperService {
                   }
                 });
                 
+                
+                // Grocery fallback: Flipkart grocery pages use div[data-id] cards without /p/ links
+                if (products.length === 0) {
+                  log('Trying grocery card fallback...');
+                  const groceryCards = document.querySelectorAll('div[data-id], ._1AtVbE, .CXW8mj, ._4ddWXP');
+                  log('Grocery cards found: ' + groceryCards.length);
+                  groceryCards.forEach(card => {
+                    try {
+                      const parseVal = (s) => parseFloat(String(s || '').replace(/[^0-9.]/g, '')) || 0;
+                      const nameEl = card.querySelector('a[title], .KzDlHZ, ._4rR01T, .IRpwTa, [class*="title" i]');
+                      const name = nameEl ? (nameEl.getAttribute('title') || nameEl.textContent).trim() : '';
+                      if (!name || name.length < 5) return;
+
+                      const cardText = card.textContent || '';
+                      if (!/[₹\u20b9]/.test(cardText)) return;
+
+                      // Split on ₹ to get price candidates
+                      const parts = cardText.split(/[₹\u20b9]/);
+                      const vals = parts.map(p => {
+                        const m = p.match(/^([0-9,]+(?:\.[0-9]+)?)/);
+                        return m ? parseVal(m[1]) : 0;
+                      }).filter(v => v > 0 && v < 100000);
+
+                      if (!vals.length) return;
+                      const price = vals[0];
+                      const mrp = vals.length > 1 ? Math.max(...vals) : price;
+
+                      const imgEl = card.querySelector('img');
+                      const image = imgEl ? (imgEl.getAttribute('data-src') || imgEl.src || '') : '';
+                      const linkEl = card.querySelector('a[href*="pid="], a[href*="/p/"], a[href*="/dl/"]');
+                      const url = linkEl ? linkEl.href : '';
+
+                      products.push({
+                        product_name: name,
+                        raw_product_name: name,
+                        brand: '',
+                        price,
+                        mrp,
+                        image_url: image,
+                        product_url: url,
+                        in_stock: !cardText.toLowerCase().includes('out of stock'),
+                        weight: '',
+                        platform: 'Flipkart'
+                      });
+                    } catch(e) {}
+                  });
+                  log('Grocery fallback extracted: ' + products.length + ' products');
+                }
+
                 return products;
               };
 
+              // Helper: parse products from Flipkart's internal API JSON
+              const parseApiData = (raw) => {
+                const products = [];
+                try {
+                  const text = typeof raw === 'string' ? raw : JSON.stringify(raw);
+                  // Flipkart API embeds product data in deeply nested structures.
+                  // We scan for objects that have productId + title/name + price fields.
+                  const pidRegex = /"productId"\\s*:\\s*"([^"]+)"/g;
+                  const seen = new Set();
+                  let match;
+                  while ((match = pidRegex.exec(text)) !== null) {
+                    const pid = match[1];
+                    if (seen.has(pid)) continue;
+                    seen.add(pid);
+
+                    // Extract a window around this productId to find associated fields
+                    const start = Math.max(0, match.index - 800);
+                    const end = Math.min(text.length, match.index + 2000);
+                    const chunk = text.substring(start, end);
+
+                    const titleMatch = chunk.match(/"title"\\s*:\\s*"([^"]{5,200})"/);
+                    if (!titleMatch) continue;
+                    const name = titleMatch[1].replace(/\\\\u[\\dA-Fa-f]{4}/g, '').replace(/\\\\"/g, '"');
+
+                    // Price: look for finalPrice, value, or price fields
+                    const priceMatch = chunk.match(/"(?:finalPrice|decimalValue|value|sellingPrice)"\\s*:\\s*(\\d+(?:\\.\\d+)?)/);
+                    const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
+                    if (price <= 0) continue;
+
+                    const mrpMatch = chunk.match(/"(?:mrp|maximumRetailPrice)"\\s*:\\s*(\\d+(?:\\.\\d+)?)/);
+                    const mrp = mrpMatch ? parseFloat(mrpMatch[1]) : price;
+
+                    const imgMatch = chunk.match(/"url"\\s*:\\s*"(https?:\\/\\/[^"]*?(?:\\.jpg|\\.png|\\.webp)[^"]*)"/i);
+                    const image = imgMatch ? imgMatch[1].replace(/\\\\u002F/g, '/') : '';
+
+                    products.push({
+                      product_name: name,
+                      raw_product_name: name,
+                      brand: '',
+                      price: price,
+                      mrp: mrp > price ? mrp : price,
+                      image_url: image,
+                      product_url: 'https://www.flipkart.com/product/p?pid=' + pid,
+                      in_stock: true,
+                      weight: '',
+                      platform: 'Flipkart'
+                    });
+                  }
+                } catch(e) {
+                  log('parseApiData error: ' + e.message);
+                }
+                return products;
+              };
+
+              // Helper: directly fetch Flipkart's search API from within WebView context
+              const tryApiFetch = (query) => {
+                return new Promise((resolve) => {
+                  const apiUrl = 'https://2.rome.api.flipkart.com/api/4/page/fetch';
+                  const payload = {
+                    pageUri: '/search?q=' + encodeURIComponent(query) + '&otracker=search&otracker1=search',
+                    pageContext: { fetchSeoData: true },
+                    requestContext: { type: 'BROWSE_PAGE' }
+                  };
+                  log('Trying direct API fetch: ' + apiUrl);
+                  fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                      'Accept': 'application/json',
+                      'Accept-Language': 'en-US,en;q=0.9',
+                      'Content-Type': 'application/json',
+                      'X-Referer': window.location.href,
+                      'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(payload),
+                    credentials: 'include'
+                  })
+                  .then(function(r) {
+                    log('API status: ' + r.status);
+                    return r.text();
+                  })
+                  .then(function(text) {
+                    log('API response length: ' + text.length);
+                    resolve(text);
+                  })
+                  .catch(function(e) {
+                    log('API fetch failed: ' + e.message);
+                    resolve(null);
+                  });
+                });
+              };
+
               try {
+                // Read securely passed query first, fall back to URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const searchQuery = window.__CX_SEARCH_QUERY__ || urlParams.get('q') || '';
+                log('Search query: ' + searchQuery);
+
                 let attempt = 0;
-                const maxAttempts = 30; // Increased to 15s
+                const maxAttempts = 16; // 8s max for DOM, then fall back to API
                 const pollInterval = 500;
+                let apiTriggered = false;
                 
                 const poll = () => {
-                  attempt++;
-                  // Broaden link selector to include any product-like ID or listing
-                  const links = document.querySelectorAll('a[href*="/p/"], a[href*="pid="], a[href*="/dl/"], a.k7wcnx');
-                  const bodyTxt = document.body.textContent || '';
-                  const rupeePresent = bodyTxt.includes('₹') || bodyTxt.includes('\u20b9');
-                  log('Poll @' + (attempt * pollInterval / 1000).toFixed(1) + 's: links=' + links.length + ', hasRupee=' + rupeePresent + ', title=' + document.title.substring(0,25));
-                  
-                  if (links.length > 0 && rupeePresent) {
-                    const products = extractProducts();
-                    log('Parsed ' + products.length + ' products');
-                    if (products.length > 0) {
-                      sendResults(products, true, null);
+                  try {
+                    attempt++;
+                    
+                    // NUCLEAR OPTION: Trigger direct API fetch immediately on first attempt
+                    if (attempt === 1 && searchQuery && !apiTriggered) {
+                      apiTriggered = true;
+                      log('Triggering Nuclear Option: Direct Rome API fetch...');
+                      tryApiFetch(searchQuery).then(function(apiText) {
+                        if (apiText && apiText.length > 500) {
+                          const apiProducts = parseApiData(apiText);
+                          if (apiProducts && apiProducts.length > 0) {
+                            log('Nuclear Option successful: ' + apiProducts.length + ' products found');
+                            sendResults(apiProducts, true, null);
+                            return;
+                          }
+                        }
+                        log('Nuclear Option returned no products, falling back to DOM/Polling...');
+                      }).catch(function(e) {
+                        log('Nuclear Option error: ' + e.message);
+                      });
+                    }
+
+                    // Visual feedback/scroll to keep hydration alive
+                    window.scrollTo(0, Math.min(attempt * 500, 3000));
+                    
+                    const links = document.querySelectorAll(
+                      'a[href*="/p/"], a[href*="pid="], a[href*="/dl/"], a[href*="/itm/"]'
+                    );
+                    const bodyTxt = document.body ? document.body.textContent : '';
+                    const rupeePresent = /[₹\\u20b9]|\\bRs\\.|\\bMRP\\b/i.test(bodyTxt);
+
+                    log('Poll @' + (attempt * pollInterval / 1000).toFixed(1) + 
+                        's: links=' + links.length + ', hasRupee=' + rupeePresent + 
+                        ', readyState=' + document.readyState);
+
+                    // If DOM is ready, try extraction
+                    if (links.length > 5 && rupeePresent) {
+                      const products = extractProducts();
+                      if (products.length > 0) {
+                        log('DOM parsing succeeded with ' + products.length + ' products');
+                        sendResults(products, true, null);
+                        return;
+                      }
+                    }
+
+                    if (attempt >= maxAttempts) {
+                      log('Timeout reached. Final DOM check...');
+                      const finalChance = extractProducts();
+                      sendResults(finalChance, finalChance.length > 0, 
+                        finalChance.length === 0 ? 'Flipkart extraction failed after API and DOM attempts' : null);
                       return;
                     }
+
+                    setTimeout(poll, pollInterval);
+                  } catch (err) {
+                    log('Poll error: ' + err.message);
+                    setTimeout(poll, pollInterval);
                   }
-                  
-                  if (attempt >= maxAttempts) {
-                    log('Timeout: no Flipkart search results found after ' + (maxAttempts * pollInterval / 1000) + 's');
-                    const lastChance = extractProducts();
-                    sendResults(lastChance, lastChance.length > 0, lastChance.length === 0 ? 'No Flipkart results after timeout' : null);
-                    return;
-                  }
-                  
-                  setTimeout(poll, pollInterval);
                 };
                 
-                setTimeout(poll, 1500);
+                setTimeout(poll, 200);
               } catch(e) {
                 log('Error: ' + e.message);
                 sendResults([], false, e.message);
               }
             })();
           `,
-        },
-
+      },
     };
   }
 

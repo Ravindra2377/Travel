@@ -5,8 +5,8 @@ import {
   StyleSheet,
   Animated,
   TouchableWithoutFeedback,
-  Image,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import GlassCard from "./GlassCard";
 import { COLORS, SPACING, RADIUS, FONTS } from "../config/theme";
@@ -29,16 +29,6 @@ const formatPrice = (value) => {
   }).format(numeric);
 };
 
-const normalizeImageUrl = (rawUrl) => {
-  if (!rawUrl || typeof rawUrl !== "string") return "";
-  let url = rawUrl.trim().replace(/^['\"]|['\"]$/g, "");
-  if (!url || url.startsWith("data:")) return "";
-  if (url.startsWith("//")) url = `https:${url}`;
-  if (url.includes(" ")) url = url.split(" ")[0];
-  if (url.includes("&amp;")) url = url.replace(/&amp;/g, "&");
-  return url;
-};
-
 const ProductCard = ({ product, onPress }) => {
   const {
     name = "Product",
@@ -50,20 +40,13 @@ const ProductCard = ({ product, onPress }) => {
     discount,
     bestPlatform = "",
     image_url: imageURL,
-    listings = [],
+    imageCandidates = [],
   } = product;
-
-  const imageCandidates = useMemo(() => {
-    const candidates = [imageURL, ...listings.map((listing) => listing?.image_url)]
-      .map(normalizeImageUrl)
-      .filter(Boolean);
-    return Array.from(new Set(candidates));
-  }, [imageURL, listings]);
 
   const [imageError, setImageError] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
 
-  const resolvedImageURL = imageCandidates[imageIndex] || "";
+  const resolvedImageURL = imageCandidates[imageIndex] || imageURL || "";
 
   const effectivePrice = Number(price) > 0 ? Number(price) : 0;
   const effectiveOriginalPrice =
@@ -116,7 +99,8 @@ const ProductCard = ({ product, onPress }) => {
                 <Image
                   source={{ uri: resolvedImageURL }}
                   style={styles.image}
-                  resizeMode="contain"
+                  contentFit="contain"
+                  transition={200}
                   onError={() => {
                     if (imageIndex < imageCandidates.length - 1) {
                       setImageIndex((prev) => prev + 1);
@@ -146,7 +130,7 @@ const ProductCard = ({ product, onPress }) => {
 
               <View style={styles.priceRow}>
                 <View>
-                  <Text style={styles.priceLabel}>BEST PRICE</Text>
+                  <Text style={[styles.priceLabel, { color: COLORS.accent }]}>BEST PRICE</Text>
                   <Text style={styles.price}>₹{formatPrice(effectivePrice)}</Text>
                 </View>
 
@@ -160,13 +144,13 @@ const ProductCard = ({ product, onPress }) => {
                 ) : null}
 
                 {savingsValue > 0 ? (
-                  <View style={styles.savingsChip}>
+                  <View style={[styles.savingsChip, { backgroundColor: COLORS.savings, paddingHorizontal: 10 }]}>
                     <Ionicons
                       name="trending-down"
                       size={11}
-                      color={COLORS.savings}
+                      color="#FFF"
                     />
-                    <Text style={styles.savingsText}>
+                    <Text style={[styles.savingsText, { color: "#FFF" }]}>
                       Save ₹{formatPrice(savingsValue)}
                     </Text>
                   </View>

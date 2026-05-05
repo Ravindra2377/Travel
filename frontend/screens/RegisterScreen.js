@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { AuthContext } from "../context/AuthContext";
@@ -19,6 +20,7 @@ const RegisterScreen = ({ navigation }) => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const { register } = useContext(AuthContext);
 
   const handleRegister = () => {
@@ -30,8 +32,9 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" />
 
       <LinearGradient colors={COLORS.gradientHero} style={styles.heroBg} />
 
@@ -84,11 +87,32 @@ const RegisterScreen = ({ navigation }) => {
             secureTextEntry={!showPassword}
           />
 
+          <View style={styles.termsRow}>
+            <TouchableOpacity 
+              style={styles.checkbox}
+              onPress={() => setAgreed(!agreed)}
+              activeOpacity={0.7}
+            >
+              <Ionicons 
+                name={agreed ? "checkbox" : "square-outline"} 
+                size={22} 
+                color={agreed ? COLORS.textAccent : COLORS.textTertiary} 
+              />
+            </TouchableOpacity>
+            <View style={styles.termsTextWrap}>
+              <Text style={styles.termsText}>I agree to the </Text>
+              <TouchableOpacity onPress={() => navigation.navigate("Terms")}>
+                <Text style={styles.termsLink}>Terms & Conditions</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <AppButton
             label="Create Account"
             onPress={handleRegister}
             icon="person-add-outline"
-            style={styles.createBtn}
+            style={[styles.createBtn, !agreed && { opacity: 0.5 }]}
+            disabled={!agreed}
           />
 
           <View style={styles.signInRow}>
@@ -99,11 +123,16 @@ const RegisterScreen = ({ navigation }) => {
           </View>
         </SurfaceCard>
       </KeyboardAvoidingView>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.backgroundDark,
@@ -148,6 +177,30 @@ const styles = StyleSheet.create({
   signInLink: {
     ...FONTS.bodyBold,
     color: COLORS.textAccent,
+  },
+  termsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: SPACING.md,
+    marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.xs,
+  },
+  checkbox: {
+    marginRight: SPACING.sm,
+  },
+  termsTextWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  termsText: {
+    ...FONTS.caption,
+    color: COLORS.textSecondary,
+  },
+  termsLink: {
+    ...FONTS.captionBold,
+    color: COLORS.textAccent,
+    textDecorationLine: "underline",
   },
 });
 

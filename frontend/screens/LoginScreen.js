@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
@@ -21,8 +22,9 @@ const LoginScreen = ({ navigation }) => {
   const { login } = useContext(AuthContext);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" />
 
       <LinearGradient colors={COLORS.gradientHero} style={styles.heroBg} />
 
@@ -47,6 +49,7 @@ const LoginScreen = ({ navigation }) => {
             onChangeText={setEmail}
             placeholder="Email address"
             keyboardType="email-address"
+            testID="loginEmail"
           />
 
           <TextField
@@ -55,6 +58,7 @@ const LoginScreen = ({ navigation }) => {
             onChangeText={setPassword}
             placeholder="Password"
             secureTextEntry={!showPassword}
+            testID="loginPassword"
             rightAccessory={
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
@@ -71,6 +75,7 @@ const LoginScreen = ({ navigation }) => {
             onPress={() => login(email, password)}
             icon="arrow-forward"
             style={styles.signInBtn}
+            testID="loginBtn"
           />
 
           <View style={styles.registerRow}>
@@ -81,11 +86,16 @@ const LoginScreen = ({ navigation }) => {
           </View>
         </SurfaceCard>
       </KeyboardAvoidingView>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.backgroundDark,

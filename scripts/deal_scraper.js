@@ -1,551 +1,534 @@
 /**
- * ============================================================
- *  CompareX Deal Scraper v3.0 — Deals Pages First
+ * deal_scraper.js — GitHub Actions Deal Pipeline
  *
- *  Instead of searching for individual products, this scrapes
- *  the DEDICATED DEALS/OFFERS pages on each platform where
- *  discounted products are already curated.
+ * Runs every 4 hours via cron. Scrapes deal/offer pages from
+ * Amazon, Flipkart, Blinkit, Zepto, and BigBasket using Playwright.
+ * Scores each deal with the HOTDEAL algorithm and uploads to the backend.
  *
- *  Platforms:
- *    Amazon    → amazon.in/deals  (Today's Deals)
- *    Flipkart  → flipkart.com/offers-store
- *    BigBasket → bigbasket.com/cl/offers/
- *    Blinkit   → blinkit.com (homepage deals banner)
- *    Zepto     → zeptonow.com (offers section)
- * ============================================================
+ * Usage:  node scripts/deal_scraper.js
+ * Env:    BACKEND_URL (required)
  */
 
-const { chromium } = require('playwright');
-const https = require('https');
-const fs = require('fs');
+const { chromium } = require("playwright");
+const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
 
-// ── CONFIG ────────────────────────────────────────────────────────
-const BACKEND_URL = process.env.BACKEND_URL;
-const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
-const PINCODE = '560001';
-const CITY = 'Bengaluru';
+// ── Configuration ────────────────────────────────────────
+const BACKEND_URL =
+  process.env.BACKEND_URL || "https://comparex-8ztd.onrender.com";
 
-const STEALTH_HEADERS = {
-  'User-Agent':
-    'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 ' +
-    '(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-  'Accept-Language': 'en-IN,en;q=0.9,hi;q=0.8',
-  'Accept':
-    'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-  'sec-ch-ua': '"Chromium";v="120", "Not_A Brand";v="8"',
-  'sec-ch-ua-mobile': '?1',
-  'sec-ch-ua-platform': '"Android"',
-};
+// Common grocery search terms to discover deals for
+const SEARCH_QUERIES = [
+  "Eggs",
+  "Milk",
+  "Rice",
+  "Atta",
+  "Oil",
+  "Bread",
+  "Paneer",
+  "Chicken",
+  "Sugar",
+  "Dal",
+  "Butter",
+  "Cheese",
+  "Curd",
+  "Tea",
+  "Coffee",
+];
 
-// ── UTILITIES ─────────────────────────────────────────────────────
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const PLATFORMS = [
+  {
+    name: "Amazon",
+    searchUrl: (q) =>
+      `https://www.amazon.in/s?k=${encodeURIComponent(q)}&i=grocery`,
+    parseProducts: async (page) => {
+      return page.evaluate(() => {
+        const cards = document.querySelectorAll(
+          '[data-component-type="s-search-result"]'
+        );
+        return Array.from(cards)
+          .slice(0, 15)
+          .map((card) => {
+            const titleEl = card.querySelector("h2 a span");
+            const priceWhole = card.querySelector(".a-price-whole");
+            const mrpEl = card.querySelector(
+              ".a-price.a-text-price .a-offscreen"
+            );
+            const imgEl = card.querySelector("img.s-image");
+            const ratingEl = card.querySelector(".a-icon-alt");
+            const linkEl = card.querySelector("h2 a");
 
-function clean(str) {
-  return (str || '').replace(/\s+/g, ' ').trim();
-}
+            const price = priceWhole
+              ? parseFloat(priceWhole.textContent.replace(/[^0-9.]/g, ""))
+              : 0;
+            const mrpText = mrpEl ? mrpEl.textContent : "";
+            const mrp = mrpText
+              ? parseFloat(mrpText.replace(/[^0-9.]/g, ""))
+              : price;
+            const ratingText = ratingEl ? ratingEl.textContent : "";
+            const rating = ratingText
+              ? parseFloat(ratingText.split(" ")[0])
+              : 0;
 
-// Proxies a URL through ScraperAPI if key is available
-function getProxyUrl(targetUrl, useRender = false) {
-  if (!SCRAPER_API_KEY) return targetUrl;
-  return `https://api.scraperapi.com/?api_key=${SCRAPER_API_KEY}&country_code=in${useRender ? '&render=true' : ''}&url=${encodeURIComponent(targetUrl)}`;
-}
+            return {
+              product_name: titleEl ? titleEl.textContent.trim() : "",
+              price,
+              mrp: mrp || price,
+              image_url: imgEl ? imgEl.src : "",
+              rating,
+              product_url: linkEl
+                ? "https://www.amazon.in" + linkEl.getAttribute("href")
+                : "",
+            };
+          })
+          .filter((p) => p.product_name && p.price > 0);
+      });
+    },
+  },
+  {
+    name: "Flipkart",
+    searchUrl: (q) =>
+      `https://www.flipkart.com/search?q=${encodeURIComponent(q)}&otracker=search&as-show=on&as=off`,
+    parseProducts: async (page) => {
+      return page.evaluate(() => {
+        // Flipkart uses various card selectors
+        const cards = document.querySelectorAll(
+          "._1AtVbE, [data-id], ._4ddWXP, ._2kHMtA"
+        );
+        const results = [];
 
-// Proxies a URL through ScraperAPI for Node.js https/axios requests
-function getScraperApiOptions(hostname, path, method = 'GET') {
-  if (!SCRAPER_API_KEY) {
-    return { hostname, path, method };
-  }
-  const targetUrl = `https://${hostname}${path}`;
-  return {
-    hostname: 'api.scraperapi.com',
-    path: `/?api_key=${SCRAPER_API_KEY}&country_code=in&url=${encodeURIComponent(targetUrl)}`,
-    method
-  };
-}
+        cards.forEach((card) => {
+          const titleEl =
+            card.querySelector("._4rR01T") ||
+            card.querySelector(".s1Q9rs") ||
+            card.querySelector("a.IRpwTa");
+          const priceEl =
+            card.querySelector("._30jeq3") ||
+            card.querySelector("._1_WHN1");
+          const mrpEl =
+            card.querySelector("._3I9_wc") ||
+            card.querySelector("._27UcVY");
+          const imgEl = card.querySelector("img._396cs4, img._2r_T1I");
+          const linkEl = card.querySelector("a._1fQZEK, a.s1Q9rs, a.IRpwTa");
 
-function calculateHotScore(deal) {
-  let score = 0;
-  const disc = deal.discountPercent || 0;
-  score += Math.min(disc * 0.6, 30);
-  score += deal.isFlashDeal ? 20 : 0;
-  score += deal.isLimitedStock ? 15 : 5;
-  score += Math.min(Math.log10((deal.ratingsCount || 1) + 1) * 4, 20);
-  score += Math.min(disc / 5, 10);
-  score += 10; // freshness: just scraped
-  return Math.min(Math.round(score), 100);
-}
+          const priceText = priceEl ? priceEl.textContent : "";
+          const price = priceText
+            ? parseFloat(priceText.replace(/[^0-9.]/g, ""))
+            : 0;
+          const mrpText = mrpEl ? mrpEl.textContent : "";
+          const mrp = mrpText
+            ? parseFloat(mrpText.replace(/[^0-9.]/g, ""))
+            : price;
 
-async function newStealthPage(browser) {
-  const page = await browser.newPage();
-  await page.setExtraHTTPHeaders(STEALTH_HEADERS);
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
-    Object.defineProperty(navigator, 'languages', { get: () => ['en-IN', 'en'] });
-    window.chrome = { runtime: {} };
-  });
-  return page;
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  AMAZON — Today's Deals page
-// ══════════════════════════════════════════════════════════════════
-async function scrapeAmazonDeals(browser) {
-  const page = await newStealthPage(browser);
-  const results = [];
-  const dealPages = [
-    'https://www.amazon.in/deals?ref_=nav_cs_gb',
-    'https://www.amazon.in/gp/browse.html?node=14528985031', // Grocery deals
-  ];
-
-  for (const url of dealPages) {
-    try {
-      console.log(`   📄 Loading: ${url.split('?')[0]}`);
-      const proxyUrl = getProxyUrl(url, true);
-      await page.goto(proxyUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-
-      await page.waitForSelector(
-        '[data-component-type="s-search-result"], .DealCard-module, [class*="deal"], [class*="Deal"]',
-        { timeout: 12000 }
-      ).catch(() => null);
-
-      await delay(rand(1500, 2500));
-
-      const items = await page.evaluate(() => {
-        const deals = [];
-        document.querySelectorAll(
-          '.DealCard-module__dealCard, [data-testid="deal-card"], [class*="DealGridItem"]'
-        ).forEach((el) => {
-          const title = el.querySelector('[class*="Title"], [class*="title"], h2, h3')?.innerText || '';
-          const priceEl = el.querySelector('[class*="Price"], [class*="price"], .a-price-whole');
-          const price = parseFloat((priceEl?.innerText || '0').replace(/[₹,\s]/g, ''));
-          const discEl = el.querySelector('[class*="discount"], [class*="savings"], [class*="off"]');
-          const discText = discEl?.innerText || '';
-          const discMatch = discText.match(/(\d+)\s*%/);
-          const discPct = discMatch ? parseInt(discMatch[1]) : 0;
-          const img = el.querySelector('img')?.src || '';
-          const badge = el.querySelector('[class*="badge"], [class*="Badge"]')?.innerText || '';
-
-          if (title && price > 0) {
-            deals.push({
-              title: title.trim().slice(0, 120),
-              currentPrice: price,
-              originalPrice: discPct > 0 ? Math.round(price / (1 - discPct / 100)) : price,
-              discountPercent: discPct,
-              isFlashDeal: badge.toLowerCase().includes('deal') || badge.toLowerCase().includes('lightning'),
-              imageUrl: img,
+          if (titleEl && price > 0) {
+            results.push({
+              product_name: titleEl.textContent.trim(),
+              price,
+              mrp: mrp || price,
+              image_url: imgEl ? imgEl.src : "",
+              product_url: linkEl
+                ? "https://www.flipkart.com" + linkEl.getAttribute("href")
+                : "",
             });
           }
         });
 
-        document.querySelectorAll('[data-component-type="s-search-result"]').forEach((el) => {
-          const titleEl = el.querySelector('h2 span') || el.querySelector('.a-size-medium');
-          const priceWhole = el.querySelector('.a-price-whole');
-          const priceOld = el.querySelector('.a-price.a-text-price .a-offscreen');
-          const imgEl = el.querySelector('.s-image');
-          const badge = el.querySelector('.a-badge-label');
-          const currentPrice = parseFloat((priceWhole?.innerText || '0').replace(/,/g, ''));
-          const originalPrice = parseFloat((priceOld?.innerText || '0').replace(/[₹,]/g, ''));
-          const disc = originalPrice > 0 ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100) : 0;
-          if (titleEl && currentPrice > 0 && disc >= 5) {
-            deals.push({
-              title: titleEl.innerText.trim().slice(0, 120),
-              currentPrice,
-              originalPrice: originalPrice || currentPrice,
-              discountPercent: disc,
-              isFlashDeal: (badge?.innerText || '').toLowerCase().includes('deal'),
-              imageUrl: imgEl?.src || '',
-            });
-          }
-        });
-        return deals;
+        return results.slice(0, 15);
+      });
+    },
+  },
+  {
+    name: "BigBasket",
+    searchUrl: (q) =>
+      `https://www.bigbasket.com/ps/?q=${encodeURIComponent(q)}`,
+    parseProducts: async (page) => {
+      // BigBasket also has a listing API we can try
+      const query = await page.evaluate(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("q") || "";
       });
 
-      items.forEach((d) => results.push({ ...d, platform: 'Amazon' }));
-      console.log(`     ✅ ${items.length} deals found`);
-    } catch (err) {
-      console.error(`     ❌ ${err.message.split('\n')[0]}`);
-    }
-  }
-  await page.close();
-  return results;
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  FLIPKART — Offers Store page
-// ══════════════════════════════════════════════════════════════════
-async function scrapeFlipkartDeals() {
-  return new Promise((resolve) => {
-    const results = [];
-    const baseOptions = getScraperApiOptions('www.flipkart.com', '/api/6/page/fetch?pageUri=%2Foffers-store&type=PAGE', 'GET');
-    const options = {
-      ...baseOptions,
-      headers: {
-        'User-Agent': STEALTH_HEADERS['User-Agent'],
-        'X-User-Agent': 'Mozilla/5.0 (Linux; Android 13) FKUA/app/42/42.0/android;V2',
-        Accept: 'application/json',
-        Referer: 'https://www.flipkart.com/offers-store',
-      },
-    };
-
-    https.get(options, (res) => {
-      let body = '';
-      res.on('data', (c) => (body += c));
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(body);
-          const findProducts = (obj) => {
-            if (!obj || typeof obj !== 'object') return;
-            if (Array.isArray(obj)) { obj.forEach(findProducts); return; }
-            if (obj.title && (obj.finalPrice || obj.price || obj.mrp)) {
-              const price = obj.finalPrice?.value || obj.price?.value || obj.price || 0;
-              const mrp = obj.mrp?.value || obj.mrp || price;
-              const disc = mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
-              if (price > 0 && disc >= 5) {
-                results.push({
-                  title: clean(typeof obj.title === 'string' ? obj.title : obj.title?.text || ''),
-                  currentPrice: price,
-                  originalPrice: mrp,
-                  discountPercent: disc,
-                  isFlashDeal: !!(obj.offerTag || obj.dealTag),
-                  avgRating: obj.rating?.average || 0,
-                  ratingsCount: obj.rating?.count || 0,
-                  imageUrl: obj.image?.url || obj.images?.[0]?.url || '',
-                  platform: 'Flipkart',
-                });
-              }
-            }
-            Object.values(obj).forEach(findProducts);
-          };
-          findProducts(json);
-        } catch (_) {}
-        resolve(results.slice(0, 40));
-      });
-    }).on('error', () => resolve(results));
-  });
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  BIGBASKET — Offers / Savings page
-// ══════════════════════════════════════════════════════════════════
-async function scrapeBigBasketDeals() {
-  return new Promise((resolve) => {
-    const results = [];
-    const slugs = ['offers', 'smart-value', 'best-offers'];
-    let completed = 0;
-    slugs.forEach((slug) => {
-      const baseOptions = getScraperApiOptions('www.bigbasket.com', `/product/get-products/?slug=${slug}&pg=1&ps=20&order=discount`, 'GET');
-      const options = {
-        ...baseOptions,
-        headers: {
-          'User-Agent': STEALTH_HEADERS['User-Agent'],
-          Accept: 'application/json',
-          Referer: 'https://www.bigbasket.com/',
-          'x-channel': 'BB-APP',
-        },
-      };
-      https.get(options, (res) => {
-        let body = '';
-        res.on('data', (c) => (body += c));
-        res.on('end', () => {
-          try {
-            const json = JSON.parse(body);
-            const prods = json?.tabs?.[0]?.product_info?.products || [];
-            prods.forEach((p) => {
-              const sp = p?.sp || 0;
-              const mrp = p?.mrp || sp;
-              const disc = mrp > 0 ? Math.round(((mrp - sp) / mrp) * 100) : 0;
-              if (sp > 0 && disc >= 5) {
-                results.push({
-                  title: clean(`${p?.brand?.name || ''} ${p?.desc || ''}`),
-                  currentPrice: sp,
-                  originalPrice: mrp,
-                  discountPercent: disc,
-                  isFlashDeal: false,
-                  avgRating: p?.rating?.value || 0,
-                  ratingsCount: p?.rating?.count || 0,
-                  imageUrl: p?.images?.[0]?.s?.replace('{fmt}', 'jpg') || '',
-                  platform: 'BigBasket',
-                });
-              }
-            });
-          } catch (_) {}
-          completed++;
-          if (completed === slugs.length) resolve(results);
-        });
-      }).on('error', () => {
-        completed++;
-        if (completed === slugs.length) resolve(results);
-      });
-    });
-  });
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  BLINKIT — Homepage deals + category offers
-// ══════════════════════════════════════════════════════════════════
-async function scrapeBlinkitDeals(browser) {
-  const page = await newStealthPage(browser);
-  const results = [];
-  const apiResults = [];
-  try {
-    page.on('response', async (response) => {
-      const url = response.url();
-      if ((url.includes('/v2/category') || url.includes('/v2/home') || url.includes('/v2/widget')) && response.status() === 200) {
-        try {
-          const json = await response.json();
-          const extract = (obj) => {
-            if (!obj || typeof obj !== 'object') return;
-            if (Array.isArray(obj)) { obj.forEach(extract); return; }
-            if (obj.name && (obj.mrp || obj.price || obj.sale_price)) {
-              const mrp = obj.mrp || 0;
-              const sp = obj.sale_price || obj.price || mrp;
-              const disc = mrp > 0 ? Math.round(((mrp - sp) / mrp) * 100) : 0;
-              if (sp > 0 && disc >= 5) {
-                apiResults.push({
-                  title: clean(obj.name),
-                  currentPrice: sp,
-                  originalPrice: mrp,
-                  discountPercent: disc,
-                  isFlashDeal: false,
-                  avgRating: obj.rating || 0,
-                  ratingsCount: obj.rating_count || 0,
-                  imageUrl: obj.image_url || obj.image || '',
-                  platform: 'Blinkit',
-                });
-              }
-            }
-            Object.values(obj).forEach(extract);
-          };
-          extract(json);
-        } catch (_) {}
-      }
-    });
-
-    const proxyHomeUrl = getProxyUrl('https://blinkit.com', true);
-    await page.goto(proxyHomeUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.evaluate((pin) => {
-      document.cookie = `userPin=${pin}; path=/`;
-      document.cookie = `gr_1=${pin}; path=/`;
-    }, PINCODE);
-    await delay(1000);
-    await page.goto(proxyHomeUrl, { waitUntil: 'networkidle', timeout: 60000 });
-    await delay(rand(2000, 4000));
-
-    const offerUrls = [
-      'https://blinkit.com/cn/deals-of-the-day/cid/2979/1192',
-      'https://blinkit.com/cn/price-drop/cid/2980/1192',
-    ];
-    for (const url of offerUrls) {
+      // Try the internal API first
       try {
-        const proxyOfferUrl = getProxyUrl(url, true);
-        await page.goto(proxyOfferUrl, { waitUntil: 'networkidle', timeout: 60000 });
-        await delay(rand(1500, 3000));
-      } catch (_) {}
-    }
-    const seen = new Set();
-    apiResults.forEach((d) => {
-      if (!seen.has(d.title)) {
-        seen.add(d.title);
-        results.push(d);
-      }
-    });
-  } catch (err) {
-    console.error(`   ❌ Blinkit: ${err.message.split('\n')[0]}`);
-  } finally {
-    await page.close();
-  }
-  return results;
-}
+        const apiUrl = `https://www.bigbasket.com/listing-svc/v2/products?type=pc&slug=${encodeURIComponent(query.toLowerCase())}&q=${encodeURIComponent(query)}&page=1&tab_type=%5B%22all%22%5D&sorted_on=relevance`;
+        const response = await page.evaluate(async (url) => {
+          try {
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            return res.json();
+          } catch {
+            return null;
+          }
+        }, apiUrl);
 
-// ══════════════════════════════════════════════════════════════════
-//  ZEPTO — Offers / deals section via API
-// ══════════════════════════════════════════════════════════════════
-async function scrapeZeptoDeals() {
-  return new Promise((resolve) => {
-    const results = [];
-    const body = JSON.stringify({ store_id: '17', page: 'HOME' });
-    const baseOptions = getScraperApiOptions('api.zeptonow.com', '/api/v3/home', 'POST');
-    const req = https.request({
-      ...baseOptions,
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-        'User-Agent': STEALTH_HEADERS['User-Agent'],
-        'app-version': '12.15.8',
-        Origin: 'https://www.zeptonow.com',
-      },
-    }, (res) => {
-      let data = '';
-      res.on('data', (c) => (data += c));
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          const extract = (obj) => {
-            if (!obj || typeof obj !== 'object') return;
-            if (Array.isArray(obj)) { obj.forEach(extract); return; }
-            if (obj.name && (obj.mrp || obj.discountedPrice || obj.sellingPrice)) {
-              const mrpRaw = obj.mrp || 0;
-              const spRaw = obj.discountedPrice || obj.sellingPrice || mrpRaw;
-              const mrp = mrpRaw > 10000 ? mrpRaw / 100 : mrpRaw;
-              const sp = spRaw > 10000 ? spRaw / 100 : spRaw;
-              const disc = mrp > 0 ? Math.round(((mrp - sp) / mrp) * 100) : 0;
-              if (sp > 0 && disc >= 5) {
-                results.push({
-                  title: clean(obj.name),
-                  currentPrice: sp,
-                  originalPrice: mrp,
-                  discountPercent: disc,
-                  isFlashDeal: false,
-                  avgRating: obj.rating || 0,
-                  ratingsCount: obj.ratingCount || 0,
-                  imageUrl: obj.imageUrl || obj.image || '',
-                  platform: 'Zepto',
-                });
+        if (response?.tabs?.[0]?.product_info?.products) {
+          return response.tabs[0].product_info.products.slice(0, 15).map((p) => ({
+            product_name: `${p.brand?.name || ""} ${p.desc || ""}`.trim(),
+            price: p.pricing?.discount?.prim_price?.sp || p.pricing?.discount?.prim_price?.mrp || 0,
+            mrp: p.pricing?.discount?.prim_price?.mrp || 0,
+            image_url: p.images?.[0]?.s || "",
+            product_url: `https://www.bigbasket.com/pd/${p.sku}/${p.url_key || ""}`,
+          })).filter((p) => p.product_name && p.price > 0);
+        }
+      } catch (e) {
+        console.log(`  [BigBasket] API fallback failed: ${e.message}`);
+      }
+
+      // DOM fallback
+      return page.evaluate(() => {
+        const cards = document.querySelectorAll(
+          '[class*="SKUDeck"], [class*="ProductCard"]'
+        );
+        return Array.from(cards)
+          .slice(0, 15)
+          .map((card) => {
+            const nameEl =
+              card.querySelector("h3") || card.querySelector('[class*="Name"]');
+            const text = card.textContent || "";
+            const prices = text.match(
+              /₹\s*([0-9]+(?:\.[0-9]+)?)/g
+            );
+            const priceValues = (prices || []).map((p) =>
+              parseFloat(p.replace(/[^0-9.]/g, ""))
+            );
+            const imgEl = card.querySelector("img");
+
+            return {
+              product_name: nameEl ? nameEl.textContent.trim() : "",
+              price: priceValues.length > 0 ? Math.min(...priceValues) : 0,
+              mrp:
+                priceValues.length > 1
+                  ? Math.max(...priceValues)
+                  : priceValues[0] || 0,
+              image_url: imgEl ? imgEl.src : "",
+            };
+          })
+          .filter((p) => p.product_name && p.price > 0);
+      });
+    },
+  },
+  {
+    name: "Blinkit",
+    searchUrl: (q) =>
+      `https://blinkit.com/s/?q=${encodeURIComponent(q)}`,
+    parseProducts: async (page) => {
+      return page.evaluate(() => {
+        const cards = document.querySelectorAll(
+          '[class*="Product__UpdatedPlpProductContainer"], div.tw-flex.tw-w-full.tw-flex-col'
+        );
+        return Array.from(cards)
+          .slice(0, 15)
+          .map((card) => {
+            const text = card.textContent || "";
+            const nameEl =
+              card.querySelector('[class*="Product__UpdatedTitle"]') ||
+              card.querySelector("div div div");
+            const imgEl = card.querySelector("img");
+            const prices = text.match(/₹\s*([0-9]+(?:\.[0-9]+)?)/g);
+            const priceValues = (prices || []).map((p) =>
+              parseFloat(p.replace(/[^0-9.]/g, ""))
+            );
+
+            return {
+              product_name: nameEl ? nameEl.textContent.trim() : "",
+              price: priceValues.length > 0 ? Math.min(...priceValues) : 0,
+              mrp:
+                priceValues.length > 1
+                  ? Math.max(...priceValues)
+                  : priceValues[0] || 0,
+              image_url: imgEl ? imgEl.src : "",
+            };
+          })
+          .filter((p) => p.product_name && p.price > 0);
+      });
+    },
+  },
+  {
+    name: "Zepto",
+    searchUrl: (q) =>
+      `https://www.zepto.com/search?query=${encodeURIComponent(q)}`,
+    parseProducts: async (page) => {
+      // Wait for Zepto's dynamic content
+      await page.waitForTimeout(3000);
+
+      return page.evaluate(() => {
+        const links = document.querySelectorAll('a[href*="/pn/"]');
+        return Array.from(links)
+          .slice(0, 15)
+          .map((link) => {
+            const container = link.closest("div") || link;
+            const text = container.textContent || "";
+            const imgEl = container.querySelector("img");
+            const prices = text.match(/₹\s*([0-9]+(?:\.[0-9]+)?)/g);
+            const priceValues = (prices || []).map((p) =>
+              parseFloat(p.replace(/[^0-9.]/g, ""))
+            );
+
+            // Extract name from the link text, removing price and quantity tokens
+            let name = "";
+            const headings = container.querySelectorAll("h3, h4, p, span");
+            for (const el of headings) {
+              const t = el.textContent.trim();
+              if (t.length > 5 && !t.startsWith("₹") && !/^\d+$/.test(t)) {
+                name = t;
+                break;
               }
             }
-            Object.values(obj).forEach(extract);
-          };
-          extract(json);
-        } catch (_) {}
-        resolve(results.slice(0, 40));
+
+            return {
+              product_name: name,
+              price: priceValues.length > 0 ? Math.min(...priceValues) : 0,
+              mrp:
+                priceValues.length > 1
+                  ? Math.max(...priceValues)
+                  : priceValues[0] || 0,
+              image_url: imgEl ? imgEl.src : "",
+              product_url: link.href || "",
+            };
+          })
+          .filter((p) => p.product_name && p.price > 0);
       });
-    });
-    req.on('error', () => resolve(results));
-    req.write(body);
-    req.end();
-  });
-}
+    },
+  },
+];
 
-// ══════════════════════════════════════════════════════════════════
-//  SCORING + UPLOAD
-// ══════════════════════════════════════════════════════════════════
-function scoreAndRank(deals) {
-  return deals
-    .filter((d) => d.title && d.currentPrice > 0)
-    .map((d) => ({ ...d, hotScore: calculateHotScore(d) }))
-    .sort((a, b) => b.hotScore - a.hotScore);
-}
-
-async function uploadToBackend(deals) {
-  if (!BACKEND_URL || !deals.length) {
-    console.log('⚠️  Skipping upload (no backend URL or 0 deals)');
-    return;
+// ── Hot Score Calculator (mirrors DealScoringService.js) ──
+function calculateHotScore(deal) {
+  let discountPct = 0;
+  if (deal.mrp > 0 && deal.price > 0 && deal.mrp > deal.price) {
+    discountPct = Math.round(((deal.mrp - deal.price) / deal.mrp) * 100);
   }
-  const BATCH_SIZE = 25;
-  let uploaded = 0;
-  for (let i = 0; i < deals.length; i += BATCH_SIZE) {
-    const batch = deals.slice(i, i + BATCH_SIZE).map((d) => ({
-      product_name: d.title,
-      brand: '',
-      category: '',
-      image_url: d.imageUrl || '',
-      platform: d.platform,
-      price: d.currentPrice,
-      mrp: d.originalPrice,
-      discount_pct: d.discountPercent,
-      hot_score: d.hotScore,
-      deal_tier: d.hotScore >= 80 ? 'on_fire' : d.hotScore >= 60 ? 'trending' : d.hotScore >= 40 ? 'worth_noting' : 'regular',
-      tags: [],
-      stock_status: 'in_stock',
-      delivery_time: '',
-      product_url: '',
-      deal_badge: d.isFlashDeal ? 'Flash Deal' : '',
-    }));
-    const payload = JSON.stringify({ deals: batch });
-    await new Promise((resolve) => {
-      const url = new URL(BACKEND_URL + '/deals/collect');
-      const req = https.request({
-        hostname: url.hostname,
-        path: url.pathname,
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
-      }, (res) => {
-        let respBody = '';
-        res.on('data', (c) => (respBody += c));
-        res.on('end', () => {
-          try {
-            const json = JSON.parse(respBody);
-            uploaded += json?.saved || batch.length;
-            console.log(`   📤 Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${batch.length} deals → ${json?.saved || '?'} saved`);
-          } catch (_) { console.log(`   📤 Batch ${Math.floor(i / BATCH_SIZE) + 1}: HTTP ${res.statusCode}`); }
-          resolve();
-        });
-      });
-      req.on('error', (e) => { console.error(`   ❌ Upload error: ${e.message}`); resolve(); });
-      req.write(payload);
-      req.end();
-    });
-  }
-  console.log(`\n🚀 Upload complete: ${uploaded}/${deals.length} deals saved`);
+  const discountScore = Math.min(discountPct * 0.6, 30);
+
+  let popularityScore = 0;
+  const rating = deal.rating || 0;
+  if (rating >= 4.0) popularityScore = 15;
+  else if (rating >= 3.0) popularityScore = 8;
+  popularityScore = Math.min(popularityScore, 20);
+
+  const scarcityScore = 5; // default: in_stock
+  const freshnessScore = 10; // just scraped, full freshness
+
+  let deliveryBonus = 0;
+  const dTime = String(deal.delivery_time || "");
+  const mins = parseInt(dTime, 10) || 0;
+  if (mins > 0 && mins <= 15) deliveryBonus = 5;
+  else if (mins > 15 && mins <= 60) deliveryBonus = 3;
+
+  const TRUST = {
+    Amazon: 1.0,
+    Flipkart: 1.0,
+    BigBasket: 0.95,
+    Blinkit: 0.9,
+    Zepto: 0.9,
+  };
+  const weight = TRUST[deal.platform] || 0.85;
+
+  const raw =
+    discountScore +
+    popularityScore +
+    scarcityScore +
+    freshnessScore +
+    deliveryBonus;
+
+  return Math.min(Math.max(Math.round(raw * weight * 10) / 10, 0), 100);
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  MAIN
-// ══════════════════════════════════════════════════════════════════
-(async () => {
-  console.log('\n🔥 CompareX Deal Scraper v3.0 — Deals Pages');
-  console.log(`   City: ${CITY} | Pincode: ${PINCODE}`);
-  console.log(`   Strategy: Scrape dedicated DEALS/OFFERS pages`);
+function getTier(score) {
+  if (score >= 80) return { deal_tier: "on_fire", tier_emoji: "🔴" };
+  if (score >= 60) return { deal_tier: "trending", tier_emoji: "🟠" };
+  if (score >= 40) return { deal_tier: "worth_noting", tier_emoji: "🟡" };
+  return { deal_tier: "regular", tier_emoji: "🟢" };
+}
+
+function generateTags(deal, discountPct) {
+  const tags = [];
+  if (discountPct >= 50) tags.push("🔥 Mega Discount");
+  else if (discountPct >= 30) tags.push("💰 Great Deal");
+  else if (discountPct >= 15) tags.push("👍 Good Price");
+  if (deal.rating >= 4.5) tags.push("⭐ Top Rated");
+  return tags;
+}
+
+// ── Main Scraper ─────────────────────────────────────────
+async function scrapeDeals() {
+  console.log("🔥 CompareX Deal Scraper — Starting");
+  console.log(`   Backend: ${BACKEND_URL}`);
+  console.log(`   Queries: ${SEARCH_QUERIES.length}`);
+  console.log(`   Platforms: ${PLATFORMS.length}`);
   console.log(`   Time: ${new Date().toISOString()}\n`);
 
   const browser = await chromium.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled', '--disable-web-security'],
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+    ],
   });
 
+  const allDeals = [];
   const stats = {};
-  console.log('🛒 Amazon — Today\'s Deals...');
-  const amazonDeals = await scrapeAmazonDeals(browser);
-  stats.Amazon = amazonDeals.length;
-  console.log(`   Total: ${amazonDeals.length} deals\n`);
-  await delay(rand(1000, 2000));
 
-  console.log('🛒 Flipkart — Offers Store...');
-  const flipkartDeals = await scrapeFlipkartDeals();
-  stats.Flipkart = flipkartDeals.length;
-  console.log(`   Total: ${flipkartDeals.length} deals\n`);
+  for (const platform of PLATFORMS) {
+    stats[platform.name] = { total: 0, errors: 0 };
 
-  console.log('🛒 BigBasket — Best Offers...');
-  const bigbasketDeals = await scrapeBigBasketDeals();
-  stats.BigBasket = bigbasketDeals.length;
-  console.log(`   Total: ${bigbasketDeals.length} deals\n`);
+    for (const query of SEARCH_QUERIES) {
+      const context = await browser.newContext({
+        userAgent:
+          "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+        viewport: { width: 412, height: 915 },
+        locale: "en-IN",
+      });
 
-  console.log('🛒 Blinkit — Deals of the Day...');
-  const blinkitDeals = await scrapeBlinkitDeals(browser);
-  stats.Blinkit = blinkitDeals.length;
-  console.log(`   Total: ${blinkitDeals.length} deals\n`);
-  await delay(rand(1000, 2000));
+      const page = await context.newPage();
 
-  console.log('🛒 Zepto — Offers...');
-  const zeptoDeals = await scrapeZeptoDeals();
-  stats.Zepto = zeptoDeals.length;
-  console.log(`   Total: ${zeptoDeals.length} deals\n`);
+      try {
+        const url = platform.searchUrl(query);
+        console.log(`  🔍 ${platform.name} → "${query}"`);
+
+        await page.goto(url, {
+          waitUntil: "domcontentloaded",
+          timeout: 20000,
+        });
+
+        // Anti-bot delay
+        await page.waitForTimeout(1500 + Math.random() * 2000);
+
+        const products = await platform.parseProducts(page);
+
+        products.forEach((prod) => {
+          const discountPct =
+            prod.mrp > prod.price && prod.mrp > 0
+              ? Math.round(((prod.mrp - prod.price) / prod.mrp) * 100)
+              : 0;
+
+          // Only include products with meaningful discounts
+          if (discountPct < 5 && prod.price === prod.mrp) return;
+
+          const hotScore = calculateHotScore({
+            ...prod,
+            platform: platform.name,
+          });
+          const tier = getTier(hotScore);
+          const tags = generateTags(prod, discountPct);
+
+          allDeals.push({
+            product_name: prod.product_name,
+            brand: prod.brand || "",
+            category: query,
+            image_url: prod.image_url || "",
+            platform: platform.name,
+            price: prod.price,
+            mrp: prod.mrp,
+            discount_pct: discountPct,
+            hot_score: hotScore,
+            ...tier,
+            tags,
+            stock_status: "in_stock",
+            delivery_time: prod.delivery_time || "",
+            product_url: prod.product_url || "",
+          });
+        });
+
+        stats[platform.name].total += products.length;
+        console.log(`     ✅ ${products.length} products found`);
+      } catch (err) {
+        stats[platform.name].errors++;
+        console.log(`     ❌ Failed: ${err.message}`);
+      } finally {
+        await page.close();
+        await context.close();
+      }
+
+      // Delay between searches to avoid rate limiting
+      await new Promise((r) => setTimeout(r, 1000 + Math.random() * 1500));
+    }
+  }
 
   await browser.close();
 
-  const allDeals = [...amazonDeals, ...flipkartDeals, ...bigbasketDeals, ...blinkitDeals, ...zeptoDeals];
-  const rankedDeals = scoreAndRank(allDeals);
+  // Sort by hot score
+  allDeals.sort((a, b) => b.hot_score - a.hot_score);
 
-  console.log('╔══════════════ SCRAPER SUMMARY v3.0 ══════════════╗');
-  for (const [platform, count] of Object.entries(stats)) {
-    console.log(`║  ${platform.padEnd(10)}: ${String(count).padStart(4)} deals from offers page       ║`);
+  // Print summary
+  console.log("\n╔═══════════════ SCRAPER SUMMARY ═══════════════╗");
+  Object.entries(stats).forEach(([plat, s]) => {
+    const status = s.errors > 0 ? `⚠️  ${s.errors} errors` : "✅ OK";
+    console.log(
+      `║  ${plat.padEnd(12)}: ${String(s.total).padStart(4)} products | ${status.padEnd(15)} ║`
+    );
+  });
+  console.log(`║  ${"TOTAL".padEnd(12)}: ${String(allDeals.length).padStart(4)} deals scored${" ".repeat(17)} ║`);
+  console.log("╚═══════════════════════════════════════════════╝\n");
+
+  return allDeals;
+}
+
+// ── Upload to Backend ────────────────────────────────────
+async function uploadToBackend(deals) {
+  if (deals.length === 0) {
+    console.log("⚠️  No deals to upload.");
+    return;
   }
-  console.log(`║  TOTAL     : ${String(rankedDeals.length).padStart(4)} deals scored + ranked          ║`);
-  console.log('╚══════════════════════════════════════════════════╝');
 
-  fs.mkdirSync('output', { recursive: true });
-  fs.writeFileSync('output/deals.json', JSON.stringify(rankedDeals, null, 2));
-  console.log(`\n💾 Saved ${rankedDeals.length} deals to output/deals.json`);
+  // Upload in batches of 25 to avoid payload limits
+  const BATCH_SIZE = 25;
+  let uploaded = 0;
 
-  if (rankedDeals.length > 0) {
-    console.log('\n🏆 Top 5 Deals:');
-    rankedDeals.slice(0, 5).forEach((d, i) => {
-      console.log(`   ${i + 1}. [${d.platform}] ${d.title.slice(0, 45)} — ₹${d.currentPrice} (${d.discountPercent}% off) Score:${d.hotScore}`);
-    });
+  for (let i = 0; i < deals.length; i += BATCH_SIZE) {
+    const batch = deals.slice(i, i + BATCH_SIZE);
+    try {
+      const res = await axios.post(
+        `${BACKEND_URL}/deals/collect`,
+        { deals: batch },
+        { timeout: 15000 }
+      );
+      uploaded += res.data?.saved || batch.length;
+      console.log(
+        `  📤 Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${batch.length} deals sent (${res.data?.saved || "?"} saved)`
+      );
+    } catch (err) {
+      console.error(
+        `  ❌ Batch ${Math.floor(i / BATCH_SIZE) + 1} failed: ${err.message}`
+      );
+    }
   }
 
-  await uploadToBackend(rankedDeals);
-  console.log('\n✅ Done! Next run in 4 hours.\n');
+  console.log(`\n🚀 Upload complete: ${uploaded}/${deals.length} deals saved`);
+}
+
+// ── Entry Point ──────────────────────────────────────────
+(async () => {
+  try {
+    const deals = await scrapeDeals();
+
+    // Save locally as artifact
+    const outputDir = path.join(__dirname, "..", "output");
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(outputDir, "deals.json"),
+      JSON.stringify(
+        {
+          scraped_at: new Date().toISOString(),
+          count: deals.length,
+          deals: deals,
+        },
+        null,
+        2
+      )
+    );
+    console.log(`💾 Saved ${deals.length} deals to output/deals.json`);
+
+    // Upload to backend
+    await uploadToBackend(deals);
+
+    console.log("\n✅ Pipeline complete! Next run in 4 hours.");
+    process.exit(0);
+  } catch (err) {
+    console.error("💥 Fatal error:", err);
+    process.exit(1);
+  }
 })();

@@ -9,16 +9,12 @@ import {
   TextInput,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import LocationService from "../services/LocationService";
-
-const STATS = [
-  { label: "Searches", value: "24" },
-  { label: "Saved", value: "3" },
-  { label: "Savings", value: "₹156" },
-];
+import LocationPickerModal from "../components/LocationPickerModal";
 
 const MENU = [
   {
@@ -27,20 +23,14 @@ const MENU = [
     subtitle: "Connect Blinkit, Zepto, etc.",
   },
   {
-    icon: "notifications-outline",
-    label: "Price Alerts",
-    subtitle: "3 active alerts",
-  },
-  {
-    icon: "time-outline",
-    label: "Search History",
-    subtitle: "Recent searches",
-  },
-  { icon: "settings-outline", label: "Settings", subtitle: "App preferences" },
-  {
     icon: "help-circle-outline",
     label: "Help & Support",
     subtitle: "FAQ and contact",
+  },
+  {
+    icon: "document-text-outline",
+    label: "Terms & Conditions",
+    subtitle: "Legal and privacy",
   },
 ];
 
@@ -76,7 +66,8 @@ const ProfileScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -96,21 +87,13 @@ const ProfileScreen = () => {
           </View>
         </View>
 
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          {STATS.map((s, i) => (
-            <React.Fragment key={s.label}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{s.value}</Text>
-                <Text style={styles.statLabel}>{s.label}</Text>
-              </View>
-              {i < STATS.length - 1 && <View style={styles.statDivider} />}
-            </React.Fragment>
-          ))}
-        </View>
 
         {/* Location Settings */}
-        <View style={styles.locationSection}>
+        <TouchableOpacity 
+          style={styles.locationSection}
+          onPress={() => setLocationEditing(true)}
+          activeOpacity={0.7}
+        >
           <View style={styles.locationHeader}>
             <View style={styles.locationIconWrap}>
               <Ionicons name="location" size={18} color={COLORS.primary} />
@@ -118,45 +101,25 @@ const ProfileScreen = () => {
             <View style={{ flex: 1 }}>
               <Text style={styles.locationTitle}>Delivery Location</Text>
               <Text style={styles.locationSubtitle}>
-                {locationEditing ? "Set your delivery pincode" : `${locationCity || "Not set"} • ${locationPincode || "—"}`}
+                {locationCity || "Not set"} • {locationPincode || "—"}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => setLocationEditing(!locationEditing)}
-              style={styles.locationEditBtn}
-            >
-              <Ionicons
-                name={locationEditing ? "close" : "create-outline"}
-                size={18}
-                color={COLORS.primary}
-              />
-            </TouchableOpacity>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={COLORS.textTertiary}
+            />
           </View>
-          {locationEditing && (
-            <View style={styles.locationForm}>
-              <TextInput
-                style={styles.locationInput}
-                value={locationCity}
-                onChangeText={setLocationCity}
-                placeholder="City (e.g. Bengaluru)"
-                placeholderTextColor={COLORS.textTertiary}
-              />
-              <TextInput
-                style={styles.locationInput}
-                value={locationPincode}
-                onChangeText={setLocationPincode}
-                placeholder="Pincode (e.g. 560001)"
-                placeholderTextColor={COLORS.textTertiary}
-                keyboardType="numeric"
-                maxLength={6}
-                testID="pincodeInput"
-              />
-              <TouchableOpacity style={styles.locationSaveBtn} onPress={saveLocation} testID="pincodeSaveBtn">
-                <Text style={styles.locationSaveTxt}>Save Location</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+        </TouchableOpacity>
+
+        <LocationPickerModal
+          visible={locationEditing}
+          onClose={() => setLocationEditing(false)}
+          onSave={({ city, pincode }) => {
+            setLocationCity(city);
+            setLocationPincode(pincode);
+          }}
+        />
 
         {/* Menu */}
         <View style={styles.menuSection}>
@@ -168,6 +131,10 @@ const ProfileScreen = () => {
               onPress={() => {
                 if (item.label === "Link Accounts") {
                   navigation.navigate("Accounts");
+                } else if (item.label === "Help & Support") {
+                  navigation.navigate("SupportChat");
+                } else if (item.label === "Terms & Conditions") {
+                  navigation.navigate("Terms");
                 }
               }}
             >
@@ -202,11 +169,16 @@ const ProfileScreen = () => {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

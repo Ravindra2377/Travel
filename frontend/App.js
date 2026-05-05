@@ -19,7 +19,10 @@ import SearchScreen from "./screens/SearchScreen";
 import ProductDetailScreen from "./screens/ProductDetailScreen";
 import WishlistScreen from "./screens/WishlistScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+import DealsScreen from "./screens/DealsScreen";
 import AccountsScreen from "./screens/AccountsScreen";
+import SupportChatScreen from "./screens/SupportChatScreen";
+import TermsScreen from "./screens/TermsScreen";
 import InAppBrowser from "./components/InAppBrowser";
 import CustomTabBar from "./components/CustomTabBar";
 import * as Haptics from "expo-haptics";
@@ -29,6 +32,7 @@ const Tab = createBottomTabNavigator();
 
 const TAB_ICONS = {
   Home: { active: "home", inactive: "home-outline" },
+  Deals: { active: "pricetags", inactive: "pricetags-outline" },
   Search: { active: "search", inactive: "search-outline" },
   Wishlist: { active: "heart", inactive: "heart-outline" },
   Profile: { active: "person", inactive: "person-outline" },
@@ -49,6 +53,7 @@ const MainTabs = () => {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Deals" component={DealsScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Wishlist" component={WishlistScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
@@ -57,15 +62,14 @@ const MainTabs = () => {
 };
 
 
+import SplashScreen from "./screens/SplashScreen";
+
 const AppNav = () => {
   const { isLoading, userToken } = useContext(AuthContext);
+  const [showSplash, setShowSplash] = React.useState(true);
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
+  if (isLoading || showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
   }
 
   const customTheme = {
@@ -100,36 +104,33 @@ const AppNav = () => {
             <Stack.Screen
               name="Accounts"
               component={AccountsScreen}
-              options={{
-                headerShown: true,
-                title: "ACCOUNTS",
-                headerTitleStyle: {
-                  fontSize: 10,
-                  fontWeight: "900",
-                  letterSpacing: 2,
-                  color: COLORS.textPrimary,
-                },
-                headerStyle: { backgroundColor: "#FFFFFF" },
-                headerTintColor: COLORS.textPrimary,
-                headerShadowVisible: false,
-                headerLeft: ({ canGoBack, onPress }) => (
-                  canGoBack && (
-                    <Ionicons 
-                      name="arrow-back" 
-                      size={20} 
-                      color={COLORS.textPrimary} 
-                      onPress={onPress}
-                      style={{ marginLeft: 16 }}
-                    />
-                  )
-                ),
-              }}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="SupportChat"
+              component={SupportChatScreen}
+              options={{ animation: "slide_from_right", headerShown: false }}
+            />
+            <Stack.Screen
+              name="Terms"
+              component={TermsScreen}
+              options={{ animation: "slide_from_right", headerShown: false }}
             />
           </>
         ) : (
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen
+              name="SupportChat"
+              component={SupportChatScreen}
+              options={{ animation: "slide_from_right", headerShown: false }}
+            />
+            <Stack.Screen
+              name="Terms"
+              component={TermsScreen}
+              options={{ animation: "slide_from_right", headerShown: false }}
+            />
           </>
         )}
       </Stack.Navigator>
@@ -146,10 +147,14 @@ const styles = StyleSheet.create({
   },
 });
 
+import { SafeAreaProvider } from "react-native-safe-area-context";
+
 export default function App() {
   return (
-    <AuthProvider>
-      <AppNav />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <AppNav />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

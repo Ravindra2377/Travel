@@ -4,6 +4,7 @@ import React, {
   useRef,
   useReducer,
   useCallback,
+  useContext,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -14,7 +15,10 @@ import {
   StatusBar,
   TouchableOpacity,
   Animated,
+  Image,
+  InteractionManager,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -28,6 +32,8 @@ import * as Haptics from "expo-haptics";
 import PlatformScraperService from "../services/PlatformScraperService";
 import PlatformDOMScraperService from "../services/PlatformDOMScraperService";
 import api from "../config/api";
+import { AuthContext } from "../context/AuthContext";
+import DealScoringService from "../services/DealScoringService";
 
 const SUGGESTIONS = [
   "Eggs",
@@ -42,40 +48,61 @@ const SUGGESTIONS = [
 
 const PLATFORMS = ["Blinkit", "Zepto", "BigBasket", "Amazon", "Flipkart"];
 const ENABLE_BACKEND_FALLBACK = true;
-const ENABLE_BACKEND_COLLECTION = false;
+const ENABLE_BACKEND_COLLECTION = true;
 const DEFAULT_PLATFORM_TIMEOUT_MS = 15000;
 const OVERALL_SEARCH_TIMEOUT_MS = 25000;
 const PLATFORM_TIMEOUTS = {
   Blinkit: 12000,
-  Zepto: 12000,
-  BigBasket: 12000,
+  Zepto: 18000,
+  BigBasket: 18000,
   Amazon: 15000,
-  Flipkart: 15000,
+  Flipkart: 22000,
 };
 const SEARCH_DEBOUNCE_MS = 400;
-const PARTIAL_AGGREGATION_DELAY_MS = 30;    // ⬇ was 60ms — surface partial results faster
+const PARTIAL_AGGREGATION_DELAY_MS = 150; // ⬆ increased from 30ms to batch updates better and reduce scroll lag
 
 // Resource-blocking helper: allow only navigation, API/JSON, and WebSocket traffic.
 // Blocks images, fonts, analytics, and stylesheets to cut WebView load time by 1.5-3s.
 const BLOCKED_RESOURCE_EXTENSIONS = [
-  '.woff', '.woff2', '.ttf', '.eot',
-  '.css',
-  '.mp4', '.webm',
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".webp",
+  ".svg",
+  ".ico",
+  ".woff",
+  ".woff2",
+  ".ttf",
+  ".eot",
+  ".mp4",
+  ".webm",
 ];
 const BLOCKED_TRACKER_DOMAINS = [
-  'google-analytics.com', 'googletagmanager.com', 'facebook.net',
-  'doubleclick.net', 'hotjar.com', 'segment.com', 'mixpanel.com',
-  'amplitude.com', 'sentry.io', 'newrelic.com', 'datadog-browser-agent',
-  'clevertap.com', 'moengage.com', 'webengage.com', 'appsflyer.com',
+  "google-analytics.com",
+  "googletagmanager.com",
+  "facebook.net",
+  "doubleclick.net",
+  "hotjar.com",
+  "segment.com",
+  "mixpanel.com",
+  "amplitude.com",
+  "sentry.io",
+  "newrelic.com",
+  "datadog-browser-agent",
+  "clevertap.com",
+  "moengage.com",
+  "webengage.com",
+  "appsflyer.com",
 ];
 
 const shouldBlockWebViewRequest = (request) => {
   try {
-    const url = (request.url || '').toLowerCase();
-    if (!url.startsWith('http')) return false; // allow blob://, about:blank etc.
+    const url = (request.url || "").toLowerCase();
+    if (!url.startsWith("http")) return false; // allow blob://, about:blank etc.
     // Block by file extension
     for (const ext of BLOCKED_RESOURCE_EXTENSIONS) {
-      const urlWithoutQuery = url.split('?')[0];
+      const urlWithoutQuery = url.split("?")[0];
       if (urlWithoutQuery.endsWith(ext)) return true;
     }
     // Block tracker domains
@@ -87,7 +114,6 @@ const shouldBlockWebViewRequest = (request) => {
     return false;
   }
 };
-const RESULT_CARD_HEIGHT = 184;
 const SEARCH_CACHE_VERSION = 2;
 
 const NON_PRICE_TOKEN_REGEX =
@@ -165,48 +191,66 @@ const getProductMatchKey = (name) => {
   // Normalize units before stripping punctuation
   clean = normalizeUnits(clean);
 
+  // Common brand normalizations for grocery
+  clean = clean
+    .replace(/\bbrittania\b/gi, "britannia")
+    .replace(/\bcoca\s*cola\b/gi, "coke")
+    .replace(/\bpepsico\b/gi, "pepsi")
+    .replace(/\bthums\s*up\b/gi, "thumsup")
+    .replace(/\btata\s*salt\b/gi, "tata salt")
+    .replace(/\bamul\s+pure\s+ghee\b/gi, "amul ghee");
+
   // Strip punctuation and unnecessary words
   const stopWords = new Set([
-    "fresh", "new", "original", "pack", "pouch", "bottle", "net",
-    "quantity", "medium", "large", "small", "pc", "pcs", "the", "a", "an", "of"
+    "fresh", "new", "original", "pack", "pouch", "bottle", "net", "quantity",
+    "medium", "large", "small", "pc", "pcs", "the", "a", "an", "of", "best",
+    "quality", "premium", "super", "tasty", "natural", "pure"
   ]);
 
   let baseWords = clean
     .replace(/\([^)]*\)/g, " ")
     .replace(/[^a-z0-9.\s]/g, " ")
     .split(/\s+/)
-    .map(t => t.trim())
+    .map((t) => t.trim())
     .filter(Boolean)
-    .filter(t => !stopWords.has(t));
+    .filter((t) => !stopWords.has(t));
 
   let normalized = baseWords.join(" ");
 
   // Standardize spaces between numbers and units
   normalized = normalized
-    .replace(/(\d+)\s+(ml|g|kg|l)\b/g, "$1$2")
-    .replace(/(ml|g|kg|l)\b/g, " $1")
+    .replace(/(\d+)\s+(ml|g|kg|l|gm|ltr)\b/g, "$1$2")
+    .replace(/(ml|g|kg|l|gm|ltr)\b/g, " $1")
     .replace(/\s+/g, " ")
     .trim();
 
   // Extract primary quantity to append at the end
-  let qtyMatch = normalized.match(/\b\d+(?:\.\d+)?\s?(ml|g|kg|l)\b/);
+  let qtyMatch = normalized.match(/\b\d+(?:\.\d+)?\s?(ml|g|kg|l|gm|ltr)\b/);
   let qty = qtyMatch ? qtyMatch[0].replace(/\s+/g, "") : "";
 
   // If quantity was extracted, remove it from the main string
   if (qty) {
-    normalized = normalized.replace(new RegExp(qtyMatch[0], "g"), "").replace(/\s+/g, " ").trim();
+    normalized = normalized
+      .replace(new RegExp(qtyMatch[0], "g"), "")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
-  // Remove completely isolated numbers (often model numbers or garbage without units if a qty exists)
-  normalized = normalized.split(/\s+/).filter(t => !/^\d+(\.\d+)?$/.test(t)).join(" ");
+  // Remove isolated numbers
+  normalized = normalized
+    .split(/\s+/)
+    .filter((t) => !/^\d+(\.\d+)?$/.test(t))
+    .join(" ");
 
   let finalWords = normalized.split(/\s+/).slice(0, 4);
-  
-  // Plural deduplication for matching words
-  finalWords = finalWords.map(t => (t.length > 3 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0, -1) : t));
+
+  // Stemming
+  finalWords = finalWords.map((t) =>
+    t.length > 3 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0, -1) : t,
+  );
 
   const key = (finalWords.join(" ") + (qty ? " " + qty : "")).trim();
-  
+
   if (!key) return clean.slice(0, 30);
   return key;
 };
@@ -263,16 +307,18 @@ const extractNumericPrice = (raw) => {
     return 0;
   }
 
-  const currencyMatch = text.match(/(?:₹|rs\.?|inr)\s*([0-9]+(?:,[0-9]{2,3})*(?:\.[0-9]+)?)/i);
+  const currencyMatch = text.match(
+    /(?:₹|rs\.?|inr)\s*([0-9]+(?:,[0-9]{2,3})*(?:\.[0-9]+)?)/i,
+  );
   if (currencyMatch?.[1]) {
-    const parsed = parseFloat(currencyMatch[1].replace(/,/g, ''));
+    const parsed = parseFloat(currencyMatch[1].replace(/,/g, ""));
     if (!Number.isFinite(parsed) || parsed <= 0) return 0;
     return Math.round(parsed * 100) / 100;
   }
 
   const genericMatch = text.match(/([0-9]+(?:,[0-9]{2,3})*(?:\.[0-9]+)?)/);
   if (!genericMatch?.[1]) return 0;
-  const parsed = parseFloat(genericMatch[1].replace(/,/g, ''));
+  const parsed = parseFloat(genericMatch[1].replace(/,/g, ""));
   if (!Number.isFinite(parsed) || parsed <= 0) return 0;
   return Math.round(parsed * 100) / 100;
 };
@@ -289,11 +335,13 @@ const extractLabeledPriceHints = (rawText) => {
   const priceMatch = compact.match(
     /\bprice\b\s*:?\s*₹\s*([0-9]+(?:,[0-9]{2,3})*(?:\.[0-9]+)?)/i,
   );
-  const mrpMatch = compact.match(/\bmrp\b\s*:?\s*₹\s*([0-9]+(?:,[0-9]{2,3})*(?:\.[0-9]+)?)/i);
+  const mrpMatch = compact.match(
+    /\bmrp\b\s*:?\s*₹\s*([0-9]+(?:,[0-9]{2,3})*(?:\.[0-9]+)?)/i,
+  );
 
   return {
-    price: priceMatch?.[1] ? parseFloat(priceMatch[1].replace(/,/g, '')) : 0,
-    mrp: mrpMatch?.[1] ? parseFloat(mrpMatch[1].replace(/,/g, '')) : 0,
+    price: priceMatch?.[1] ? parseFloat(priceMatch[1].replace(/,/g, "")) : 0,
+    mrp: mrpMatch?.[1] ? parseFloat(mrpMatch[1].replace(/,/g, "")) : 0,
   };
 };
 
@@ -427,6 +475,7 @@ const SearchScreen = ({ navigation, route }) => {
   const [captchaPlatform, setCaptchaPlatform] = useState(null); // Platform currently showing CAPTCHA
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseLoopRef = useRef(null);
+  const { user } = useContext(AuthContext);
 
   const [state, dispatch] = useReducer(reducer, {
     connectedPlatforms: [],
@@ -499,7 +548,8 @@ const SearchScreen = ({ navigation, route }) => {
       clearTimeout(platformTimeoutsRef.current[platform]);
     }
 
-    const timeoutMs = PLATFORM_TIMEOUTS[platform] || DEFAULT_PLATFORM_TIMEOUT_MS;
+    const timeoutMs =
+      PLATFORM_TIMEOUTS[platform] || DEFAULT_PLATFORM_TIMEOUT_MS;
 
     platformTimeoutsRef.current[platform] = setTimeout(() => {
       if (Number(sessionId) !== Number(searchSessionIdRef.current)) {
@@ -580,14 +630,18 @@ const SearchScreen = ({ navigation, route }) => {
       if (platform === "Amazon") {
         return (
           current.includes("amazon.in") &&
-          (current.includes("/s?") || current.includes("/s/") || current.includes("k=") || current.includes("captcha"))
+          (current.includes("/s?") ||
+            current.includes("/s/") ||
+            current.includes("k=") ||
+            current.includes("captcha"))
         );
       }
 
       if (platform === "Flipkart") {
         return (
           current.includes("flipkart.com") &&
-          (current.includes("/search") || current.includes("q="))
+          current.includes("/search") &&
+          (current.includes("q=") && current.split("q=")[1].length > 0)
         );
       }
 
@@ -600,24 +654,22 @@ const SearchScreen = ({ navigation, route }) => {
     const currentUrl = (currentWebViewUrlsRef.current[platform] || "").split(
       "#",
     )[0];
-    const sessionForKey = searchSessionIdRef.current;
-    const reasonKey = "";
-    const injectKey = `${sessionForKey}:${currentUrl || "no-url"}${reasonKey}`;
 
     // Don't inject on about:blank or invalid URLs — no cookie access
-    if (!currentUrl || currentUrl === "about:blank" || !currentUrl.startsWith("http")) {
+    if (
+      !currentUrl ||
+      currentUrl === "about:blank" ||
+      !currentUrl.startsWith("http")
+    ) {
       console.log(`[Search] Skipping injection on invalid URL: ${currentUrl}`);
       return;
     }
 
-    // Prevent duplicate injection for the same platform+URL in this session.
-    if (injectedPlatformsRef.current[platform] === injectKey) {
-      return;
-    }
-    injectedPlatformsRef.current[platform] = injectKey;
-
     const platformToken = connectedPlatformTokensRef.current[platform] || null;
-    let parseScript = PlatformDOMScraperService.getParseScript(platform, platformToken);
+    let parseScript = PlatformDOMScraperService.getParseScript(
+      platform,
+      platformToken,
+    );
     const apiScript = null;
 
     if (!parseScript && !apiScript) {
@@ -626,11 +678,30 @@ const SearchScreen = ({ navigation, route }) => {
     }
 
     const sessionId = searchSessionIdRef.current;
-    const sessionPreamble = `window.__CompareZ_SESSION_ID__ = ${JSON.stringify(
-      sessionId,
-    )}; true;`;
 
-    console.log(`[Search] EXECUTING injectDomParser for ${platform} (${reason}) - script length: ${parseScript ? parseScript.length : 0}`);
+    // JS-side deduplication: if the script was already injected and running on THIS page for THIS session, skip.
+    // If the page navigates, the JS context is wiped, and this flag resets naturally.
+    const sessionPreamble = `
+      if (window.__CompareZ_SESSION_ID__ === ${JSON.stringify(sessionId)} && window.__CompareZ_URL__ === window.location.href) {
+        var _snd = window.__rnMsg || (window.ReactNativeWebView && window.ReactNativeWebView.postMessage.bind(window.ReactNativeWebView));
+        if (_snd) _snd(JSON.stringify({type: 'LOG', message: '[Inject] Already running for session ' + ${JSON.stringify(sessionId)} + ' on ' + window.location.href + ', skipping.'}));
+        throw new Error('ALREADY_INJECTED');
+      }
+      window.__CompareZ_SESSION_ID__ = ${JSON.stringify(sessionId)};
+      window.__CompareZ_URL__ = window.location.href;
+      
+      // VISUAL DEBUG: Add a massive red border to prove the JS executed
+      try {
+        if (document.body) document.body.style.border = "10px solid red";
+        else document.documentElement.style.border = "10px solid red";
+      } catch (e) {}
+      
+      true;
+    `;
+
+    console.log(
+      `[Search] EXECUTING injectDomParser for ${platform} (${reason}) - script length: ${parseScript ? parseScript.length : 0}`,
+    );
 
     try {
       console.log(
@@ -656,8 +727,18 @@ const SearchScreen = ({ navigation, route }) => {
         true;
       `;
 
-      webViewRefs.current[platform]?.injectJavaScript(
-        sessionPreamble + probe + (apiScript || "") + (parseScript || ""),
+      const finalScript =
+        sessionPreamble + probe + (apiScript || "") + (parseScript || "");
+      webViewRefs.current[platform]?.injectJavaScript(finalScript);
+
+      // Fallback: If CSP blocks injectJavaScript (evaluateJavaScript), send via postMessage
+      webViewRefs.current[platform]?.postMessage(
+        JSON.stringify({
+          type: "EXECUTE_PARSER",
+          query: currentSearchQueryRef.current,
+          sessionId: sessionId,
+          script: finalScript,
+        }),
       );
     } catch (err) {
       console.error(`[Search] Failed to inject parser for ${platform}:`, err);
@@ -739,7 +820,13 @@ const SearchScreen = ({ navigation, route }) => {
 
   const getConnectedPlatformsSnapshot = useCallback(async () => {
     try {
-      const supportedPlatforms = ["Blinkit", "BigBasket", "Zepto", "Amazon", "Flipkart"];
+      const supportedPlatforms = [
+        "Blinkit",
+        "BigBasket",
+        "Zepto",
+        "Amazon",
+        "Flipkart",
+      ];
       const parsed = storedTokensRef.current || {};
 
       const tokenMap = {};
@@ -960,15 +1047,20 @@ const SearchScreen = ({ navigation, route }) => {
           data.products = data.products.map((product) =>
             normalizeIncomingProduct(product, platform),
           );
-          
-          if (platform === 'Amazon' && data.products.length > 0) {
+
+          if (platform === "Amazon" && data.products.length > 0) {
             const sample = data.products[0];
-            console.log(`[Debug-Amazon] Incoming product after normalize: name="${(sample.product_name || '').substring(0, 40)}", image_url="${(sample.image_url || 'EMPTY').substring(0, 80)}", platform=${sample.platform}`);
+            console.log(
+              `[Debug-Amazon] Incoming product after normalize: name="${(sample.product_name || "").substring(0, 40)}", image_url="${(sample.image_url || "EMPTY").substring(0, 80)}", platform=${sample.platform}`,
+            );
           }
         }
 
         // Reject late messages from older searches when sessionId is provided
-        if (data.sessionId && Number(data.sessionId) !== Number(searchSessionIdRef.current)) {
+        if (
+          data.sessionId &&
+          Number(data.sessionId) !== Number(searchSessionIdRef.current)
+        ) {
           console.log(
             `[Search] Ignoring ${platform} results for old session ${data.sessionId} (current: ${searchSessionIdRef.current})`,
           );
@@ -1179,15 +1271,17 @@ const SearchScreen = ({ navigation, route }) => {
 
       const response = await api.get("/compare", {
         headers: { "X-User-Tokens": JSON.stringify(tokensForHeader) },
-        params: { 
-          q: fallbackQuery, 
-          lat: 12.9716, 
+        params: {
+          q: fallbackQuery,
+          lat: 12.9716,
           lng: 77.5946,
-          sessionId: sessionId 
+          sessionId: sessionId,
         },
       });
 
-      console.log(`[Search] Backend fallback response status: ${response.status}`);
+      console.log(
+        `[Search] Backend fallback response status: ${response.status}`,
+      );
 
       const platformMatches = (listingPlatform, expectedPlatform) => {
         const lp = String(listingPlatform || "")
@@ -1300,18 +1394,37 @@ const SearchScreen = ({ navigation, route }) => {
       .map((w) => normalizeToken(w))
       .filter(Boolean);
 
-    const isRelevant = (productName) => {
+    const calculateRelevanceScore = (productName) => {
       const rawName = String(productName || "").toLowerCase();
+      if (rawName.includes(searchTerm)) return 100; // Exact phrase match
+
       const nameWords = rawName
         .split(/\s+/)
         .map((w) => normalizeToken(w))
         .filter(Boolean);
 
-      return normalizedSearchWords.some(
-        (word) =>
-          rawName.includes(word) ||
-          nameWords.some((nw) => nw.includes(word) || word.includes(nw)),
-      );
+      let matchedWords = 0;
+      normalizedSearchWords.forEach((word) => {
+        if (nameWords.includes(word) || rawName.includes(word)) {
+          matchedWords++;
+        }
+      });
+
+      if (matchedWords === 0) return 0;
+
+      // coverage percentage
+      const coverage = matchedWords / normalizedSearchWords.length;
+      let score = coverage * 80;
+
+      // Bonus for matching the first word of the query (often the brand or main item)
+      if (nameWords.includes(normalizedSearchWords[0])) {
+        score += 15;
+      }
+
+      // Penalty for excessive length (helps prioritize shorter, more accurate titles)
+      score -= Math.min(10, nameWords.length / 2);
+
+      return Math.max(0, score);
     };
 
     // Count total products before filtering
@@ -1326,8 +1439,8 @@ const SearchScreen = ({ navigation, route }) => {
 
     Object.values(resultsToAggregate).forEach(({ products }) => {
       products?.forEach((product) => {
-        // Skip products not relevant to search query
-        if (!isRelevant(product.product_name)) {
+        const score = calculateRelevanceScore(product.product_name);
+        if (score < 40) { // Increased threshold for better quality
           return;
         }
         relevantProducts++;
@@ -1338,8 +1451,11 @@ const SearchScreen = ({ navigation, route }) => {
           productMap[key] = {
             name: product.product_name,
             listings: [],
+            maxRelevance: 0,
           };
         }
+
+        productMap[key].maxRelevance = Math.max(productMap[key].maxRelevance, score);
 
         productMap[key].listings.push({
           platform: product.platform,
@@ -1365,6 +1481,41 @@ const SearchScreen = ({ navigation, route }) => {
     console.log(
       `[Search] Filtered ${relevantProducts}/${totalProducts} products matching "${stableQuery}"`,
     );
+
+    // DEBUG SUMMARY
+    const platformStats = {};
+    Object.keys(resultsToAggregate).forEach((plat) => {
+      const items = resultsToAggregate[plat]?.products || [];
+      const relevant = items.filter((p) => calculateRelevanceScore(p.product_name) >= 40);
+      const withPhotos = relevant.filter(
+        (p) =>
+          p.image_url &&
+          !p.image_url.includes("placeholder") &&
+          !p.image_url.includes("blank"),
+      ).length;
+      platformStats[plat] = {
+        total: items.length,
+        relevant: relevant.length,
+        withPhotos,
+      };
+    });
+
+    console.log("╔═════════════════ SEARCH DEBUG SUMMARY ════════════════╗");
+    console.log(`║ Query: "${stableQuery.padEnd(41)}" ║`);
+    Object.entries(platformStats).forEach(([plat, stats]) => {
+      const status =
+        stats.relevant > 0
+          ? stats.withPhotos === stats.relevant
+            ? "✅ Photos OK"
+            : stats.withPhotos > 0
+              ? "⚠️ Some Missing"
+              : "❌ NO PHOTOS"
+          : "⚪ No Results";
+      console.log(
+        `║ ${plat.padEnd(10)}: ${String(stats.relevant).padStart(3)} items | ${status.padEnd(15)} ║`,
+      );
+    });
+    console.log("╚════════════════════════════════════════════════════════╝");
 
     // Convert to array format
     const aggregated = Object.values(productMap).map((group, idx) => {
@@ -1423,32 +1574,44 @@ const SearchScreen = ({ navigation, route }) => {
         uniqueListings.find((l) => l.raw_product_name)?.raw_product_name ||
         selectBestDisplayName(uniqueListings, group.name);
 
+      const imageCandidates = [
+        first.image_url,
+        ...uniqueListings.map((listing) => listing?.image_url),
+      ]
+        .map((url) => (url ? String(url).trim() : ""))
+        .filter((url) => url && !url.startsWith("data:"));
+      const uniqueImages = Array.from(new Set(imageCandidates));
+
       return {
         id: idx,
         name: displayName,
         brand: first.brand || "",
-        price: first.price || best,
-        originalPrice: worst > (first.price || best) ? worst : undefined,
+        price: best > 0 ? best : first.price || 0,
+        originalPrice: worst > best ? worst : undefined,
         platformCount: listings.length,
         totalPlatforms: uniqueListings.length,
         discount:
-          worst > (first.price || best)
-            ? Math.round(((worst - (first.price || best)) / worst) * 100)
+          worst > best && best > 0
+            ? Math.round(((worst - best) / worst) * 100)
             : 0,
         listings: uniqueListings,
         bestPlatform:
           listings.length > 0
             ? listings.reduce((a, b) => (a.price < b.price ? a : b)).platform
             : "",
-        image_url:
-          first.image_url ||
-          uniqueListings.find((listing) => listing.image_url)?.image_url ||
-          "",
+        image_url: first.image_url || uniqueImages[0] || "",
+        imageCandidates: uniqueImages,
+        relevance: group.maxRelevance,
       };
     });
 
-    // Sort by number of available platforms
-    aggregated.sort((a, b) => b.platformCount - a.platformCount);
+    // Sort by relevance first, then platform count
+    aggregated.sort((a, b) => {
+      if (Math.abs(b.relevance - a.relevance) > 10) {
+        return b.relevance - a.relevance;
+      }
+      return b.platformCount - a.platformCount;
+    });
 
     if (isComplete || aggregated.length > 0) {
       setLoading(false);
@@ -1467,7 +1630,7 @@ const SearchScreen = ({ navigation, route }) => {
       "search-aggregate-end",
     );
     console.log(
-      `[Perf] Search update: aggregation=${aggregateDuration.toFixed(2)}ms, total=${totalDuration.toFixed(2)}ms, complete=${isComplete}`,
+      `[Perf] Search update: aggregation=${(aggregateDuration || 0).toFixed(2)}ms, total=${(totalDuration || 0).toFixed(2)}ms, complete=${isComplete}`,
     );
 
     if (aggregated.length > 0) {
@@ -1497,11 +1660,63 @@ const SearchScreen = ({ navigation, route }) => {
 
   const collectResultsToBackend = async (query, platformResults) => {
     try {
-      await api.post("/search/collect", {
-        query: query,
-        platforms: platformResults,
+      // Flatten the results to match backend expectation: map[string][]ProductListing
+      const flattenedPlatforms = {};
+      Object.keys(platformResults).forEach((platform) => {
+        flattenedPlatforms[platform] =
+          platformResults[platform]?.products || [];
       });
+
+      const payload = {
+        query: query,
+        platforms: flattenedPlatforms,
+      };
+
+      if (user && user.id) {
+        payload.user_id = user.id;
+      }
+
+      await api.post("/search/collect", payload);
       console.log(`[Search] Sent results to backend for analytics`);
+
+      // ── HOT DEAL COLLECTION (non-blocking) ──
+      // Runs AFTER all animations/transitions finish → zero UI lag
+      InteractionManager.runAfterInteractions(() => {
+        setTimeout(async () => {
+          try {
+            const allListings = [];
+            Object.keys(flattenedPlatforms).forEach((platform) => {
+              (flattenedPlatforms[platform] || []).forEach((prod) => {
+                if (prod.price > 0 && prod.product_name) {
+                  allListings.push({
+                    product_name: prod.product_name,
+                    brand: prod.brand || "",
+                    image_url: prod.image_url || "",
+                    platform: platform,
+                    price: prod.price,
+                    mrp: prod.mrp || 0,
+                    stock_status: prod.in_stock === false ? "out_of_stock" : "in_stock",
+                    delivery_time: prod.delivery_time || "",
+                    product_url: prod.product_url || prod.deep_link || "",
+                  });
+                }
+              });
+            });
+
+            if (allListings.length > 0) {
+              const scored = DealScoringService.scoreAll(allListings);
+              const trending = DealScoringService.detectTrending(scored);
+              const topDeals = trending.filter((d) => d.hot_score > 30).slice(0, 50);
+              if (topDeals.length > 0) {
+                await api.post("/deals/collect", { deals: topDeals });
+                console.log(`[Deals] Sent ${topDeals.length} hot deals to backend`);
+              }
+            }
+          } catch (e) {
+            // Silent — deal collection is best-effort
+          }
+        }, 2000); // 2s buffer after interactions settle
+      });
     } catch (err) {
       // Silently fail - backend collection is optional
       console.log(`[Search] Backend collection skipped:`, err?.message);
@@ -1524,15 +1739,6 @@ const SearchScreen = ({ navigation, route }) => {
     [handleProduct],
   );
 
-  const getResultItemLayout = useCallback(
-    (_, index) => ({
-      length: RESULT_CARD_HEIGHT,
-      offset: RESULT_CARD_HEIGHT * index,
-      index,
-    }),
-    [],
-  );
-
   const renderEmpty = () => {
     if (loading) return null;
     if (!hasSearched) {
@@ -1552,7 +1758,13 @@ const SearchScreen = ({ navigation, route }) => {
               platforms
             </Text>
 
-            <View style={styles.platformBadge}>
+            <TouchableOpacity 
+              style={styles.platformBadge}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.navigate("Accounts");
+              }}
+            >
               <Ionicons
                 name="layers-outline"
                 size={14}
@@ -1561,7 +1773,7 @@ const SearchScreen = ({ navigation, route }) => {
               <Text style={styles.platformBadgeText}>
                 {state.connectedPlatforms.length} live sources ready
               </Text>
-            </View>
+            </TouchableOpacity>
 
             {state.connectedPlatforms.length === 0 && (
               <View style={styles.warning}>
@@ -1710,7 +1922,8 @@ const SearchScreen = ({ navigation, route }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <PerformanceDebugPanel enabled={false} />
       <View style={styles.header}>
@@ -1751,11 +1964,11 @@ const SearchScreen = ({ navigation, route }) => {
         data={results}
         renderItem={renderProductItem}
         keyExtractor={(item) => String(item.id)}
-        getItemLayout={results.length > 0 ? getResultItemLayout : undefined}
-        initialNumToRender={6}
-        maxToRenderPerBatch={8}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
         windowSize={5}
-        removeClippedSubviews={results.length > 0}
+        updateCellsBatchingPeriod={100}
+        removeClippedSubviews={false}
         contentContainerStyle={styles.list}
         ListHeaderComponent={renderSearchProgress}
         ListEmptyComponent={renderEmpty}
@@ -1769,7 +1982,11 @@ const SearchScreen = ({ navigation, route }) => {
           key={platform}
           ref={(ref) => (webViewRefs.current[platform] = ref)}
           source={{ uri: searchUrls[platform] || getPlatformUrl(platform) }}
-          style={captchaPlatform === platform ? styles.visibleWebView : styles.hiddenWebView}
+          style={
+            captchaPlatform === platform
+              ? styles.visibleWebView
+              : styles.hiddenWebView
+          }
           javaScriptEnabled={true}
           domStorageEnabled={true}
           cacheEnabled={true}
@@ -1777,6 +1994,16 @@ const SearchScreen = ({ navigation, route }) => {
           onMessage={(event) => handleWebViewMessage(platform, event)}
           // ── Optimization 1: Block images, fonts, and trackers ──────────
           onShouldStartLoadWithRequest={(request) => {
+            // CRITICAL: Block non-http deep links (e.g. flipkart://, intent://)
+            // otherwise Flipkart will redirect out of the WebView and hang the scraper forever
+            if (request.url && !request.url.toLowerCase().startsWith("http")) {
+              if (
+                request.url !== "about:blank" &&
+                !request.url.startsWith("blob:")
+              ) {
+                return false;
+              }
+            }
             if (shouldBlockWebViewRequest(request)) {
               return false; // silently drop — saves 1.5–3s per search
             }
@@ -1785,11 +2012,58 @@ const SearchScreen = ({ navigation, route }) => {
           // ── Optimization 2: Inject early — fires as soon as JS context is ready
           // before images/CSS have even been requested by the browser
           injectedJavaScriptBeforeContentLoaded={`
-            // Patch fetch to auto-forward JSON API responses to RN bridge
             (function() {
-              var _origFetch = window.fetch;
+              window.__CX_SEARCH_QUERY__ = ${JSON.stringify(query)};
+
+              // Trap ReactNativeWebView injection to survive anti-bot deletion
+              let _rnwv = window.ReactNativeWebView;
+              Object.defineProperty(window, 'ReactNativeWebView', {
+                get: function() { return _rnwv; },
+                set: function(val) {
+                  _rnwv = val;
+                  if (val && val.postMessage) {
+                    window.__rnMsg = val.postMessage.bind(val);
+                  }
+                },
+                configurable: true,
+                enumerable: true
+              });
+              
+              if (_rnwv && _rnwv.postMessage) {
+                window.__rnMsg = _rnwv.postMessage.bind(_rnwv);
+              }
+
+              // Embed the actual parser directly to bypass CSP eval() blocks!
+              window.__CX_EXECUTE_PARSER = function() {
+                try {
+                  ${PlatformDOMScraperService.getParseScript ? PlatformDOMScraperService.getParseScript(platform, null) : ""}
+                } catch(e) {}
+              };
+
+              // Listen for messages from React Native
+              document.addEventListener('message', function(e) {
+                try {
+                  const data = JSON.parse(e.data);
+                  if (data.type === 'EXECUTE_PARSER') {
+                    window.__CX_SEARCH_QUERY__ = data.query;
+                    window.__CX_SESSION_ID__ = data.sessionId;
+                    window.__CX_EXECUTE_PARSER();
+                  }
+                } catch(err) {}
+              });
+              window.addEventListener('message', function(e) {
+                try {
+                  const data = JSON.parse(e.data);
+                  if (data.type === 'EXECUTE_PARSER') {
+                    window.__CX_SEARCH_QUERY__ = data.query;
+                    window.__CX_SESSION_ID__ = data.sessionId;
+                    window.__CX_EXECUTE_PARSER();
+                  }
+                } catch(err) {}
+              });
+
               window.__CX_INTERCEPT_PLATFORM__ = ${JSON.stringify(platform)};
-              window.__CX_SEARCH_ACTIVE__ = false; // set true by injection
+              window.__CX_SEARCH_ACTIVE__ = false;
             })();
             true;
           `}
@@ -1801,20 +2075,32 @@ const SearchScreen = ({ navigation, route }) => {
             const searchUrl = searchUrls[platform];
             if (canInjectForPlatform(platform, nativeEvent.url, searchUrl)) {
               // Small delay to let the cookie jar settle
-              setTimeout(() => injectDomParser(platform, 'onLoadStart-early'), 300);
+              setTimeout(
+                () => injectDomParser(platform, "onLoadStart-early"),
+                300,
+              );
             }
           }}
           onLoadEnd={(syntheticEvent) => {
             const { nativeEvent } = syntheticEvent;
-            const currentUrl = nativeEvent.url || currentWebViewUrlsRef.current[platform];
+            const currentUrl =
+              nativeEvent.url || currentWebViewUrlsRef.current[platform];
             console.log(`[Search] ${platform} onLoadEnd: ${currentUrl}`);
             const searchUrl = searchUrls[platform];
             if (canInjectForPlatform(platform, currentUrl, searchUrl)) {
-              injectDomParser(platform, 'onLoadEnd');
+              injectDomParser(platform, "onLoadEnd");
             }
           }}
           onNavigationStateChange={(navState) => {
             currentWebViewUrlsRef.current[platform] = navState.url;
+            // For SPAs on iOS, onLoadEnd might not fire for internal navigations.
+            // Trigger injection here too if loading is complete.
+            if (!navState.loading) {
+              const searchUrl = searchUrls[platform];
+              if (canInjectForPlatform(platform, navState.url, searchUrl)) {
+                injectDomParser(platform, "onNavigationStateChange");
+              }
+            }
           }}
           userAgent={
             platform === "Amazon"
@@ -1825,11 +2111,19 @@ const SearchScreen = ({ navigation, route }) => {
           sharedCookiesEnabled={true}
           thirdPartyCookiesEnabled={true}
           geolocationEnabled={true}
-          onError={(e) => console.log(`[Search] ${platform} WebView error:`, e.nativeEvent)}
-          onHttpError={(e) => console.log(`[Search] ${platform} HTTP ${e.nativeEvent.statusCode}:`, e.nativeEvent.url)}
+          onError={(e) =>
+            console.log(`[Search] ${platform} WebView error:`, e.nativeEvent)
+          }
+          onHttpError={(e) =>
+            console.log(
+              `[Search] ${platform} HTTP ${e.nativeEvent.statusCode}:`,
+              e.nativeEvent.url,
+            )
+          }
         />
       ))}
-    </View>
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -1845,6 +2139,10 @@ function getPlatformUrl(platform) {
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -1876,7 +2174,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 400,
     marginTop: 10,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   captchaOverlay: {
     padding: SPACING.lg,
