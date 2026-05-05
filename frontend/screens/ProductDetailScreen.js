@@ -237,13 +237,15 @@ const ProductDetailScreen = ({ route, navigation }) => {
     };
   });
 
-  const available = allPlatforms.filter((p) => p.inStock && p.price > 0).sort((a, b) => a.price - b.price);
+  const available = allPlatforms
+    .filter((p) => p.inStock && p.price > 0)
+    .sort((a, b) => a.price - b.price);
   const unavailable = allPlatforms.filter((p) => !p.inStock || p.price === 0);
   const sorted = [...available, ...unavailable];
 
-  const displayTitle = React.useMemo(() => 
-    pickDisplayTitle(product?.name, sorted),
-    [product, sorted]
+  const displayTitle = React.useMemo(
+    () => pickDisplayTitle(product?.name, sorted),
+    [product, sorted],
   );
 
   const referencePrice = React.useMemo(() => {
@@ -281,7 +283,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
   const toggleSave = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const willSave = !saved;
-    
+
     try {
       if (willSave) {
         setSaved(true);
@@ -291,7 +293,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
           best_price: referencePrice,
           platform: available[0]?.name || "Online",
           image_url: product?.image_url || "",
-          product_url: available[0]?.productUrl || ""
+          product_url: available[0]?.productUrl || "",
         });
         setWishlistId(response.data.id);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -321,8 +323,6 @@ const ProductDetailScreen = ({ route, navigation }) => {
       }),
     ]).start();
   };
-
-
 
   // Find best (cheapest) price for comparison
   const pricesSorted = [...available].sort((a, b) => a.price - b.price);
@@ -368,7 +368,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
 
       console.log(`[ProductDetail] Opening ${p.name}: ${fallbackWebUrl}`);
 
-      // On Android, Linking.openURL with the web URL opens the native app 
+      // On Android, Linking.openURL with the web URL opens the native app
       // automatically if it's installed (via Android App Links / verified intents).
       // On iOS, the same applies for universal links.
       // This is the simplest and most reliable approach.
@@ -388,7 +388,10 @@ const ProductDetailScreen = ({ route, navigation }) => {
             };
             const packageName = appPackages[platform];
             if (packageName) {
-              const intentUrl = buildAndroidIntentUrl(fallbackWebUrl, packageName);
+              const intentUrl = buildAndroidIntentUrl(
+                fallbackWebUrl,
+                packageName,
+              );
               if (intentUrl) {
                 try {
                   await Linking.openURL(intentUrl);
@@ -429,138 +432,142 @@ const ProductDetailScreen = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle="dark-content" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            navigation.goBack();
-          }}
-          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-        >
-          <Ionicons name="arrow-back" size={22} color={COLORS.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Details</Text>
-        <TouchableOpacity
-          onPress={toggleSave}
-          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-        >
-          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-            <Ionicons
-              name={saved ? "heart" : "heart-outline"}
-              size={22}
-              color={saved ? COLORS.error : COLORS.textSecondary}
-            />
-          </Animated.View>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Product Image */}
-        {product?.image_url ? (
-          <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: product.image_url }}
-              style={styles.productImage}
-              resizeMode="contain"
-            />
-          </View>
-        ) : null}
-
-        {/* Product summary */}
-        <View style={styles.productSection}>
-          <Text style={styles.productBrand}>{product?.brand || "Product"}</Text>
-          <Text style={styles.productName}>{displayTitle}</Text>
-
-          <View style={styles.priceRow}>
-            {referencePrice > 0 && (
-              <Text style={styles.bestPrice}>₹{referencePrice}</Text>
-            )}
-            {worst > referencePrice && (
-              <Text style={styles.worstPrice}>₹{worst}</Text>
-            )}
-          </View>
-
-          <View style={styles.metaTopRow}>
-            <Text style={styles.metaTopItem}>
-              Qty: {firstWithQuantity || "—"}
-            </Text>
-            <Text style={styles.metaTopItem}>
-              Rating:{" "}
-              {displayRating > 0
-                ? `${displayRating}${displayRatingCount > 0 ? ` (${displayRatingCount})` : ""}`
-                : "—"}
-            </Text>
-          </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+          >
+            <Ionicons name="arrow-back" size={22} color={COLORS.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Details</Text>
+          <TouchableOpacity
+            onPress={toggleSave}
+            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+          >
+            <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+              <Ionicons
+                name={saved ? "heart" : "heart-outline"}
+                size={22}
+                color={saved ? COLORS.error : COLORS.textSecondary}
+              />
+            </Animated.View>
+          </TouchableOpacity>
         </View>
 
-        {/* Meta info row */}
-        <View style={styles.metaInfoRow}>
-          <View style={styles.metaInfoItem}>
-            <Text style={styles.metaInfoLabel}>MRP</Text>
-            <Text style={styles.metaInfoValue}>{displayMrp > 0 ? `₹${displayMrp}` : "—"}</Text>
-          </View>
-          <View style={styles.metaInfoDivider} />
-          <View style={styles.metaInfoItem}>
-            <Text style={styles.metaInfoLabel}>Discount</Text>
-            <Text style={styles.metaInfoValue}>
-              {displayDiscountPercent > 0
-                ? `${displayDiscountPercent}%`
-                : displayDiscountValue > 0
-                  ? `₹${displayDiscountValue}`
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Product Image */}
+          {product?.image_url ? (
+            <View style={styles.imageContainer}>
+              <Image
+                source={{ uri: product.image_url }}
+                style={styles.productImage}
+                resizeMode="contain"
+              />
+            </View>
+          ) : null}
+
+          {/* Product summary */}
+          <View style={styles.productSection}>
+            <Text style={styles.productBrand}>
+              {product?.brand || "Product"}
+            </Text>
+            <Text style={styles.productName}>{displayTitle}</Text>
+
+            <View style={styles.priceRow}>
+              {referencePrice > 0 && (
+                <Text style={styles.bestPrice}>₹{referencePrice}</Text>
+              )}
+              {worst > referencePrice && (
+                <Text style={styles.worstPrice}>₹{worst}</Text>
+              )}
+            </View>
+
+            <View style={styles.metaTopRow}>
+              <Text style={styles.metaTopItem}>
+                Qty: {firstWithQuantity || "—"}
+              </Text>
+              <Text style={styles.metaTopItem}>
+                Rating:{" "}
+                {displayRating > 0
+                  ? `${displayRating}${displayRatingCount > 0 ? ` (${displayRatingCount})` : ""}`
                   : "—"}
-            </Text>
+              </Text>
+            </View>
           </View>
-        </View>
 
-        {/* Savings */}
-        {saving > 0 && (
-          <View style={styles.savingsRow}>
-            <Ionicons
-              name="arrow-down-circle"
-              size={18}
-              color={COLORS.savings}
-            />
-            <Text style={styles.savingsText}>
-              Save ₹{saving} by choosing {pricesSorted[0]?.name}
-            </Text>
+          {/* Meta info row */}
+          <View style={styles.metaInfoRow}>
+            <View style={styles.metaInfoItem}>
+              <Text style={styles.metaInfoLabel}>MRP</Text>
+              <Text style={styles.metaInfoValue}>
+                {displayMrp > 0 ? `₹${displayMrp}` : "—"}
+              </Text>
+            </View>
+            <View style={styles.metaInfoDivider} />
+            <View style={styles.metaInfoItem}>
+              <Text style={styles.metaInfoLabel}>Discount</Text>
+              <Text style={styles.metaInfoValue}>
+                {displayDiscountPercent > 0
+                  ? `${displayDiscountPercent}%`
+                  : displayDiscountValue > 0
+                    ? `₹${displayDiscountValue}`
+                    : "—"}
+              </Text>
+            </View>
           </View>
-        )}
 
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{available.length}</Text>
-            <Text style={styles.statLabel}>Available</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: COLORS.textTertiary }]}>
-              {unavailable.length}
-            </Text>
-            <Text style={styles.statLabel}>Unavailable</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: COLORS.savings }]}>
-              {best > 0 ? `₹${best}` : "—"}
-            </Text>
-            <Text style={styles.statLabel}>Best price</Text>
-          </View>
-        </View>
+          {/* Savings */}
+          {saving > 0 && (
+            <View style={styles.savingsRow}>
+              <Ionicons
+                name="arrow-down-circle"
+                size={18}
+                color={COLORS.savings}
+              />
+              <Text style={styles.savingsText}>
+                Save ₹{saving} by choosing {pricesSorted[0]?.name}
+              </Text>
+            </View>
+          )}
 
-        {/* Platforms */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Price across {sorted.length} platforms
-          </Text>
-          {platformRows}
-        </View>
+          {/* Stats */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{available.length}</Text>
+              <Text style={styles.statLabel}>Available</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: COLORS.textTertiary }]}>
+                {unavailable.length}
+              </Text>
+              <Text style={styles.statLabel}>Unavailable</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: COLORS.savings }]}>
+                {best > 0 ? `₹${best}` : "—"}
+              </Text>
+              <Text style={styles.statLabel}>Best price</Text>
+            </View>
+          </View>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+          {/* Platforms */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Price across {sorted.length} platforms
+            </Text>
+            {platformRows}
+          </View>
+
+          <View style={{ height: 100 }} />
+        </ScrollView>
       </View>
     </SafeAreaView>
   );
@@ -579,7 +586,6 @@ const buildAndroidIntentUrl = (webUrl, packageName) => {
   }
 };
 
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -593,7 +599,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 64,       // Normalized
+    paddingTop: 64, // Normalized
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.lg,
     backgroundColor: COLORS.surface,
