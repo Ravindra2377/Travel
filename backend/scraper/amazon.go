@@ -25,16 +25,23 @@ func NewAmazonScraper() *AmazonScraper {
 func (a *AmazonScraper) Name() string { return "Amazon" }
 
 func (a *AmazonScraper) Search(ctx context.Context, query string, lat, lng float64, userTokens map[string]string) ([]models.PlatformListing, error) {
+	if listings, err := a.fetchOfficialListings(ctx, query); err == nil {
+		log.Printf("🔍 Using Amazon PA-API for search: %s", query)
+		return listings, nil
+	} else {
+		log.Printf("⚠️  Amazon PA-API fallback unavailable: %v", err)
+	}
+
 	cfg := config.AppConfig.Amazon
-	
+
 	actorID := cfg.ActorID
 	if actorID == "" {
 		actorID = "fast_scraper/amazon-product-scraper"
 	}
 
 	input := map[string]interface{}{
-		"search": query,
-		"maxResults":  20,
+		"search":     query,
+		"maxResults": 20,
 	}
 
 	// Use Apify if API key is provided
@@ -48,8 +55,8 @@ func (a *AmazonScraper) Search(ctx context.Context, query string, lat, lng float
 		return a.mapApifyResults(items), nil
 	}
 
-	log.Printf("⚠️  Apify API Key missing for Amazon backend fallback")
-	return nil, fmt.Errorf("apify api key not configured")
+	log.Printf("⚠️  Amazon API credentials missing and Apify fallback unavailable")
+	return nil, fmt.Errorf("amazon api credentials not configured")
 }
 
 func (a *AmazonScraper) mapApifyResults(items []map[string]interface{}) []models.PlatformListing {

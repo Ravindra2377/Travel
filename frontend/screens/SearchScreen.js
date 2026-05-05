@@ -16,7 +16,6 @@ import {
   TouchableOpacity,
   Animated,
   Image,
-  InteractionManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -33,7 +32,6 @@ import PlatformScraperService from "../services/PlatformScraperService";
 import PlatformDOMScraperService from "../services/PlatformDOMScraperService";
 import api from "../config/api";
 import { AuthContext } from "../context/AuthContext";
-import DealScoringService from "../services/DealScoringService";
 
 const SUGGESTIONS = [
   "Eggs",
@@ -202,9 +200,30 @@ const getProductMatchKey = (name) => {
 
   // Strip punctuation and unnecessary words
   const stopWords = new Set([
-    "fresh", "new", "original", "pack", "pouch", "bottle", "net", "quantity",
-    "medium", "large", "small", "pc", "pcs", "the", "a", "an", "of", "best",
-    "quality", "premium", "super", "tasty", "natural", "pure"
+    "fresh",
+    "new",
+    "original",
+    "pack",
+    "pouch",
+    "bottle",
+    "net",
+    "quantity",
+    "medium",
+    "large",
+    "small",
+    "pc",
+    "pcs",
+    "the",
+    "a",
+    "an",
+    "of",
+    "best",
+    "quality",
+    "premium",
+    "super",
+    "tasty",
+    "natural",
+    "pure",
   ]);
 
   let baseWords = clean
@@ -641,7 +660,8 @@ const SearchScreen = ({ navigation, route }) => {
         return (
           current.includes("flipkart.com") &&
           current.includes("/search") &&
-          (current.includes("q=") && current.split("q=")[1].length > 0)
+          current.includes("q=") &&
+          current.split("q=")[1].length > 0
         );
       }
 
@@ -1378,6 +1398,8 @@ const SearchScreen = ({ navigation, route }) => {
     const stableQuery = (currentSearchQueryRef.current || "").trim();
     const searchTerm = stableQuery.toLowerCase();
     const searchWords = searchTerm.split(/\s+/).filter(Boolean);
+    const PER_PLATFORM_LIMIT = 4;
+    const MAX_RESULTS = 20;
 
     const normalizeToken = (token = "") => {
       const t = String(token || "")
@@ -1436,13 +1458,23 @@ const SearchScreen = ({ navigation, route }) => {
 
     // Group products by name similarity
     const productMap = {};
+    const platformCounts = {};
 
     Object.values(resultsToAggregate).forEach(({ products }) => {
       products?.forEach((product) => {
         const score = calculateRelevanceScore(product.product_name);
-        if (score < 40) { // Increased threshold for better quality
+        if (score < 40) {
+          // Increased threshold for better quality
           return;
         }
+
+        const platform = product.platform || "Unknown";
+        const currentPlatformCount = platformCounts[platform] || 0;
+        if (currentPlatformCount >= PER_PLATFORM_LIMIT) {
+          return;
+        }
+        platformCounts[platform] = currentPlatformCount + 1;
+
         relevantProducts++;
 
         const key = getProductMatchKey(product.product_name);
@@ -1455,7 +1487,10 @@ const SearchScreen = ({ navigation, route }) => {
           };
         }
 
-        productMap[key].maxRelevance = Math.max(productMap[key].maxRelevance, score);
+        productMap[key].maxRelevance = Math.max(
+          productMap[key].maxRelevance,
+          score,
+        );
 
         productMap[key].listings.push({
           platform: product.platform,
@@ -1486,7 +1521,9 @@ const SearchScreen = ({ navigation, route }) => {
     const platformStats = {};
     Object.keys(resultsToAggregate).forEach((plat) => {
       const items = resultsToAggregate[plat]?.products || [];
-      const relevant = items.filter((p) => calculateRelevanceScore(p.product_name) >= 40);
+      const relevant = items.filter(
+        (p) => calculateRelevanceScore(p.product_name) >= 40,
+      );
       const withPhotos = relevant.filter(
         (p) =>
           p.image_url &&
@@ -1613,6 +1650,8 @@ const SearchScreen = ({ navigation, route }) => {
       return b.platformCount - a.platformCount;
     });
 
+    const cappedResults = aggregated.slice(0, MAX_RESULTS);
+
     if (isComplete || aggregated.length > 0) {
       setLoading(false);
     }
@@ -1633,15 +1672,15 @@ const SearchScreen = ({ navigation, route }) => {
       `[Perf] Search update: aggregation=${(aggregateDuration || 0).toFixed(2)}ms, total=${(totalDuration || 0).toFixed(2)}ms, complete=${isComplete}`,
     );
 
-    if (aggregated.length > 0) {
-      setResults(aggregated);
+    if (cappedResults.length > 0) {
+      setResults(cappedResults);
       const normalizedQuery = (stableQuery || "").toLowerCase();
       const platformSignature = [...(connectedPlatformsRef.current || [])]
         .sort()
         .join("|");
       const searchKey = `${SEARCH_CACHE_VERSION}::${normalizedQuery}::${platformSignature}`;
       resultsCacheRef.current[searchKey] = {
-        results: aggregated,
+        results: cappedResults,
         timestamp: Date.now(),
       };
 
@@ -1678,45 +1717,6 @@ const SearchScreen = ({ navigation, route }) => {
 
       await api.post("/search/collect", payload);
       console.log(`[Search] Sent results to backend for analytics`);
-
-      // ── HOT DEAL COLLECTION (non-blocking) ──
-      // Runs AFTER all animations/transitions finish → zero UI lag
-      InteractionManager.runAfterInteractions(() => {
-        setTimeout(async () => {
-          try {
-            const allListings = [];
-            Object.keys(flattenedPlatforms).forEach((platform) => {
-              (flattenedPlatforms[platform] || []).forEach((prod) => {
-                if (prod.price > 0 && prod.product_name) {
-                  allListings.push({
-                    product_name: prod.product_name,
-                    brand: prod.brand || "",
-                    image_url: prod.image_url || "",
-                    platform: platform,
-                    price: prod.price,
-                    mrp: prod.mrp || 0,
-                    stock_status: prod.in_stock === false ? "out_of_stock" : "in_stock",
-                    delivery_time: prod.delivery_time || "",
-                    product_url: prod.product_url || prod.deep_link || "",
-                  });
-                }
-              });
-            });
-
-            if (allListings.length > 0) {
-              const scored = DealScoringService.scoreAll(allListings);
-              const trending = DealScoringService.detectTrending(scored);
-              const topDeals = trending.filter((d) => d.hot_score > 30).slice(0, 50);
-              if (topDeals.length > 0) {
-                await api.post("/deals/collect", { deals: topDeals });
-                console.log(`[Deals] Sent ${topDeals.length} hot deals to backend`);
-              }
-            }
-          } catch (e) {
-            // Silent — deal collection is best-effort
-          }
-        }, 2000); // 2s buffer after interactions settle
-      });
     } catch (err) {
       // Silently fail - backend collection is optional
       console.log(`[Search] Backend collection skipped:`, err?.message);
@@ -1758,7 +1758,7 @@ const SearchScreen = ({ navigation, route }) => {
               platforms
             </Text>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.platformBadge}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1924,94 +1924,97 @@ const SearchScreen = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <PerformanceDebugPanel enabled={false} />
-      <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerLabel}>CompareZ</Text>
-            <Text style={styles.headerTitle}>Collection</Text>
+        <StatusBar barStyle="dark-content" />
+        <PerformanceDebugPanel enabled={false} />
+        <View style={styles.header}>
+          <View style={styles.headerTopRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerLabel}>CompareZ</Text>
+              <Text style={styles.headerTitle}>Collection</Text>
+            </View>
           </View>
+          <SearchBar
+            value={query}
+            onChangeText={setQuery}
+            onClear={() => {
+              setQuery("");
+              setResults([]);
+              setHasSearched(false);
+            }}
+            autoFocus={!hasSearched && query === ""}
+            testID="searchInput"
+          />
         </View>
-        <SearchBar
-          value={query}
-          onChangeText={setQuery}
-          onClear={() => {
-            setQuery("");
-            setResults([]);
-            setHasSearched(false);
-          }}
-          autoFocus={!hasSearched && query === ""}
-          testID="searchInput"
+
+        {captchaPlatform && (
+          <View style={styles.captchaOverlay}>
+            <Text style={styles.captchaText}>
+              Please solve the CAPTCHA for {captchaPlatform} to continue saving.
+            </Text>
+            <TouchableOpacity
+              style={styles.captchaDismissBtn}
+              onPress={() => setCaptchaPlatform(null)}
+            >
+              <Text style={styles.captchaDismissTxt}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <FlatList
+          data={results}
+          renderItem={renderProductItem}
+          keyExtractor={(item) => String(item.id)}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          updateCellsBatchingPeriod={100}
+          removeClippedSubviews={false}
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={renderSearchProgress}
+          ListEmptyComponent={renderEmpty}
+          testID="resultsList"
+          accessibilityLabel="resultsList"
         />
-      </View>
 
-      {captchaPlatform && (
-        <View style={styles.captchaOverlay}>
-          <Text style={styles.captchaText}>
-            Please solve the CAPTCHA for {captchaPlatform} to continue saving.
-          </Text>
-          <TouchableOpacity
-            style={styles.captchaDismissBtn}
-            onPress={() => setCaptchaPlatform(null)}
-          >
-            <Text style={styles.captchaDismissTxt}>Close</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <FlatList
-        data={results}
-        renderItem={renderProductItem}
-        keyExtractor={(item) => String(item.id)}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={5}
-        updateCellsBatchingPeriod={100}
-        removeClippedSubviews={false}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={renderSearchProgress}
-        ListEmptyComponent={renderEmpty}
-        testID="resultsList"
-        accessibilityLabel="resultsList"
-      />
-
-      {/* Hidden WebViews: always mounted to pre-warm platforms for faster parallel searches */}
-      {state.connectedPlatforms.map((platform) => (
-        <WebView
-          key={platform}
-          ref={(ref) => (webViewRefs.current[platform] = ref)}
-          source={{ uri: searchUrls[platform] || getPlatformUrl(platform) }}
-          style={
-            captchaPlatform === platform
-              ? styles.visibleWebView
-              : styles.hiddenWebView
-          }
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          cacheEnabled={true}
-          cacheMode="LOAD_CACHE_ELSE_NETWORK"
-          onMessage={(event) => handleWebViewMessage(platform, event)}
-          // ── Optimization 1: Block images, fonts, and trackers ──────────
-          onShouldStartLoadWithRequest={(request) => {
-            // CRITICAL: Block non-http deep links (e.g. flipkart://, intent://)
-            // otherwise Flipkart will redirect out of the WebView and hang the scraper forever
-            if (request.url && !request.url.toLowerCase().startsWith("http")) {
+        {/* Hidden WebViews: always mounted to pre-warm platforms for faster parallel searches */}
+        {state.connectedPlatforms.map((platform) => (
+          <WebView
+            key={platform}
+            ref={(ref) => (webViewRefs.current[platform] = ref)}
+            source={{ uri: searchUrls[platform] || getPlatformUrl(platform) }}
+            style={
+              captchaPlatform === platform
+                ? styles.visibleWebView
+                : styles.hiddenWebView
+            }
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            cacheEnabled={true}
+            cacheMode="LOAD_CACHE_ELSE_NETWORK"
+            onMessage={(event) => handleWebViewMessage(platform, event)}
+            // ── Optimization 1: Block images, fonts, and trackers ──────────
+            onShouldStartLoadWithRequest={(request) => {
+              // CRITICAL: Block non-http deep links (e.g. flipkart://, intent://)
+              // otherwise Flipkart will redirect out of the WebView and hang the scraper forever
               if (
-                request.url !== "about:blank" &&
-                !request.url.startsWith("blob:")
+                request.url &&
+                !request.url.toLowerCase().startsWith("http")
               ) {
-                return false;
+                if (
+                  request.url !== "about:blank" &&
+                  !request.url.startsWith("blob:")
+                ) {
+                  return false;
+                }
               }
-            }
-            if (shouldBlockWebViewRequest(request)) {
-              return false; // silently drop — saves 1.5–3s per search
-            }
-            return true;
-          }}
-          // ── Optimization 2: Inject early — fires as soon as JS context is ready
-          // before images/CSS have even been requested by the browser
-          injectedJavaScriptBeforeContentLoaded={`
+              if (shouldBlockWebViewRequest(request)) {
+                return false; // silently drop — saves 1.5–3s per search
+              }
+              return true;
+            }}
+            // ── Optimization 2: Inject early — fires as soon as JS context is ready
+            // before images/CSS have even been requested by the browser
+            injectedJavaScriptBeforeContentLoaded={`
             (function() {
               window.__CX_SEARCH_QUERY__ = ${JSON.stringify(query)};
 
@@ -2067,61 +2070,63 @@ const SearchScreen = ({ navigation, route }) => {
             })();
             true;
           `}
-          onLoadStart={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            currentWebViewUrlsRef.current[platform] = nativeEvent.url;
-            console.log(`[Search] ${platform} load start: ${nativeEvent.url}`);
-            // Try inject immediately — the URL already contains the search query
-            const searchUrl = searchUrls[platform];
-            if (canInjectForPlatform(platform, nativeEvent.url, searchUrl)) {
-              // Small delay to let the cookie jar settle
-              setTimeout(
-                () => injectDomParser(platform, "onLoadStart-early"),
-                300,
+            onLoadStart={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              currentWebViewUrlsRef.current[platform] = nativeEvent.url;
+              console.log(
+                `[Search] ${platform} load start: ${nativeEvent.url}`,
               );
-            }
-          }}
-          onLoadEnd={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            const currentUrl =
-              nativeEvent.url || currentWebViewUrlsRef.current[platform];
-            console.log(`[Search] ${platform} onLoadEnd: ${currentUrl}`);
-            const searchUrl = searchUrls[platform];
-            if (canInjectForPlatform(platform, currentUrl, searchUrl)) {
-              injectDomParser(platform, "onLoadEnd");
-            }
-          }}
-          onNavigationStateChange={(navState) => {
-            currentWebViewUrlsRef.current[platform] = navState.url;
-            // For SPAs on iOS, onLoadEnd might not fire for internal navigations.
-            // Trigger injection here too if loading is complete.
-            if (!navState.loading) {
+              // Try inject immediately — the URL already contains the search query
               const searchUrl = searchUrls[platform];
-              if (canInjectForPlatform(platform, navState.url, searchUrl)) {
-                injectDomParser(platform, "onNavigationStateChange");
+              if (canInjectForPlatform(platform, nativeEvent.url, searchUrl)) {
+                // Small delay to let the cookie jar settle
+                setTimeout(
+                  () => injectDomParser(platform, "onLoadStart-early"),
+                  300,
+                );
               }
+            }}
+            onLoadEnd={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              const currentUrl =
+                nativeEvent.url || currentWebViewUrlsRef.current[platform];
+              console.log(`[Search] ${platform} onLoadEnd: ${currentUrl}`);
+              const searchUrl = searchUrls[platform];
+              if (canInjectForPlatform(platform, currentUrl, searchUrl)) {
+                injectDomParser(platform, "onLoadEnd");
+              }
+            }}
+            onNavigationStateChange={(navState) => {
+              currentWebViewUrlsRef.current[platform] = navState.url;
+              // For SPAs on iOS, onLoadEnd might not fire for internal navigations.
+              // Trigger injection here too if loading is complete.
+              if (!navState.loading) {
+                const searchUrl = searchUrls[platform];
+                if (canInjectForPlatform(platform, navState.url, searchUrl)) {
+                  injectDomParser(platform, "onNavigationStateChange");
+                }
+              }
+            }}
+            userAgent={
+              platform === "Amazon"
+                ? "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
-          }}
-          userAgent={
-            platform === "Amazon"
-              ? "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-              : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-          }
-          incognito={false}
-          sharedCookiesEnabled={true}
-          thirdPartyCookiesEnabled={true}
-          geolocationEnabled={true}
-          onError={(e) =>
-            console.log(`[Search] ${platform} WebView error:`, e.nativeEvent)
-          }
-          onHttpError={(e) =>
-            console.log(
-              `[Search] ${platform} HTTP ${e.nativeEvent.statusCode}:`,
-              e.nativeEvent.url,
-            )
-          }
-        />
-      ))}
+            incognito={false}
+            sharedCookiesEnabled={true}
+            thirdPartyCookiesEnabled={true}
+            geolocationEnabled={true}
+            onError={(e) =>
+              console.log(`[Search] ${platform} WebView error:`, e.nativeEvent)
+            }
+            onHttpError={(e) =>
+              console.log(
+                `[Search] ${platform} HTTP ${e.nativeEvent.statusCode}:`,
+                e.nativeEvent.url,
+              )
+            }
+          />
+        ))}
       </View>
     </SafeAreaView>
   );

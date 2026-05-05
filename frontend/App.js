@@ -19,7 +19,6 @@ import SearchScreen from "./screens/SearchScreen";
 import ProductDetailScreen from "./screens/ProductDetailScreen";
 import WishlistScreen from "./screens/WishlistScreen";
 import ProfileScreen from "./screens/ProfileScreen";
-import DealsScreen from "./screens/DealsScreen";
 import AccountsScreen from "./screens/AccountsScreen";
 import SupportChatScreen from "./screens/SupportChatScreen";
 import TermsScreen from "./screens/TermsScreen";
@@ -32,7 +31,6 @@ const Tab = createBottomTabNavigator();
 
 const TAB_ICONS = {
   Home: { active: "home", inactive: "home-outline" },
-  Deals: { active: "pricetags", inactive: "pricetags-outline" },
   Search: { active: "search", inactive: "search-outline" },
   Wishlist: { active: "heart", inactive: "heart-outline" },
   Profile: { active: "person", inactive: "person-outline" },
@@ -53,14 +51,12 @@ const MainTabs = () => {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Deals" component={DealsScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Wishlist" component={WishlistScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 };
-
 
 import SplashScreen from "./screens/SplashScreen";
 

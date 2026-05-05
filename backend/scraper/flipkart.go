@@ -29,8 +29,15 @@ func NewFlipkartScraper() *FlipkartScraper {
 func (f *FlipkartScraper) Name() string { return "Flipkart" }
 
 func (f *FlipkartScraper) Search(ctx context.Context, query string, lat, lng float64, userTokens map[string]string) ([]models.PlatformListing, error) {
+	if listings, err := f.fetchOfficialListings(ctx, query); err == nil {
+		log.Printf("🔍 Using Flipkart affiliate API for search: %s", query)
+		return listings, nil
+	} else {
+		log.Printf("⚠️  Flipkart affiliate API fallback unavailable: %v", err)
+	}
+
 	cfg := config.AppConfig.Flipkart
-	
+
 	actorID := cfg.ActorID
 	if actorID == "" {
 		actorID = "apify/flipkart-scraper"
@@ -91,7 +98,7 @@ func (f *FlipkartScraper) scrapeDirect(ctx context.Context, query string) ([]mod
 	// Titles are often in div[class="KzDlHZ"] or similar
 	reTitle := regexp.MustCompile(`<div[^>]*class="[^"]*KzDlHZ[^"]*"[^>]*>([^<]+)</div>`)
 	rePrice := regexp.MustCompile(`<div[^>]*class="[^"]*Nx9Wp0[^"]*"[^>]*>₹([0-9,]+)</div>`)
-	
+
 	titles := reTitle.FindAllStringSubmatch(html, -1)
 	prices := rePrice.FindAllStringSubmatch(html, -1)
 
@@ -117,7 +124,7 @@ func (f *FlipkartScraper) scrapeDirect(ctx context.Context, query string) ([]mod
 	if len(listings) == 0 {
 		reTitleGrid := regexp.MustCompile(`<a[^>]*class="[^"]*IRpwTa[^"]*"[^>]*>([^<]+)</a>`)
 		rePriceGrid := regexp.MustCompile(`<div[^>]*class="[^"]*_30jeq3[^"]*"[^>]*>₹([0-9,]+)</div>`)
-		
+
 		titlesGrid := reTitleGrid.FindAllStringSubmatch(html, -1)
 		pricesGrid := rePriceGrid.FindAllStringSubmatch(html, -1)
 

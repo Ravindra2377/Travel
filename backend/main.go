@@ -33,7 +33,6 @@ func main() {
 			&models.WishlistItem{},
 			&models.PlatformListing{},
 			&models.SearchRequest{},
-			&models.HotDeal{},
 		)
 	}
 
@@ -123,14 +122,6 @@ func main() {
 		history.GET("", handlers.GetUserSearchHistory)
 	}
 
-	// Deals Routes (HOTDEAL Algorithm)
-	deals := e.Group("/deals")
-	{
-		deals.POST("/collect", handlers.CollectDeals)        // Frontend pushes scored deals
-		deals.GET("/trending", handlers.GetTrendingDeals)     // Get top trending deals
-		deals.GET("/price-history", handlers.GetPriceHistory) // Price history for a product
-	}
-
 	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -185,16 +176,16 @@ func startSearchWorker(s *scraper.Service) {
 
 		if realCount == 0 {
 			log.Printf("💡 Scrapers blocked on server. Generating comprehensive Smart-Mock data for '%s'...", req.Query)
-			
+
 			platforms := []string{"Blinkit", "Zepto", "BigBasket", "Amazon", "Flipkart"}
 			variants := []string{"Premium", "Organic", "Value Pack", "Fresh", "Standard", "Large Pack"}
-			
+
 			for _, pName := range platforms {
 				// Generate 3-5 variants per platform
 				for i := 0; i < 4; i++ {
 					basePrice := 40.0 + float64(i*5)
 					variant := variants[(i+len(pName))%len(variants)]
-					
+
 					l := models.PlatformListing{
 						Platform:     pName,
 						ProductName:  fmt.Sprintf("%s (%s) %d", req.Query, variant, i+1),
@@ -204,7 +195,7 @@ func startSearchWorker(s *scraper.Service) {
 						InStock:      true,
 						DeliveryTime: "15 mins",
 					}
-					
+
 					results.Products = append(results.Products, models.ComparedProduct{
 						Name:      l.ProductName,
 						BestPrice: l.Price,
@@ -232,7 +223,7 @@ func startSearchWorker(s *scraper.Service) {
 				}
 			}
 			log.Printf("✅ SQL Search Request completed: saved %d results", totalListings)
-			
+
 			// Update history with result count so SQL queries can find it
 			database.DB.Model(&history).Update("result_count", totalListings)
 
