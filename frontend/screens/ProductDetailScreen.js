@@ -258,6 +258,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
       try {
         const response = await axios.get(`${API_URL}/wishlist`, {
           params: { user_id: user.id },
+          timeout: 5000, // 5 second timeout
         });
         const items = Array.isArray(response.data) ? response.data : [];
         const found = items.find((item) => item.product_name === displayTitle);
@@ -266,13 +267,38 @@ const ProductDetailScreen = ({ route, navigation }) => {
           setWishlistId(found.id);
         }
       } catch (err) {
-        if (err?.response?.status === 404) {
+        const status = err?.response?.status;
+
+        // Expected error: product not in wishlist
+        if (status === 404) {
           setSaved(false);
           setWishlistId(null);
           return;
         }
 
-        console.error("[ProductDetail] Check wishlist error:", err);
+        // Server error: silently fail and allow wishlist functionality anyway
+        if (status >= 500) {
+          console.warn(
+            "[ProductDetail] Wishlist service temporarily unavailable (HTTP " +
+              status +
+              ")",
+          );
+          setCheckingWishlist(false);
+          return;
+        }
+
+        // Other errors: log but don't break functionality
+        if (status && status >= 400) {
+          console.warn(
+            "[ProductDetail] Wishlist check error (HTTP " + status + "):",
+            err?.message,
+          );
+        } else {
+          console.warn(
+            "[ProductDetail] Wishlist check failed:",
+            err?.message || "Network error",
+          );
+        }
       } finally {
         setCheckingWishlist(false);
       }
@@ -287,27 +313,42 @@ const ProductDetailScreen = ({ route, navigation }) => {
     try {
       if (willSave) {
         setSaved(true);
-        const response = await axios.post(`${API_URL}/wishlist`, {
-          user_id: user?.id,
-          product_name: displayTitle,
-          best_price: referencePrice,
-          platform: available[0]?.name || "Online",
-          image_url: product?.image_url || "",
-          product_url: available[0]?.productUrl || "",
-        });
+        const response = await axios.post(
+          `${API_URL}/wishlist`,
+          {
+            user_id: user?.id,
+            product_name: displayTitle,
+            best_price: referencePrice,
+            platform: available[0]?.name || "Online",
+            image_url: product?.image_url || "",
+            product_url: available[0]?.productUrl || "",
+          },
+          { timeout: 5000 },
+        );
         setWishlistId(response.data.id);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
         setSaved(false);
         if (wishlistId) {
-          await axios.delete(`${API_URL}/wishlist/${wishlistId}`);
+          await axios.delete(`${API_URL}/wishlist/${wishlistId}`, {
+            timeout: 5000,
+          });
           setWishlistId(null);
         }
       }
     } catch (error) {
-      console.error("[ProductDetail] Wishlist error:", error);
+      const status = error?.response?.status;
+      const isServerError = status >= 500;
+      const message = isServerError
+        ? "Wishlist service unavailable. Try again soon."
+        : "Failed to update wishlist. Please try again.";
+
+      console.warn(
+        "[ProductDetail] Wishlist operation failed (HTTP " + status + "):",
+        error?.message,
+      );
       setSaved(!willSave); // Revert on failure
-      Alert.alert("Error", "Could not update wishlist. Please try again.");
+      Alert.alert("Wishlist", message);
     }
 
     Animated.sequence([

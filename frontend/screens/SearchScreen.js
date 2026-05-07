@@ -891,6 +891,27 @@ const SearchScreen = ({ navigation, route }) => {
     const searchKey = `${SEARCH_CACHE_VERSION}::${normalizedQuery}::${platformSignature}`;
 
     const cached = resultsCacheRef.current[searchKey];
+
+    // Save query to search history for Deals personalization
+    if (q && q.length > 2) {
+      AsyncStorage.getItem("comparex_search_history")
+        .then((history) => {
+          let arr = [];
+          try {
+            arr = JSON.parse(history) || [];
+          } catch (e) {}
+          const updated = [
+            q,
+            ...arr.filter((item) => item.toLowerCase() !== q.toLowerCase()),
+          ].slice(0, 10);
+          AsyncStorage.setItem(
+            "comparex_search_history",
+            JSON.stringify(updated),
+          );
+        })
+        .catch(() => {});
+    }
+
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
       monitor.mark("search-cache-hit");
       const duration = monitor.measure(
@@ -1398,8 +1419,9 @@ const SearchScreen = ({ navigation, route }) => {
     const stableQuery = (currentSearchQueryRef.current || "").trim();
     const searchTerm = stableQuery.toLowerCase();
     const searchWords = searchTerm.split(/\s+/).filter(Boolean);
-    const PER_PLATFORM_LIMIT = 4;
-    const MAX_RESULTS = 20;
+    const PER_PLATFORM_LIMIT = 999; // No hard limit — show all products from each platform
+    const MAX_RESULTS = 999; // No hard limit — show all deduplicated products
+    const RELEVANCE_THRESHOLD = 0; // Show ALL products — no filtering on relevance
 
     const normalizeToken = (token = "") => {
       const t = String(token || "")
@@ -1463,8 +1485,8 @@ const SearchScreen = ({ navigation, route }) => {
     Object.values(resultsToAggregate).forEach(({ products }) => {
       products?.forEach((product) => {
         const score = calculateRelevanceScore(product.product_name);
-        if (score < 40) {
-          // Increased threshold for better quality
+        if (score < RELEVANCE_THRESHOLD) {
+          // Filter only very irrelevant products
           return;
         }
 
@@ -1522,7 +1544,7 @@ const SearchScreen = ({ navigation, route }) => {
     Object.keys(resultsToAggregate).forEach((plat) => {
       const items = resultsToAggregate[plat]?.products || [];
       const relevant = items.filter(
-        (p) => calculateRelevanceScore(p.product_name) >= 40,
+        (p) => calculateRelevanceScore(p.product_name) >= RELEVANCE_THRESHOLD,
       );
       const withPhotos = relevant.filter(
         (p) =>
@@ -1539,6 +1561,7 @@ const SearchScreen = ({ navigation, route }) => {
 
     console.log("╔═════════════════ SEARCH DEBUG SUMMARY ════════════════╗");
     console.log(`║ Query: "${stableQuery.padEnd(41)}" ║`);
+    console.log(`║ Threshold: ${RELEVANCE_THRESHOLD.toString().padEnd(35)} ║`);
     Object.entries(platformStats).forEach(([plat, stats]) => {
       const status =
         stats.relevant > 0
@@ -1547,9 +1570,9 @@ const SearchScreen = ({ navigation, route }) => {
             : stats.withPhotos > 0
               ? "⚠️ Some Missing"
               : "❌ NO PHOTOS"
-          : "⚪ No Results";
+          : "⚪ Filtered Out";
       console.log(
-        `║ ${plat.padEnd(10)}: ${String(stats.relevant).padStart(3)} items | ${status.padEnd(15)} ║`,
+        `║ ${plat.padEnd(10)}: ${String(stats.total).padStart(3)} total → ${String(stats.relevant).padStart(2)} relevant | ${status.padEnd(15)} ║`,
       );
     });
     console.log("╚════════════════════════════════════════════════════════╝");
@@ -1656,6 +1679,19 @@ const SearchScreen = ({ navigation, route }) => {
       setLoading(false);
     }
 
+    // Log final results summary
+    console.log(
+      `[Search] Aggregation complete: ${aggregated.length} products → ${cappedResults.length} capped results`,
+    );
+    if (cappedResults.length > 0) {
+      console.log(`[Search] Showing ${cappedResults.length} products:`);
+      cappedResults.forEach((p, idx) => {
+        console.log(
+          `  ${idx + 1}. "${p.name.substring(0, 40)}" (${p.platformCount} platform${p.platformCount !== 1 ? "s" : ""}, ₹${p.price})`,
+        );
+      });
+    }
+
     // Record aggregation timing
     monitor.mark("search-aggregate-end");
     const aggregateDuration = monitor.measure(
@@ -1683,6 +1719,14 @@ const SearchScreen = ({ navigation, route }) => {
         results: cappedResults,
         timestamp: Date.now(),
       };
+
+      // Save to global deals cache
+      if (isComplete) {
+        AsyncStorage.setItem(
+          "comparex_global_deals_cache",
+          JSON.stringify(cappedResults),
+        ).catch(() => {});
+      }
 
       // Send results to backend for analytics/caching (optional)
       if (ENABLE_BACKEND_COLLECTION) {
