@@ -62,113 +62,115 @@ const ProfileScreen = () => {
       pincode: locationPincode,
     });
     setLocationEditing(false);
-    Alert.alert("Location Saved", "Your delivery location has been updated. New searches will use this location.");
+    Alert.alert(
+      "Location Saved",
+      "Your delivery location has been updated. New searches will use this location.",
+    );
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle="dark-content" />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={FONTS.h1}>Profile</Text>
-        </View>
-
-        {/* User Info */}
-        <View style={styles.userSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>U</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={FONTS.h1}>Profile</Text>
           </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>User</Text>
-            <Text style={styles.userEmail}>user@example.com</Text>
-          </View>
-        </View>
 
-
-        {/* Location Settings */}
-        <TouchableOpacity 
-          style={styles.locationSection}
-          onPress={() => setLocationEditing(true)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.locationHeader}>
-            <View style={styles.locationIconWrap}>
-              <Ionicons name="location" size={18} color={COLORS.primary} />
+          {/* User Info */}
+          <View style={styles.userSection}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>U</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.locationTitle}>Delivery Location</Text>
-              <Text style={styles.locationSubtitle}>
-                {locationCity || "Not set"} • {locationPincode || "—"}
-              </Text>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>User</Text>
+              <Text style={styles.userEmail}>user@example.com</Text>
             </View>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={COLORS.textTertiary}
-            />
           </View>
-        </TouchableOpacity>
 
-        <LocationPickerModal
-          visible={locationEditing}
-          onClose={() => setLocationEditing(false)}
-          onSave={({ city, pincode }) => {
-            setLocationCity(city);
-            setLocationPincode(pincode);
-          }}
-        />
-
-        {/* Menu */}
-        <View style={styles.menuSection}>
-          {MENU.map((item) => (
-            <TouchableOpacity
-              key={item.label}
-              style={styles.menuItem}
-              activeOpacity={0.6}
-              onPress={() => {
-                if (item.label === "Link Accounts") {
-                  navigation.navigate("Accounts");
-                } else if (item.label === "Help & Support") {
-                  navigation.navigate("SupportChat");
-                } else if (item.label === "Terms & Conditions") {
-                  navigation.navigate("Terms");
-                }
-              }}
-            >
-              <Ionicons
-                name={item.icon}
-                size={20}
-                color={COLORS.textSecondary}
-              />
-              <View style={styles.menuInfo}>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+          {/* Location Settings */}
+          <TouchableOpacity
+            style={styles.locationSection}
+            onPress={() => setLocationEditing(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.locationHeader}>
+              <View style={styles.locationIconWrap}>
+                <Ionicons name="location" size={18} color={COLORS.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.locationTitle}>Delivery Location</Text>
+                <Text style={styles.locationSubtitle}>
+                  {locationCity || "Not set"} • {locationPincode || "—"}
+                </Text>
               </View>
               <Ionicons
                 name="chevron-forward"
-                size={16}
+                size={18}
                 color={COLORS.textTertiary}
               />
-            </TouchableOpacity>
-          ))}
-        </View>
+            </View>
+          </TouchableOpacity>
 
-        {/* Logout */}
-        <TouchableOpacity
-          style={styles.logoutBtn}
-          onPress={logout}
-          activeOpacity={0.6}
-          testID="profileLogoutBtn"
-        >
-          <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
-          <Text style={styles.logoutText}>Sign Out</Text>
-        </TouchableOpacity>
+          <LocationPickerModal
+            visible={locationEditing}
+            onClose={() => setLocationEditing(false)}
+            onSave={({ city, pincode }) => {
+              setLocationCity(city);
+              setLocationPincode(pincode);
+            }}
+          />
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+          {/* Menu */}
+          <View style={styles.menuSection}>
+            {MENU.map((item) => (
+              <TouchableOpacity
+                key={item.label}
+                style={styles.menuItem}
+                activeOpacity={0.6}
+                onPress={() => {
+                  if (item.label === "Link Accounts") {
+                    navigation.navigate("Accounts");
+                  } else if (item.label === "Help & Support") {
+                    navigation.navigate("SupportChat");
+                  } else if (item.label === "Terms & Conditions") {
+                    navigation.navigate("Terms");
+                  }
+                }}
+              >
+                <Ionicons
+                  name={item.icon}
+                  size={20}
+                  color={COLORS.textSecondary}
+                />
+                <View style={styles.menuInfo}>
+                  <Text style={styles.menuLabel}>{item.label}</Text>
+                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color={COLORS.textTertiary}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Logout */}
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={logout}
+            activeOpacity={0.6}
+            testID="profileLogoutBtn"
+          >
+            <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
+            <Text style={styles.logoutText}>Sign Out</Text>
+          </TouchableOpacity>
+
+          <View style={{ height: 100 }} />
+        </ScrollView>
       </View>
     </SafeAreaView>
   );
@@ -184,7 +186,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: 64,       // Normalized
+    paddingTop: SPACING.xl,
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.lg,
     backgroundColor: COLORS.surface,
@@ -198,7 +200,7 @@ const styles = StyleSheet.create({
     gap: SPACING.lg,
   },
   avatar: {
-    width: 56,            // Normalized (8*7)
+    width: 56, // Normalized (8*7)
     height: 56,
     borderRadius: RADIUS.lg,
     backgroundColor: COLORS.primary,
@@ -262,7 +264,7 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   locationIconWrap: {
-    width: 40,            // Normalized (8*5)
+    width: 40, // Normalized (8*5)
     height: 40,
     borderRadius: 20,
     backgroundColor: COLORS.accentLight,

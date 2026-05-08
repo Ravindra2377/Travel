@@ -30,7 +30,6 @@ func main() {
 		database.DB.AutoMigrate(
 			&models.User{},
 			&models.SearchHistory{},
-			&models.WishlistItem{},
 			&models.PlatformListing{},
 			&models.SearchRequest{},
 		)
@@ -104,23 +103,8 @@ func main() {
 	// Legacy Routes (V1 - Backend Scraping - Deprecated but kept for fallback)
 	e.GET("/search", handlers.SearchProducts)
 	e.POST("/seed-products", handlers.SeedProducts)
-	e.GET("/compare", handlers.CompareProducts)     // Legacy scraper endpoint
+	e.GET("/compare", handlers.CompareProducts) // Legacy scraper endpoint
 	e.POST("/tokens", handlers.BulkConnectAccounts) // Redirect to new endpoint
-
-	// Wishlist Routes
-	wishlist := e.Group("/wishlist")
-	{
-		wishlist.POST("", handlers.AddToWishlist)
-		wishlist.GET("", handlers.GetWishlist)
-		wishlist.DELETE("/:id", handlers.RemoveFromWishlist)
-	}
-
-	// User Search History Routes
-	history := e.Group("/history")
-	{
-		history.POST("", handlers.SaveSearchHistory)
-		history.GET("", handlers.GetUserSearchHistory)
-	}
 
 	// Start server
 	port := os.Getenv("PORT")

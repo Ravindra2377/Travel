@@ -20,9 +20,11 @@ const { width } = Dimensions.get("window");
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { bottom: bottomInset } = useSafeAreaInsets();
-  const scaleAnims = useRef(state.routes.map(() => new Animated.Value(1))).current;
+  const scaleAnims = useRef(
+    state.routes.map(() => new Animated.Value(1)),
+  ).current;
 
-  // Calculate safe bottom padding. On Android with navigation buttons, bottomInset is often 0, 
+  // Calculate safe bottom padding. On Android with navigation buttons, bottomInset is often 0,
   // so we need a healthy base margin. On gesture-based nav, bottomInset provides the extra space.
   const containerBottom = Math.max(bottomInset, 8) + 8;
 
@@ -31,7 +33,11 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       <View style={styles.floatingBar}>
         {/* Glassmorphism Background */}
         <View style={styles.blurContainer}>
-          <BlurView intensity={85} tint="light" style={StyleSheet.absoluteFill} />
+          <BlurView
+            intensity={85}
+            tint="light"
+            style={StyleSheet.absoluteFill}
+          />
         </View>
 
         <View style={styles.content}>
@@ -73,11 +79,18 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               let iconName = "";
 
               switch (route.name) {
-                case "Home": iconName = isFocused ? "home" : "home-outline"; break;
-                case "Deals": iconName = isFocused ? "pricetags" : "pricetags-outline"; break;
-                case "Search": iconName = isFocused ? "search" : "search-outline"; break;
-                case "Wishlist": iconName = isFocused ? "heart" : "heart-outline"; break;
-                case "Profile": iconName = isFocused ? "person" : "person-outline"; break;
+                case "Home":
+                  iconName = isFocused ? "home" : "home-outline";
+                  break;
+                case "Deals":
+                  iconName = isFocused ? "pricetags" : "pricetags-outline";
+                  break;
+                case "Search":
+                  iconName = isFocused ? "search" : "search-outline";
+                  break;
+                case "Profile":
+                  iconName = isFocused ? "person" : "person-outline";
+                  break;
               }
 
               return (
@@ -87,7 +100,12 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                     size={22}
                     color={isFocused ? COLORS.primary : "#A0A0A0"}
                   />
-                  <Text style={[styles.tabLabel, isFocused && styles.activeTabLabel]}>
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      isFocused && styles.activeTabLabel,
+                    ]}
+                  >
                     {route.name}
                   </Text>
                 </View>
@@ -103,7 +121,9 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                 style={styles.tab}
                 activeOpacity={1}
               >
-                <Animated.View style={{ transform: [{ scale: animatedScale }] }}>
+                <Animated.View
+                  style={{ transform: [{ scale: animatedScale }] }}
+                >
                   {renderIcon()}
                 </Animated.View>
               </TouchableOpacity>

@@ -23,7 +23,10 @@ const SupportChatScreen = ({ navigation }) => {
       id: "1",
       text: "Hi there! 👋 I'm your CompareX assistant. How can I help you today?",
       sender: "support",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     },
   ]);
   const [inputText, setInputText] = useState("");
@@ -36,7 +39,10 @@ const SupportChatScreen = ({ navigation }) => {
       id: Date.now().toString(),
       text: inputText.trim(),
       sender: "user",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -49,7 +55,10 @@ const SupportChatScreen = ({ navigation }) => {
         id: (Date.now() + 1).toString(),
         text: getMockResponse(userMessage.text),
         sender: "support",
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       };
       setMessages((prev) => [...prev, supportResponse]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -73,17 +82,34 @@ const SupportChatScreen = ({ navigation }) => {
   const renderMessage = ({ item }) => {
     const isUser = item.sender === "user";
     return (
-      <View style={[styles.messageRow, isUser ? styles.userRow : styles.supportRow]}>
+      <View
+        style={[styles.messageRow, isUser ? styles.userRow : styles.supportRow]}
+      >
         {!isUser && (
           <View style={styles.supportAvatar}>
             <Ionicons name="headset" size={14} color="#FFF" />
           </View>
         )}
-        <View style={[styles.bubble, isUser ? styles.userBubble : styles.supportBubble]}>
-          <Text style={[styles.messageText, isUser ? styles.userText : styles.supportText]}>
+        <View
+          style={[
+            styles.bubble,
+            isUser ? styles.userBubble : styles.supportBubble,
+          ]}
+        >
+          <Text
+            style={[
+              styles.messageText,
+              isUser ? styles.userText : styles.supportText,
+            ]}
+          >
             {item.text}
           </Text>
-          <Text style={[styles.timeText, isUser ? styles.userTime : styles.supportTime]}>
+          <Text
+            style={[
+              styles.timeText,
+              isUser ? styles.userTime : styles.supportTime,
+            ]}
+          >
             {item.time}
           </Text>
         </View>
@@ -94,67 +120,73 @@ const SupportChatScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      
-      {/* Header */}
-      <LinearGradient colors={COLORS.gradientHero} style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
+        <StatusBar barStyle="light-content" />
+
+        {/* Header */}
+        <LinearGradient colors={COLORS.gradientHero} style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
+          </TouchableOpacity>
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerTitle}>Support Chat</Text>
+            <View style={styles.onlineStatus}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusText}>Online</Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* Messages */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage}
+          contentContainerStyle={styles.listContent}
+          onContentSizeChange={() =>
+            flatListRef.current?.scrollToEnd({ animated: true })
+          }
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        />
+
+        {/* Input */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
-          <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
-        </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>Support Chat</Text>
-          <View style={styles.onlineStatus}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>Online</Text>
-          </View>
-        </View>
-      </LinearGradient>
-
-      {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        contentContainerStyle={styles.listContent}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-      />
-
-      {/* Input */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-      >
-        <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Type your message..."
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={500}
-              placeholderTextColor={COLORS.textTertiary}
-            />
-            <TouchableOpacity 
-              style={styles.sendButton} 
-              onPress={sendMessage}
-              disabled={inputText.trim().length === 0}
-            >
-              <LinearGradient
-                colors={inputText.trim().length > 0 ? [COLORS.primary, COLORS.accent] : ["#E2E8F0", "#E2E8F0"]}
-                style={styles.sendGradient}
+          <View style={styles.inputContainer}>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="Type your message..."
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                maxLength={500}
+                placeholderTextColor={COLORS.textTertiary}
+              />
+              <TouchableOpacity
+                style={styles.sendButton}
+                onPress={sendMessage}
+                disabled={inputText.trim().length === 0}
               >
-                <Ionicons name="send" size={18} color="#FFF" />
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={
+                    inputText.trim().length > 0
+                      ? [COLORS.primary, COLORS.accent]
+                      : ["#E2E8F0", "#E2E8F0"]
+                  }
+                  style={styles.sendGradient}
+                >
+                  <Ionicons name="send" size={18} color="#FFF" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
       </View>
     </SafeAreaView>
   );
@@ -170,7 +202,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: 64,       // Normalized
+    paddingTop: SPACING.xl,
     paddingBottom: SPACING.lg,
     paddingHorizontal: SPACING.xl,
     flexDirection: "row",

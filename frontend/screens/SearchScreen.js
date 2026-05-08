@@ -24,7 +24,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import SearchBar from "../components/SearchBar";
 import ProductCard from "../components/ProductCard";
-import PerformanceDebugPanel from "../components/PerformanceDebugPanel";
 import { getGlobalMonitor } from "../services/PerformanceMonitor";
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import * as Haptics from "expo-haptics";
@@ -892,7 +891,7 @@ const SearchScreen = ({ navigation, route }) => {
 
     const cached = resultsCacheRef.current[searchKey];
 
-    // Save query to search history for Deals personalization
+    // Save query to search history
     if (q && q.length > 2) {
       AsyncStorage.getItem("comparex_search_history")
         .then((history) => {
@@ -1720,14 +1719,6 @@ const SearchScreen = ({ navigation, route }) => {
         timestamp: Date.now(),
       };
 
-      // Save to global deals cache
-      if (isComplete) {
-        AsyncStorage.setItem(
-          "comparex_global_deals_cache",
-          JSON.stringify(cappedResults),
-        ).catch(() => {});
-      }
-
       // Send results to backend for analytics/caching (optional)
       if (ENABLE_BACKEND_COLLECTION) {
         collectResultsToBackend(stableQuery, resultsToAggregate);
@@ -1801,23 +1792,6 @@ const SearchScreen = ({ navigation, route }) => {
               Compare prices across {state.connectedPlatforms.length} connected
               platforms
             </Text>
-
-            <TouchableOpacity
-              style={styles.platformBadge}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                navigation.navigate("Accounts");
-              }}
-            >
-              <Ionicons
-                name="layers-outline"
-                size={14}
-                color={COLORS.textSecondary}
-              />
-              <Text style={styles.platformBadgeText}>
-                {state.connectedPlatforms.length} live sources ready
-              </Text>
-            </TouchableOpacity>
 
             {state.connectedPlatforms.length === 0 && (
               <View style={styles.warning}>
@@ -1969,7 +1943,6 @@ const SearchScreen = ({ navigation, route }) => {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" />
-        <PerformanceDebugPanel enabled={false} />
         <View style={styles.header}>
           <View style={styles.headerTopRow}>
             <View style={{ flex: 1 }}>
@@ -2197,7 +2170,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: 56,
+    paddingTop: SPACING.xl,
     paddingBottom: 18,
     paddingHorizontal: SPACING.lg,
     backgroundColor: "#FFFFFF",
@@ -2352,7 +2325,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: SPACING.lg,
-    paddingBottom: 100,
+    paddingBottom: 180,
   },
   hiddenWebView: {
     position: "absolute",
@@ -2395,22 +2368,6 @@ const styles = StyleSheet.create({
     ...FONTS.body,
     marginTop: SPACING.sm,
     textAlign: "center",
-  },
-  platformBadge: {
-    marginTop: SPACING.lg,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.xs,
-    backgroundColor: COLORS.cardAlt,
-  },
-  platformBadgeText: {
-    ...FONTS.captionBold,
-    color: COLORS.textSecondary,
   },
   warning: {
     flexDirection: "row",

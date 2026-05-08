@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -9,14 +9,10 @@ import {
   Linking,
   Alert,
   Platform,
-  Animated,
   Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import axios from "axios";
-import { AuthContext } from "../context/AuthContext";
-import { API_URL } from "../config/api";
 import { buildPlatformSearchUrl } from "../config/utils";
 import PlatformRow from "../components/PlatformRow";
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
@@ -192,13 +188,7 @@ const normalizeListingPrice = (listing) => {
 };
 
 const ProductDetailScreen = ({ route, navigation }) => {
-  const { user } = React.useContext(AuthContext);
   const { product } = route.params || {};
-  const [saved, setSaved] = useState(false);
-  const [wishlistId, setWishlistId] = useState(null);
-  const [checkingWishlist, setCheckingWishlist] = useState(true);
-
-  const heartScale = React.useRef(new Animated.Value(1)).current;
 
   const rawListings = product?.listings || [];
 
@@ -251,119 +241,6 @@ const ProductDetailScreen = ({ route, navigation }) => {
   const referencePrice = React.useMemo(() => {
     return product?.price || available[0]?.price || 0;
   }, [product, available]);
-
-  React.useEffect(() => {
-    const checkStatus = async () => {
-      if (!user?.id || !displayTitle) return;
-      try {
-        const response = await axios.get(`${API_URL}/wishlist`, {
-          params: { user_id: user.id },
-          timeout: 5000, // 5 second timeout
-        });
-        const items = Array.isArray(response.data) ? response.data : [];
-        const found = items.find((item) => item.product_name === displayTitle);
-        if (found) {
-          setSaved(true);
-          setWishlistId(found.id);
-        }
-      } catch (err) {
-        const status = err?.response?.status;
-
-        // Expected error: product not in wishlist
-        if (status === 404) {
-          setSaved(false);
-          setWishlistId(null);
-          return;
-        }
-
-        // Server error: silently fail and allow wishlist functionality anyway
-        if (status >= 500) {
-          console.warn(
-            "[ProductDetail] Wishlist service temporarily unavailable (HTTP " +
-              status +
-              ")",
-          );
-          setCheckingWishlist(false);
-          return;
-        }
-
-        // Other errors: log but don't break functionality
-        if (status && status >= 400) {
-          console.warn(
-            "[ProductDetail] Wishlist check error (HTTP " + status + "):",
-            err?.message,
-          );
-        } else {
-          console.warn(
-            "[ProductDetail] Wishlist check failed:",
-            err?.message || "Network error",
-          );
-        }
-      } finally {
-        setCheckingWishlist(false);
-      }
-    };
-    checkStatus();
-  }, [user?.id, displayTitle]);
-
-  const toggleSave = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const willSave = !saved;
-
-    try {
-      if (willSave) {
-        setSaved(true);
-        const response = await axios.post(
-          `${API_URL}/wishlist`,
-          {
-            user_id: user?.id,
-            product_name: displayTitle,
-            best_price: referencePrice,
-            platform: available[0]?.name || "Online",
-            image_url: product?.image_url || "",
-            product_url: available[0]?.productUrl || "",
-          },
-          { timeout: 5000 },
-        );
-        setWishlistId(response.data.id);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else {
-        setSaved(false);
-        if (wishlistId) {
-          await axios.delete(`${API_URL}/wishlist/${wishlistId}`, {
-            timeout: 5000,
-          });
-          setWishlistId(null);
-        }
-      }
-    } catch (error) {
-      const status = error?.response?.status;
-      const isServerError = status >= 500;
-      const message = isServerError
-        ? "Wishlist service unavailable. Try again soon."
-        : "Failed to update wishlist. Please try again.";
-
-      console.warn(
-        "[ProductDetail] Wishlist operation failed (HTTP " + status + "):",
-        error?.message,
-      );
-      setSaved(!willSave); // Revert on failure
-      Alert.alert("Wishlist", message);
-    }
-
-    Animated.sequence([
-      Animated.timing(heartScale, {
-        toValue: 1.3,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.spring(heartScale, {
-        toValue: 1,
-        friction: 3,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
 
   // Find best (cheapest) price for comparison
   const pricesSorted = [...available].sort((a, b) => a.price - b.price);
@@ -488,16 +365,15 @@ const ProductDetailScreen = ({ route, navigation }) => {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Details</Text>
           <TouchableOpacity
-            onPress={toggleSave}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+            disabled
+            style={{ opacity: 0 }}
           >
-            <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-              <Ionicons
-                name={saved ? "heart" : "heart-outline"}
-                size={22}
-                color={saved ? COLORS.error : COLORS.textSecondary}
-              />
-            </Animated.View>
+            <Ionicons
+              name="heart-outline"
+              size={22}
+              color={COLORS.textSecondary}
+            />
           </TouchableOpacity>
         </View>
 
@@ -640,7 +516,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 64, // Normalized
+    paddingTop: SPACING.xl,
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.lg,
     backgroundColor: COLORS.surface,

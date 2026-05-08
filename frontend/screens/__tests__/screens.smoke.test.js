@@ -11,7 +11,6 @@ import RegisterScreen from "../RegisterScreen";
 import ProfileScreen from "../ProfileScreen";
 import AccountsScreen from "../AccountsScreen";
 import ProductDetailScreen from "../ProductDetailScreen";
-import WishlistScreen from "../WishlistScreen";
 
 describe("Screen module exports", () => {
   it("all screen modules export components", () => {
@@ -22,6 +21,5 @@ describe("Screen module exports", () => {
     expect(ProfileScreen).toBeDefined();
     expect(AccountsScreen).toBeDefined();
     expect(ProductDetailScreen).toBeDefined();
-    expect(WishlistScreen).toBeDefined();
   });
 });

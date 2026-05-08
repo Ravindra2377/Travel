@@ -6,7 +6,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { AuthContext, AuthProvider } from "./context/AuthContext";
 import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { BlurView } from "expo-blur";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, SHADOWS, FONTS } from "./config/theme";
 
 // Auth Screens
@@ -17,29 +16,17 @@ import RegisterScreen from "./screens/RegisterScreen";
 import HomeScreen from "./screens/HomeScreen";
 import SearchScreen from "./screens/SearchScreen";
 import ProductDetailScreen from "./screens/ProductDetailScreen";
-import WishlistScreen from "./screens/WishlistScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import AccountsScreen from "./screens/AccountsScreen";
 import SupportChatScreen from "./screens/SupportChatScreen";
 import TermsScreen from "./screens/TermsScreen";
 import InAppBrowser from "./components/InAppBrowser";
 import CustomTabBar from "./components/CustomTabBar";
-import * as Haptics from "expo-haptics";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const TAB_ICONS = {
-  Home: { active: "home", inactive: "home-outline" },
-  Search: { active: "search", inactive: "search-outline" },
-  Wishlist: { active: "heart", inactive: "heart-outline" },
-  Profile: { active: "person", inactive: "person-outline" },
-};
-
 const MainTabs = () => {
-  const { bottom: bottomInset } = useSafeAreaInsets();
-  const safeBottom = Math.max(bottomInset, 8);
-
   return (
     <Tab.Navigator
       tabBar={(props) => <CustomTabBar {...props} />}
@@ -52,7 +39,6 @@ const MainTabs = () => {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
-      <Tab.Screen name="Wishlist" component={WishlistScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
