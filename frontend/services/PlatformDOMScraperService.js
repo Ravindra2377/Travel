@@ -477,8 +477,13 @@ class PlatformDOMScraperService {
                         var pName = node.name || node.display_name || node.product_name || '';
                         var pId = node.product_id || node.id || node.prid || '';
                         var pSlug = node.slug || '';
+                        var pImage = node.image_url || node.imageUrl || node.image || (node.images && node.images[0]) || '';
+                        if (pImage && typeof pImage === 'object') {
+                          pImage = pImage.url || pImage.src || pImage.base_url || (Object.values(pImage).find(v => typeof v === 'string' && v.startsWith('http'))) || '';
+                        }
+                        if (typeof pImage !== 'string') pImage = '';
                         if (typeof pName === 'string' && pName.length > 2 && pId) {
-                          stateProducts.push({ name: pName.trim().toLowerCase(), id: String(pId), slug: pSlug });
+                          stateProducts.push({ name: pName.trim().toLowerCase(), id: String(pId), slug: pSlug, image: pImage });
                         }
                         try { var ks = Object.keys(node); for (var k = 0; k < ks.length; k++) collectFromState(node[ks[k]], depth + 1); } catch(e) {}
                       };
@@ -497,6 +502,7 @@ class PlatformDOMScraperService {
                     var cursor = card;
                     var foundId = null;
                     var foundSlug = null;
+                    var foundImage = null;
                     for (var up = 0; up < 10 && cursor && !foundId; up++) {
                       var fiberKey = null;
                       try {
@@ -515,21 +521,29 @@ class PlatformDOMScraperService {
                         for (var fi = 0; fi < 25 && walker && !foundId; fi++) {
                           var props = walker.memoizedProps || walker.pendingProps || {};
                           // Check props directly
-                          if (props.product_id) { foundId = props.product_id; foundSlug = props.slug || props.product_slug || ''; }
-                          else if (props.prid) { foundId = props.prid; foundSlug = props.slug || ''; }
+                          if (props.product_id) { foundId = props.product_id; foundSlug = props.slug || props.product_slug || ''; foundImage = props.image_url || props.imageUrl || props.image || (props.images && props.images[0]) || ''; }
+                          else if (props.prid) { foundId = props.prid; foundSlug = props.slug || ''; foundImage = props.image_url || props.imageUrl || props.image || (props.images && props.images[0]) || ''; }
                           // Check nested product/item objects
                           else if (props.product && (props.product.product_id || props.product.id || props.product.prid)) {
                             foundId = props.product.product_id || props.product.id || props.product.prid;
                             foundSlug = props.product.slug || '';
+                            foundImage = props.product.image_url || props.product.imageUrl || props.product.image || (props.product.images && props.product.images[0]) || '';
                           }
                           else if (props.item && (props.item.product_id || props.item.id || props.item.prid)) {
                             foundId = props.item.product_id || props.item.id || props.item.prid;
                             foundSlug = props.item.slug || '';
+                            foundImage = props.item.image_url || props.item.imageUrl || props.item.image || (props.item.images && props.item.images[0]) || '';
                           }
                           else if (props.data && typeof props.data === 'object' && (props.data.product_id || props.data.id || props.data.prid)) {
                             foundId = props.data.product_id || props.data.id || props.data.prid;
                             foundSlug = props.data.slug || '';
+                            foundImage = props.data.image_url || props.data.imageUrl || props.data.image || (props.data.images && props.data.images[0]) || '';
                           }
+                          if (foundImage && typeof foundImage === 'object') {
+                            foundImage = foundImage.url || foundImage.src || foundImage.base_url || (Object.values(foundImage).find(v => typeof v === 'string' && v.startsWith('http'))) || '';
+                          }
+                          if (typeof foundImage !== 'string') foundImage = '';
+                          
                           // Check href prop (React Router Link)
                           else if (props.href && typeof props.href === 'string' && props.href.indexOf('/prn/') >= 0) {
                             product.product_url = props.href.charAt(0) === '/' ? 'https://blinkit.com' + props.href : props.href;
@@ -548,6 +562,7 @@ class PlatformDOMScraperService {
                     if (foundId && foundId !== 'FROM_HREF' && foundId !== 'FROM_TO') {
                       var slug = foundSlug || (product.product_name || 'product').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
                       product.product_url = 'https://blinkit.com/prn/' + slug + '/prid/' + foundId;
+                      if (!product.image_url && foundImage) product.image_url = foundImage;
                     }
 
                     // If React fiber didn't work, try matching against __NEXT_DATA__ products
@@ -571,6 +586,7 @@ class PlatformDOMScraperService {
                       if (bestMatch) {
                         var mSlug = bestMatch.slug || pNameLower.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
                         product.product_url = 'https://blinkit.com/prn/' + mSlug + '/prid/' + bestMatch.id;
+                        if (!product.image_url && bestMatch.image) product.image_url = bestMatch.image;
                       }
                     }
 
@@ -1184,7 +1200,14 @@ class PlatformDOMScraperService {
                     const card = p._card;
                     let image = '';
                     
-                    const allImgs = Array.from(card.querySelectorAll('img'));
+                    let allImgs = Array.from(card.querySelectorAll('img'));
+                    if (allImgs.length === 0 && card.parentElement) {
+                      allImgs = Array.from(card.parentElement.querySelectorAll('img'));
+                    }
+                    if (allImgs.length === 0 && card.parentElement && card.parentElement.parentElement) {
+                      allImgs = Array.from(card.parentElement.parentElement.querySelectorAll('img'));
+                    }
+                    
                     // Sort to put probable product images first
                     allImgs.sort((a, b) => {
                        const aScore = (a.className.includes('product') || a.className.includes('listing') || a.parentElement.className.includes('image')) ? 1 : 0;
@@ -1221,15 +1244,17 @@ class PlatformDOMScraperService {
 
                     if (!image) {
                       // Ultra-fast, no-regex extraction to prevent JS thread freezing
-                      let searchHTML = String(card.outerHTML || '');
-                      if (card.tagName === 'A' && card.parentElement) {
-                        searchHTML += String(card.parentElement.outerHTML || '');
+                      let container = card;
+                      let searchHTML = '';
+                      for(let i=0; i<5 && container; i++) {
+                         searchHTML = String(container.outerHTML || '');
+                         container = container.parentElement;
                       }
                       
                       const tokens = searchHTML.split(/["']/);
                       for (const t of tokens) {
                          const cleanT = t.trim();
-                         if ((cleanT.includes('bbassets.com') || cleanT.includes('bigbasket.com')) && 
+                         if ((cleanT.includes('bbassets.com') || cleanT.includes('bigbasket.com') || cleanT.includes('/media/')) && 
                              !cleanT.includes('transparentImg') && 
                              !cleanT.includes('.svg') &&
                              cleanT.length > 15 && 
@@ -1239,6 +1264,52 @@ class PlatformDOMScraperService {
                             break;
                          }
                       }
+                    }
+
+                    if (!image && card) {
+                       try {
+                          const allDocImgs = Array.from(document.querySelectorAll('img, source, div, span'));
+                          let bestImg = null;
+                          let minDistance = 999999;
+                          const cardRect = card.getBoundingClientRect();
+                          for (const img of allDocImgs) {
+                             const imgRect = img.getBoundingClientRect();
+                             if (imgRect.width === 0 && imgRect.height === 0) continue; // Skip display:none
+                             const dx = (imgRect.left + imgRect.width/2) - (cardRect.left + cardRect.width/2);
+                             const dy = (imgRect.top + imgRect.height/2) - (cardRect.top + cardRect.height/2);
+                             const dist = dx*dx + dy*dy;
+                             if (dist < minDistance && dist < 500000) { 
+                                minDistance = dist;
+                                bestImg = img;
+                             }
+                          }
+                          if (bestImg) {
+                            let url = '';
+                            const bg = bestImg.style.backgroundImage || window.getComputedStyle(bestImg).backgroundImage;
+                            if (bg && bg !== 'none') {
+                               const m = bg.match(/url\(['"]?(.*?)['"]?\)/);
+                               if (m && m[1]) url = m[1];
+                            }
+                            if (!url) {
+                              const attrs = [bestImg.getAttribute('srcset'), bestImg.getAttribute('data-srcset'), bestImg.getAttribute('src'), bestImg.getAttribute('data-src')];
+                              for (const a of attrs) {
+                                if (!a) continue;
+                                const parts = a.split(',');
+                                for (const part of parts) {
+                                   const u = part.trim().split(' ')[0];
+                                   if (u && !u.startsWith('data:') && !u.includes('transparentImg') && !u.includes('.svg')) {
+                                     url = u;
+                                     break;
+                                   }
+                                }
+                                if (url) break;
+                              }
+                            }
+                            if (url && !url.startsWith('data:') && !url.includes('transparentImg') && !url.includes('.svg')) {
+                              image = url;
+                            }
+                          }
+                       } catch(e) {}
                     }
 
                     if (image) {
@@ -1258,6 +1329,53 @@ class PlatformDOMScraperService {
                     p.image_url = '';
                   }
                 });
+
+                // Attempt State matching for BigBasket
+                try {
+                  const nextDataEl = document.getElementById('__NEXT_DATA__');
+                  const bbState = window.__APOLLO_STATE__ || window.__INITIAL_STATE__ || window.__PRELOADED_STATE__ || (nextDataEl ? JSON.parse(nextDataEl.textContent || '{}') : null);
+                  if (bbState && products.some(p => !p.image_url)) {
+                    const stateImages = {};
+                    const collectBBState = function(node, depth) {
+                      if (!node || depth > 10) return;
+                      if (Array.isArray(node)) {
+                        for (let i = 0; i < node.length; i++) collectBBState(node[i], depth + 1);
+                        return;
+                      }
+                      if (typeof node !== 'object') return;
+                      const pName = node.desc || node.p_desc || node.name || '';
+                      let pImage = node.image_url || node.p_image_url || node.imageUrl || node.image || '';
+                      if (pImage && typeof pImage === 'object') {
+                        pImage = pImage.url || pImage.src || (Object.values(pImage).find(v => typeof v === 'string' && v.startsWith('http'))) || '';
+                      }
+                      if (typeof pName === 'string' && pName.length > 3 && typeof pImage === 'string' && pImage.length > 5) {
+                        stateImages[pName.trim().toLowerCase()] = pImage;
+                      }
+                      try { const ks = Object.keys(node); for (let k = 0; k < ks.length; k++) collectBBState(node[ks[k]], depth + 1); } catch(e) {}
+                    };
+                    collectBBState(bbState, 0);
+                    
+                    products.forEach(p => {
+                      if (!p.image_url) {
+                        const nameKey = (p.product_name || '').trim().toLowerCase();
+                        if (stateImages[nameKey]) p.image_url = stateImages[nameKey];
+                        else {
+                           // fuzzy match
+                           const words = nameKey.split(/[^a-z0-9]+/).filter(w => w.length > 2);
+                           for (const [sName, sImg] of Object.entries(stateImages)) {
+                              let matchCount = 0;
+                              words.forEach(w => { if (sName.includes(w)) matchCount++; });
+                              if (words.length > 0 && matchCount / words.length > 0.8) {
+                                 p.image_url = sImg;
+                                 break;
+                              }
+                           }
+                        }
+                      }
+                    });
+                  }
+                } catch(e) {}
+                
                 
                 const finalize = () => {
                   log('Parsed ' + products.length + ' products');
@@ -1974,7 +2092,9 @@ class PlatformDOMScraperService {
                     const mrp = mrpMatch ? parseFloat(mrpMatch[0]) : price;
                     
                     let image = '';
-                    const imgEl = card.querySelector('.s-image, img, [class*="image"] img, [class*="product"] img');
+                    const imgEl = card.querySelector('.s-image, img, [class*="image"] img, [class*="product"] img') || 
+                                  (card.parentElement && card.parentElement.querySelector('.s-image, img')) || 
+                                  (card.parentElement && card.parentElement.parentElement && card.parentElement.parentElement.querySelector('.s-image, img'));
                     if (imgEl) {
                       image = imgEl.getAttribute('data-src') || imgEl.getAttribute('srcset')?.split(' ')[0] || imgEl.getAttribute('data-a-hires') || imgEl.src || '';
                       if (image.includes('data:image') || image.includes('placeholder')) {
@@ -2016,12 +2136,42 @@ class PlatformDOMScraperService {
                       deep_link: deepLink,
                       in_stock: true,
                       weight: '',
-                      platform: 'Amazon'
+                      platform: 'Amazon',
+                      _card: card // Store card for generic fallback
                     });
                   } catch(e) {
                     log('Error on card ' + i + ': ' + e.message);
                   }
                 });
+                
+                // Generic fallback for missing images
+                products.forEach(p => {
+                  if (!p.image_url && p._card) {
+                    try {
+                      const allImgs = Array.from(document.querySelectorAll('img'));
+                      let bestImg = null;
+                      let minDistance = 999999;
+                      const cardRect = p._card.getBoundingClientRect();
+                      for (const img of allImgs) {
+                         const imgRect = img.getBoundingClientRect();
+                         if (imgRect.width < 20 || imgRect.height < 20) continue;
+                         const dx = (imgRect.left + imgRect.width/2) - (cardRect.left + cardRect.width/2);
+                         const dy = (imgRect.top + imgRect.height/2) - (cardRect.top + cardRect.height/2);
+                         const dist = dx*dx + dy*dy;
+                         if (dist < minDistance && dist < 500000) { 
+                            minDistance = dist;
+                            bestImg = img;
+                         }
+                      }
+                      if (bestImg) {
+                        let src = bestImg.getAttribute('data-src') || bestImg.src || '';
+                        if (src && !src.includes('data:image')) p.image_url = src;
+                      }
+                    } catch(e) {}
+                  }
+                  delete p._card;
+                });
+                
                 return products;
               };
 
@@ -2285,6 +2435,7 @@ class PlatformDOMScraperService {
                     }
 
                     products.push({
+                      _card: card,
                       product_name: name,
                       raw_product_name: name,
                       brand: '',
@@ -2334,6 +2485,7 @@ class PlatformDOMScraperService {
                       const url = linkEl ? linkEl.href : '';
 
                       products.push({
+                        _card: card,
                         product_name: name,
                         raw_product_name: name,
                         brand: '',
@@ -2349,6 +2501,34 @@ class PlatformDOMScraperService {
                   });
                   log('Grocery fallback extracted: ' + products.length + ' products');
                 }
+
+                // Generic fallback for missing images in Flipkart
+                products.forEach(p => {
+                  if (!p.image_url && p._card) {
+                    try {
+                      let allDocImgs = Array.from(document.querySelectorAll('img'));
+                      let bestImg = null;
+                      let minDistance = 999999;
+                      const cardRect = p._card.getBoundingClientRect();
+                      for (const img of allDocImgs) {
+                         const imgRect = img.getBoundingClientRect();
+                         if (imgRect.width === 0 && imgRect.height === 0) continue;
+                         const dx = (imgRect.left + imgRect.width/2) - (cardRect.left + cardRect.width/2);
+                         const dy = (imgRect.top + imgRect.height/2) - (cardRect.top + cardRect.height/2);
+                         const dist = dx*dx + dy*dy;
+                         if (dist < minDistance && dist < 500000) { 
+                            minDistance = dist;
+                            bestImg = img;
+                         }
+                      }
+                      if (bestImg) {
+                        let src = bestImg.getAttribute('data-src') || bestImg.getAttribute('srcset')?.split(' ')[0] || bestImg.src || '';
+                        if (src && !src.includes('data:image')) p.image_url = src;
+                      }
+                    } catch(e) {}
+                  }
+                  delete p._card;
+                });
 
                 return products;
               };
@@ -2385,7 +2565,7 @@ class PlatformDOMScraperService {
                     const mrpMatch = chunk.match(/"(?:mrp|maximumRetailPrice)"\\s*:\\s*(\\d+(?:\\.\\d+)?)/);
                     const mrp = mrpMatch ? parseFloat(mrpMatch[1]) : price;
 
-                    const imgMatch = chunk.match(/"url"\\s*:\\s*"(https?:\\/\\/[^"]*?(?:\\.jpg|\\.png|\\.webp)[^"]*)"/i);
+                    const imgMatch = chunk.match(/"(?:url|imageUrl|image)"\\s*:\\s*"(https?:\\/\\/[^"]+)"/i);
                     const image = imgMatch ? imgMatch[1].replace(/\\\\u002F/g, '/') : '';
 
                     products.push({

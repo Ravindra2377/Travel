@@ -61,12 +61,6 @@ const PARTIAL_AGGREGATION_DELAY_MS = 150; // ⬆ increased from 30ms to batch up
 // Resource-blocking helper: allow only navigation, API/JSON, and WebSocket traffic.
 // Blocks images, fonts, analytics, and stylesheets to cut WebView load time by 1.5-3s.
 const BLOCKED_RESOURCE_EXTENSIONS = [
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".gif",
-  ".webp",
-  ".svg",
   ".ico",
   ".woff",
   ".woff2",
@@ -1623,7 +1617,8 @@ const SearchScreen = ({ navigation, route }) => {
       );
       const withPhotos = relevant.filter(
         (p) =>
-          p.image_url &&
+          typeof p.image_url === 'string' &&
+          p.image_url.trim() !== '' &&
           !p.image_url.includes("placeholder") &&
           !p.image_url.includes("blank"),
       ).length;
