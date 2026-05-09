@@ -15,8 +15,9 @@ import {
   StatusBar,
   TouchableOpacity,
   Animated,
-  Image,
+  Image as RNImage,
 } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { Ionicons } from "@expo/vector-icons";
@@ -1797,6 +1798,31 @@ const SearchScreen = ({ navigation, route }) => {
 
     if (cappedResults.length > 0) {
       setResults(cappedResults);
+
+      // Prefetch all image URLs into expo-image disk cache so they appear
+      // instantly when the user scrolls — avoids the slow Amazon CDN round-trip.
+      try {
+        const allImageUrls = [];
+        cappedResults.forEach((p) => {
+          if (p.imageCandidates && p.imageCandidates.length > 0) {
+            allImageUrls.push(...p.imageCandidates);
+          } else if (p.image_url) {
+            allImageUrls.push(p.image_url);
+          }
+        });
+        // Prefetch in small batches to avoid flooding the network
+        const BATCH = 5;
+        const prefetchBatch = (urls) => urls.forEach(url => {
+          if (url && url.startsWith('http')) {
+            Image.prefetch(url).catch(() => {});
+          }
+        });
+        for (let i = 0; i < allImageUrls.length; i += BATCH) {
+          prefetchBatch(allImageUrls.slice(i, i + BATCH));
+        }
+      } catch (prefetchErr) {
+        // Non-critical — silently ignore prefetch failures
+      }
       const normalizedQuery = (stableQuery || "").toLowerCase();
       const platformSignature = [...(connectedPlatformsRef.current || [])]
         .sort()
@@ -2069,11 +2095,11 @@ const SearchScreen = ({ navigation, route }) => {
           data={results}
           renderItem={renderProductItem}
           keyExtractor={(item) => String(item.id)}
-          initialNumToRender={10}
-          maxToRenderPerBatch={10}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
           windowSize={5}
-          updateCellsBatchingPeriod={100}
-          removeClippedSubviews={false}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews={true}
           contentContainerStyle={styles.list}
           ListHeaderComponent={renderSearchProgress}
           ListEmptyComponent={renderEmpty}

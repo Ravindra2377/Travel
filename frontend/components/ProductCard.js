@@ -102,7 +102,10 @@ const ProductCard = ({ product, onPress }) => {
                   source={{ uri: resolvedImageURL }}
                   style={styles.image}
                   contentFit="contain"
-                  transition={200}
+                  transition={150}
+                  cachePolicy="disk"
+                  placeholder={{ thumbhash: null }}
+                  placeholderContentFit="contain"
                   onError={() => {
                     if (imageIndex < imageCandidates.length - 1) {
                       setImageIndex((prev) => prev + 1);
@@ -231,6 +234,10 @@ const ProductCard = ({ product, onPress }) => {
 const areEqual = (prev, next) => {
   const p = prev.product || {};
   const n = next.product || {};
+  // Include image fields: without these, late-arriving Amazon images cause a
+  // re-render mid-scroll, which triggers layout recalculation and visible jank.
+  const prevCandidates = (p.imageCandidates || []).join(',');
+  const nextCandidates = (n.imageCandidates || []).join(',');
   return (
     p.id === n.id &&
     p.name === n.name &&
@@ -242,6 +249,8 @@ const areEqual = (prev, next) => {
     p.bestPlatform === n.bestPlatform &&
     p.unitPrice === n.unitPrice &&
     p.unitLabel === n.unitLabel &&
+    p.image_url === n.image_url &&
+    prevCandidates === nextCandidates &&
     prev.onPress === next.onPress
   );
 };

@@ -2092,24 +2092,69 @@ class PlatformDOMScraperService {
                     const mrp = mrpMatch ? parseFloat(mrpMatch[0]) : price;
                     
                     let image = '';
-                    const imgEl = card.querySelector('.s-image, img, [class*="image"] img, [class*="product"] img') || 
-                                  (card.parentElement && card.parentElement.querySelector('.s-image, img')) || 
-                                  (card.parentElement && card.parentElement.parentElement && card.parentElement.parentElement.querySelector('.s-image, img'));
+                    // Priority: .s-image (Amazon's canonical product image class) first
+                    const imgEl = card.querySelector('.s-image') ||
+                                  card.querySelector('img[src*="images-amazon"], img[src*="m.media-amazon"], img[data-a-hires], img[data-src*="amazon"]') ||
+                                  card.querySelector('img') ||
+                                  (card.parentElement && card.parentElement.querySelector('.s-image, img'));
                     if (imgEl) {
-                      image = imgEl.getAttribute('data-src') || imgEl.getAttribute('srcset')?.split(' ')[0] || imgEl.getAttribute('data-a-hires') || imgEl.src || '';
-                      if (image.includes('data:image') || image.includes('placeholder')) {
-                          image = imgEl.getAttribute('data-original') || imgEl.getAttribute('data-lazy-src') || imgEl.getAttribute('data-a-hires') || image;
+                      // Best sources in order: currentSrc (what browser actually loaded), high-res attr, srcset largest, data-src, src
+                      const hires = imgEl.getAttribute('data-a-hires') || imgEl.getAttribute('data-old-hires') || '';
+                      const srcsetRaw = imgEl.getAttribute('srcset') || '';
+                      let srcsetBest = '';
+                      if (srcsetRaw) {
+                        // Parse srcset: pick the entry with the highest width descriptor
+                        const entries = srcsetRaw.split(',').map(e => e.trim()).filter(Boolean);
+                        let bestW = 0;
+                        entries.forEach(entry => {
+                          const parts = entry.split(/\s+/);
+                          const url = parts[0];
+                          const w = parts[1] ? parseInt(parts[1]) : 0;
+                          if (w > bestW) { bestW = w; srcsetBest = url; }
+                        });
+                        if (!srcsetBest && entries.length > 0) srcsetBest = entries[entries.length - 1].split(/\s+/)[0];
+                      }
+                      const currentSrcVal = imgEl.currentSrc || '';
+                      const dataSrc = imgEl.getAttribute('data-src') || '';
+                      const srcVal = imgEl.src || '';
+                      
+                      // Pick best non-placeholder source
+                      for (const candidate of [currentSrcVal, hires, srcsetBest, dataSrc, srcVal]) {
+                        if (candidate && candidate.startsWith('http') && 
+                            !candidate.startsWith('data:') && 
+                            !candidate.includes('placeholder') &&
+                            !candidate.includes('.svg') &&
+                            !candidate.includes('pixel') &&
+                            !candidate.includes('.gif')) {
+                          image = candidate;
+                          break;
+                        }
                       }
                     }
                     if (!image) {
-                        // Fallback: search for any large image in the card
+                        // Fallback: scan all imgs in card for an amazon CDN url
                         const allImgs = Array.from(card.querySelectorAll('img'));
                         for (const img of allImgs) {
-                            const src = img.getAttribute('data-src') || img.src;
-                            if (src && !src.includes('data:image') && !src.includes('logo') && !src.includes('icon')) {
+                            const candidates = [
+                              img.currentSrc || '',
+                              img.getAttribute('data-a-hires') || '',
+                              img.getAttribute('data-src') || '',
+                              img.src || ''
+                            ];
+                            for (const src of candidates) {
+                              if (src && src.startsWith('http') && 
+                                  !src.startsWith('data:') &&
+                                  !src.includes('logo') && 
+                                  !src.includes('icon') && 
+                                  !src.includes('placeholder') &&
+                                  !src.includes('.svg') &&
+                                  !src.includes('pixel') &&
+                                  !src.includes('.gif')) {
                                 image = src;
                                 break;
+                              }
                             }
+                            if (image) break;
                         }
                     }
 
@@ -2144,7 +2189,7 @@ class PlatformDOMScraperService {
                   }
                 });
                 
-                // Generic fallback for missing images
+                // Generic fallback for missing images: proximity-based image matching
                 products.forEach(p => {
                   if (!p.image_url && p._card) {
                     try {
@@ -2164,8 +2209,23 @@ class PlatformDOMScraperService {
                          }
                       }
                       if (bestImg) {
-                        let src = bestImg.getAttribute('data-src') || bestImg.src || '';
-                        if (src && !src.includes('data:image')) p.image_url = src;
+                        const candidates = [
+                          bestImg.currentSrc || '',
+                          bestImg.getAttribute('data-a-hires') || '',
+                          bestImg.getAttribute('data-src') || '',
+                          bestImg.src || ''
+                        ];
+                        for (const src of candidates) {
+                          if (src && src.startsWith('http') && 
+                              !src.startsWith('data:') && 
+                              !src.includes('placeholder') &&
+                              !src.includes('.svg') &&
+                              !src.includes('pixel') &&
+                              !src.includes('.gif')) {
+                            p.image_url = src;
+                            break;
+                          }
+                        }
                       }
                     } catch(e) {}
                   }
@@ -2231,6 +2291,13 @@ class PlatformDOMScraperService {
                   }
 
                   if (cards.length > 5 || (cards.length > 0 && attempt > 4)) {
+                    // Scroll to trigger lazy-load image hydration before extracting
+                    try {
+                      window.scrollTo(0, 400);
+                      window.scrollTo(0, 800);
+                      window.scrollTo(0, 1600);
+                      window.scrollTo(0, 0);
+                    } catch(se) {}
                     const products = extractProducts();
                     log('Extracted ' + products.length + ' valid products from ' + cards.length + ' DOM cards');
                     if (products.length > 0) {
