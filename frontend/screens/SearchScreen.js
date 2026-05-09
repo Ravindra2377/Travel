@@ -5,6 +5,7 @@ import React, {
   useReducer,
   useCallback,
   useContext,
+  useMemo,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -25,6 +26,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import SearchBar from "../components/SearchBar";
 import ProductCard from "../components/ProductCard";
+import FilterModal from "../components/FilterModal";
 import { getGlobalMonitor } from "../services/PerformanceMonitor";
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import * as Haptics from "expo-haptics";
@@ -47,17 +49,17 @@ const SUGGESTIONS = [
 const PLATFORMS = ["Blinkit", "Zepto", "BigBasket", "Amazon", "Flipkart"];
 const ENABLE_BACKEND_FALLBACK = true;
 const ENABLE_BACKEND_COLLECTION = true;
-const DEFAULT_PLATFORM_TIMEOUT_MS = 15000;
-const OVERALL_SEARCH_TIMEOUT_MS = 25000;
+const DEFAULT_PLATFORM_TIMEOUT_MS = 8000;
+const OVERALL_SEARCH_TIMEOUT_MS = 12000;
 const PLATFORM_TIMEOUTS = {
-  Blinkit: 12000,
-  Zepto: 18000,
-  BigBasket: 18000,
-  Amazon: 15000,
-  Flipkart: 22000,
+  Blinkit: 7000,
+  Zepto: 9000,
+  BigBasket: 9000,
+  Amazon: 8000,
+  Flipkart: 12000,
 };
 const SEARCH_DEBOUNCE_MS = 400;
-const PARTIAL_AGGREGATION_DELAY_MS = 150; // ⬆ increased from 30ms to batch updates better and reduce scroll lag
+const PARTIAL_AGGREGATION_DELAY_MS = 800; // ⬆ increased for better batching while searching
 
 // Resource-blocking helper: allow only navigation, API/JSON, and WebSocket traffic.
 // Blocks images, fonts, analytics, and stylesheets to cut WebView load time by 1.5-3s.
@@ -560,6 +562,13 @@ const SearchScreen = ({ navigation, route }) => {
   const [currentSearchQuery, setCurrentSearchQuery] = useState("");
   const [tipIndex, setTipIndex] = useState(0);
   const [captchaPlatform, setCaptchaPlatform] = useState(null); // Platform currently showing CAPTCHA
+  
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [sortBy, setSortBy] = useState("relevance");
+  const [selectedPlatforms, setSelectedPlatforms] = useState(
+    PLATFORMS.reduce((acc, p) => ({ ...acc, [p]: true }), {})
+  );
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseLoopRef = useRef(null);
   const { user } = useContext(AuthContext);
@@ -1105,12 +1114,14 @@ const SearchScreen = ({ navigation, route }) => {
           mrp: normalizedPrice.mrp,
           image_url: product?.image_url || "",
           product_url: product?.product_url || product?.deepLink || "",
-          in_stock:
-            product?.in_stock !== undefined
-              ? !!product.in_stock
-              : product?.inStock !== undefined
-                ? !!product.inStock
-                : true,
+          in_stock: (function() {
+            const val = product?.in_stock !== undefined ? product.in_stock : product?.inStock;
+            if (val === undefined || val === null) return false;
+            if (typeof val === "string") {
+              return val.toLowerCase() === "true" || val === "1";
+            }
+            return !!val;
+          })(),
           weight: product?.weight || product?.quantity || "",
           quantity: product?.quantity || product?.weight || "",
           rating: Number(product?.rating || 0),
@@ -1419,7 +1430,7 @@ const SearchScreen = ({ navigation, route }) => {
                 mrp: normalizedPrice.mrp,
                 image_url: listing.image_url || listing.deep_link,
                 product_url: listing.deep_link,
-                in_stock: true,
+                in_stock: listing.in_stock ?? true,
                 weight: "",
                 platform,
               });
@@ -1555,6 +1566,17 @@ const SearchScreen = ({ navigation, route }) => {
         const score = calculateRelevanceScore(product.product_name);
         if (score < RELEVANCE_THRESHOLD) {
           // Filter only very irrelevant products
+          return;
+        }
+
+        if (!product.in_stock) {
+          // Do not display out of stock products
+          return;
+        }
+
+        // Secondary safety: check for OOS keywords in the name itself
+        const nameLower = (product.product_name || "").toLowerCase();
+        if (nameLower.includes("out of stock") || nameLower.includes("sold out") || nameLower.includes("unavailable")) {
           return;
         }
 
@@ -1992,7 +2014,9 @@ const SearchScreen = ({ navigation, route }) => {
               icon: "search",
               label: platform,
             };
-            const count = (platformResults[platform] || []).length;
+            const entry = platformResults[platform];
+            const products = entry?.products || [];
+            const count = products.filter(p => p.in_stock === true).length;
             return (
               <Animated.View
                 key={platform}
@@ -2053,6 +2077,34 @@ const SearchScreen = ({ navigation, route }) => {
     );
   };
 
+  const filteredAndSortedResults = useMemo(() => {
+    let finalResults = [...results];
+
+    // Filter by platforms and update prices
+    finalResults = finalResults.map((product) => {
+      const filteredListings = product.listings.filter((listing) => selectedPlatforms[listing.platform]);
+      if (filteredListings.length === 0) return null;
+
+      const bestListing = filteredListings.reduce((a, b) => (a.price < b.price ? a : b));
+      return {
+        ...product,
+        listings: filteredListings,
+        price: bestListing.price,
+        bestPlatform: bestListing.platform,
+        platformCount: filteredListings.length,
+      };
+    }).filter(Boolean);
+
+    // Sort
+    if (sortBy === "price_asc") {
+      finalResults.sort((a, b) => a.price - b.price);
+    } else if (sortBy === "price_desc") {
+      finalResults.sort((a, b) => b.price - a.price);
+    }
+    
+    return finalResults;
+  }, [results, selectedPlatforms, sortBy]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -2072,6 +2124,7 @@ const SearchScreen = ({ navigation, route }) => {
               setResults([]);
               setHasSearched(false);
             }}
+            onFilterPress={() => setFilterModalVisible(true)}
             autoFocus={!hasSearched && query === ""}
             testID="searchInput"
           />
@@ -2092,7 +2145,7 @@ const SearchScreen = ({ navigation, route }) => {
         )}
 
         <FlatList
-          data={results}
+          data={filteredAndSortedResults}
           renderItem={renderProductItem}
           keyExtractor={(item) => String(item.id)}
           initialNumToRender={8}
@@ -2258,6 +2311,14 @@ const SearchScreen = ({ navigation, route }) => {
             }
           />
         ))}
+        <FilterModal
+          visible={filterModalVisible}
+          onClose={() => setFilterModalVisible(false)}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          selectedPlatforms={selectedPlatforms}
+          setSelectedPlatforms={setSelectedPlatforms}
+        />
       </View>
     </SafeAreaView>
   );

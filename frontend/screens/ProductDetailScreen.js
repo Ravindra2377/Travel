@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useContext } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { buildPlatformSearchUrl } from "../config/utils";
 import PlatformRow from "../components/PlatformRow";
+import { WishlistContext } from "../context/WishlistContext";
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import * as Haptics from "expo-haptics";
 
@@ -66,22 +67,22 @@ const cleanDisplayText = (text) => {
 
   let cleaned = String(text)
     .replace(/\u00a0/g, " ")
+    // Split camelCase words
     .replace(/([a-z])([A-Z])/g, "$1 $2")
+    // Split numbers from letters
     .replace(/([A-Za-z])(\d)/g, "$1 $2")
     .replace(/(\d)([A-Za-z])/g, "$1 $2")
-    .replace(/([!,:;])([A-Za-z0-9])/g, "$1 $2")
-    .replace(/\b\d+\s*mins?\b/gi, " ")
-    .replace(/₹\s*[0-9]+(?:\.[0-9]+)?/gi, " ")
+    // Remove clearly transactional or meta-data junk
     .replace(/\b(add|buy\s*now|qty|view\s*more|off)\b/gi, " ")
-    .replace(/\b\d+(?:\.\d+)?\s*[kK]?\s*Ratings?.*$/i, "")
-    .replace(/\bRatings?.*$/i, "")
-    .replace(/\bReviews?.*$/i, "")
+    .replace(/\b\d+(?:\.\d+)?\s*[kK]?\s*(?:Ratings?|Reviews?).*$/i, "") // Only strip if it looks like "4.5 1k Ratings"
+    .replace(/₹\s*[0-9]+(?:\.[0-9]+)?/gi, " ") // Remove price mentions
+    .replace(/\b\d+\s*mins?\b/gi, " ") // Remove "10 min" badges
     .replace(/[|]+/g, " ")
-    .replace(/\s*-\s*/g, " - ")
     .replace(/\s+/g, " ")
     .trim();
 
-  for (let i = 0; i < 3; i += 1) {
+  // Repair common fragmentation like "Go d rej"
+  for (let i = 0; i < 2; i += 1) {
     cleaned = cleaned.replace(
       /\b([A-Za-z]{2,})\s([A-Za-z])\s([A-Za-z]{2,})\b/g,
       "$1$2$3",
@@ -189,6 +190,8 @@ const normalizeListingPrice = (listing) => {
 
 const ProductDetailScreen = ({ route, navigation }) => {
   const { product } = route.params || {};
+  const { toggleWishlist, isLiked } = useContext(WishlistContext);
+  const liked = isLiked(product?.id);
 
   const rawListings = product?.listings || [];
 
@@ -365,14 +368,16 @@ const ProductDetailScreen = ({ route, navigation }) => {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Details</Text>
           <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              toggleWishlist(product);
+            }}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-            disabled
-            style={{ opacity: 0 }}
           >
             <Ionicons
-              name="heart-outline"
-              size={22}
-              color={COLORS.textSecondary}
+              name={liked ? "heart" : "heart-outline"}
+              size={24}
+              color={liked ? COLORS.primary : COLORS.textPrimary}
             />
           </TouchableOpacity>
         </View>
@@ -418,26 +423,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
             </View>
           </View>
 
-          {/* Meta info row */}
-          <View style={styles.metaInfoRow}>
-            <View style={styles.metaInfoItem}>
-              <Text style={styles.metaInfoLabel}>MRP</Text>
-              <Text style={styles.metaInfoValue}>
-                {displayMrp > 0 ? `₹${displayMrp}` : "—"}
-              </Text>
-            </View>
-            <View style={styles.metaInfoDivider} />
-            <View style={styles.metaInfoItem}>
-              <Text style={styles.metaInfoLabel}>Discount</Text>
-              <Text style={styles.metaInfoValue}>
-                {displayDiscountPercent > 0
-                  ? `${displayDiscountPercent}%`
-                  : displayDiscountValue > 0
-                    ? `₹${displayDiscountValue}`
-                    : "—"}
-              </Text>
-            </View>
-          </View>
+
 
           {/* Savings */}
           {saving > 0 && (
@@ -453,27 +439,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
             </View>
           )}
 
-          {/* Stats */}
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{available.length}</Text>
-              <Text style={styles.statLabel}>Available</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: COLORS.textTertiary }]}>
-                {unavailable.length}
-              </Text>
-              <Text style={styles.statLabel}>Unavailable</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: COLORS.savings }]}>
-                {best > 0 ? `₹${best}` : "—"}
-              </Text>
-              <Text style={styles.statLabel}>Best price</Text>
-            </View>
-          </View>
+
 
           {/* Platforms */}
           <View style={styles.section}>
@@ -510,7 +476,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",
@@ -546,8 +512,8 @@ const styles = StyleSheet.create({
   },
   productName: {
     ...FONTS.h1,
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 20,
+    lineHeight: 26,
     marginBottom: SPACING.md,
   },
   productBrand: {
@@ -599,6 +565,7 @@ const styles = StyleSheet.create({
   },
   bestPrice: {
     ...FONTS.price,
+    fontSize: 24,
     color: COLORS.textPrimary,
   },
   worstPrice: {

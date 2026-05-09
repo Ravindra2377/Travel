@@ -9,6 +9,7 @@ const SearchBar = ({
   onChangeText,
   placeholder = "Search products...",
   onClear,
+  onFilterPress,
   autoFocus = false,
   testID,
 }) => {
@@ -50,6 +51,19 @@ const SearchBar = ({
           <Ionicons name="close-circle" size={18} color={COLORS.textTertiary} />
         </TouchableOpacity>
       ) : null}
+      {onFilterPress && (
+        <TouchableOpacity
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onFilterPress();
+          }}
+          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+          style={styles.filterBtn}
+          accessibilityLabel="filterSearchButton"
+        >
+          <Ionicons name="options-outline" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -82,6 +96,10 @@ const styles = StyleSheet.create({
   },
   clearBtn: {
     padding: 4,
+  },
+  filterBtn: {
+    padding: 4,
+    marginLeft: SPACING.xs,
   },
 });
 

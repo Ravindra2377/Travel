@@ -88,6 +88,9 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                 case "Search":
                   iconName = isFocused ? "search" : "search-outline";
                   break;
+                case "Likes":
+                  iconName = isFocused ? "heart" : "heart-outline";
+                  break;
                 case "Profile":
                   iconName = isFocused ? "person" : "person-outline";
                   break;
@@ -144,7 +147,7 @@ const styles = StyleSheet.create({
   },
   floatingBar: {
     flexDirection: "row",
-    backgroundColor: "rgba(255, 255, 255, 0.90)",
+    backgroundColor: "#FFFFFF",
     borderRadius: 35,
     height: 70,
     width: "100%",

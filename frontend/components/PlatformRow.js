@@ -33,7 +33,7 @@ const PlatformRow = ({ platform, isCheapest = false, onOpenStore }) => {
         <Text style={[styles.name, { color: COLORS.textTertiary }]}>
           {name}
         </Text>
-        <Text style={styles.naText}>N/A</Text>
+        <Text style={styles.naText}>Out of Stock</Text>
       </View>
     );
   }
@@ -59,7 +59,7 @@ const PlatformRow = ({ platform, isCheapest = false, onOpenStore }) => {
           <Ionicons
             name={iconName}
             size={20}
-            color={isCheapest ? COLORS.savings : COLORS.textSecondary}
+            color={COLORS.textSecondary}
           />
         )}
       </View>
@@ -72,7 +72,7 @@ const PlatformRow = ({ platform, isCheapest = false, onOpenStore }) => {
 
       <View style={styles.right}>
         {deliveryCharge === 0 && <Text style={styles.freeTag}>FREE</Text>}
-        <Text style={[styles.price, isCheapest && { color: COLORS.savings }]}>
+        <Text style={[styles.price, isCheapest && { color: COLORS.primary }]}>
           ₹{price}
         </Text>
       </View>
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     height: 42,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.cardAlt,
+    backgroundColor: "transparent",
     borderRadius: RADIUS.md,
   },
   platformImage: {
@@ -126,9 +126,9 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   cheapest: {
-    backgroundColor: COLORS.savingsLight,
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.20)",
+    backgroundColor: "#F4EDFD", // Solid color avoids shadow bleed-through
+    borderWidth: 1.5,
+    borderColor: "rgba(124, 58, 237, 0.3)",
   },
   unavailable: {
     opacity: 0.40,

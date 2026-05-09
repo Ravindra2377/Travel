@@ -95,7 +95,7 @@ const BrowseCard = ({ item, navigation }) => (
 // --- Main Screen ---
 
 const HomeScreen = ({ navigation }) => {
-  const { logout } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
 
   const fadeHero = React.useRef(new Animated.Value(0)).current;
   const fadeContent = React.useRef(new Animated.Value(0)).current;
@@ -175,6 +175,14 @@ const HomeScreen = ({ navigation }) => {
 
               {/* Main headline */}
               <View style={styles.heroContent}>
+                <Text style={styles.heroGreeting}>
+                  {new Date().getHours() < 12
+                    ? "Good Morning"
+                    : new Date().getHours() < 17
+                    ? "Good Afternoon"
+                    : "Good Evening"}
+                  , {user?.name || user?.email?.split("@")[0] || "Explorer"}!
+                </Text>
                 <Text style={styles.heroTitle}>Save on{"\n"}Every Cart</Text>
                 <Text style={styles.heroSubtitle}>
                   Compare prices across Blinkit, Zepto, BigBasket{"\n"}and more
@@ -323,7 +331,10 @@ const styles = StyleSheet.create({
   },
   heroEyebrow: {
     ...FONTS.eyebrow,
+    fontSize: 10,
+    opacity: 0.8,
   },
+
   logoutBtn: {
     width: 40,
     height: 40,
@@ -335,13 +346,25 @@ const styles = StyleSheet.create({
   heroContent: {
     marginBottom: SPACING.xxxl,
   },
+  heroGreeting: {
+    fontFamily: "AvenirNext-Bold",
+    color: "rgba(255, 255, 255, 0.85)",
+    fontSize: 15,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
   heroTitle: {
     ...FONTS.luxury,
-    lineHeight: 48,
-    marginBottom: SPACING.lg,
+    fontSize: 34,
+    lineHeight: 40,
+    marginBottom: 16,
   },
   heroSubtitle: {
     ...FONTS.luxurySub,
+    fontSize: 15,
+    lineHeight: 22,
+    color: "rgba(255, 255, 255, 0.8)",
   },
   statsRow: {
     flexDirection: "row",

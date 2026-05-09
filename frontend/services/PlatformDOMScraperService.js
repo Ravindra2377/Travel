@@ -164,8 +164,8 @@ class PlatformDOMScraperService {
             try {
               log('Parsing search results page...');
 
-              const MAX_WAIT_MS = 5500;
-              const POLL_MS = 500;
+              const MAX_WAIT_MS = 4000;
+              const POLL_MS = 300;
               const MIN_CARDS = 15;
               let elapsed = 0;
               let extracted = false;
@@ -267,7 +267,11 @@ class PlatformDOMScraperService {
                   try {
                     // Try multiple selectors for name - be aggressive
                     let name = card.querySelector('div[class*="ProductTitle"], div[class*="Name"]')?.textContent?.trim();
+                    const brand = card.querySelector('div[class*="Brand"], [class*="brand"]')?.textContent?.trim();
                     if (!name) name = card.querySelector('h3, h4, h2, .text-base, [class*="title"]')?.textContent?.trim();
+                    if (brand && name && !name.toLowerCase().includes(brand.toLowerCase())) {
+                       name = brand + ' ' + name;
+                    }
                     if (!name) name = card.getAttribute('title') || card.getAttribute('aria-label');
                     const rawSelectorName = name || ''; // exact text from DOM element before fallback cleaning
                     if (!name) {
@@ -439,7 +443,41 @@ class PlatformDOMScraperService {
                         mrp: meta.mrp || price,
                         image_url: image,
                         product_url: productUrl,
-                        in_stock: true,
+                        in_stock: (function() {
+                          try {
+                            const lowerCard = cardText.toLowerCase();
+                            const containerText = (productContainer.textContent || '').toLowerCase();
+                            const btn = card.querySelector('button, [class*="Button"], [class*="add-to-cart"]');
+                            const btnText = (btn?.textContent || '').toLowerCase();
+                            
+                            // 1. Keyword check (Self & Container)
+                            const oosKeywords = ['out of stock', 'currently unavailable', 'sold out', 'not available', 'notify me', 'coming soon', 'out of local stock'];
+                            if (oosKeywords.some(kw => lowerCard.includes(kw) || containerText.includes(kw))) return false;
+                            
+                            // 2. Button state check
+                            if (btnText.includes('notify') || btnText.includes('unavailable') || btnText.includes('soon')) return false;
+                            if (btn && (btn.disabled || btn.getAttribute('disabled') !== null || btn.className.includes('disabled'))) return false;
+                            
+                            // 3. CSS Heuristics (Grayscale/Opacity/Visibility)
+                            const cardStyle = window.getComputedStyle(card);
+                            const containerStyle = window.getComputedStyle(productContainer);
+                            if (cardStyle.filter.includes('grayscale') || containerStyle.filter.includes('grayscale')) return false;
+                            if (parseFloat(cardStyle.opacity) < 0.6 || parseFloat(containerStyle.opacity) < 0.6) return false;
+                            
+                            // 4. Aria/Title check
+                            const aria = (card.getAttribute('aria-label') || '').toLowerCase();
+                            const titleAttr = (card.getAttribute('title') || '').toLowerCase();
+                            if (oosKeywords.some(kw => aria.includes(kw) || titleAttr.includes(kw))) return false;
+                            
+                            // 5. Check if 'ADD' is missing entirely from a card that has a button
+                            if (btn && !btnText.includes('add') && !btnText.includes('+') && btnText.length > 0) {
+                              // If there's a button but it doesn't look like an 'add' button, likely OOS
+                              return false;
+                            }
+                            
+                            return true;
+                          } catch(e) { return true; }
+                        })(),
                         weight: card.querySelector('div[class*="weight"], div[class*="quantity"]')?.textContent?.trim() || meta.quantity || '',
                         quantity: meta.quantity || '',
                         rating: meta.rating || 0,
@@ -621,7 +659,7 @@ class PlatformDOMScraperService {
                         mrp: parsedPrice,
                         image_url: '',
                         product_url: 'https://blinkit.com/s/?q=' + encodeURIComponent(rawName),
-                        in_stock: true,
+                        in_stock: !rawName.toLowerCase().includes('out of stock') && !rawName.toLowerCase().includes('sold out'),
                         weight: qty,
                         quantity: qty,
                         rating: 0,
@@ -684,7 +722,11 @@ class PlatformDOMScraperService {
                             }
                             return url;
                           })(),
-                          in_stock: true,
+                          in_stock: (function() {
+                             const avail = obj?.is_available ?? obj?.available ?? obj?.in_stock ?? obj?.inventory ?? obj?.stock ?? true;
+                             if (avail === false || avail === 0 || String(avail).toLowerCase().includes('out_of_stock')) return false;
+                             return true;
+                          })(),
                           weight: obj?.quantity || obj?.unit || '',
                           platform: 'Blinkit'
                         });
@@ -743,7 +785,7 @@ class PlatformDOMScraperService {
                 }
               };
 
-              setTimeout(pollForCards, POLL_MS); // Start polling at 500ms intervals
+              setTimeout(pollForCards, 300); // Start polling at 300ms intervals
             } catch (error) {
               log('Error: ' + error.message);
               window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -934,8 +976,8 @@ class PlatformDOMScraperService {
                 }));
               };
 
-              const MAX_WAIT_MS = 12000;
-              const POLL_MS = 500;
+              const MAX_WAIT_MS = 8000;
+              const POLL_MS = 300;
               let elapsed = 0;
               let hasExtracted = false;
 
@@ -976,9 +1018,8 @@ class PlatformDOMScraperService {
                         .replace(/\b\d+\s*mins?\b/gi, ' ')
                         .replace(/₹\s*[0-9]+(?:\.[0-9]+)?/gi, ' ')
                         .replace(/\b(add|buy\s*now|qty|view\s*more|off)\b/gi, ' ')
-                        .replace(/\b\d+(?:\.\d+)?\s*[kK]?\s*Ratings?.*$/i, '')
-                        .replace(/\bRatings?.*$/i, '')
-                        .replace(/\bReviews?.*$/i, '')
+                        .replace(/\b\d+(?:\.\d+)?\s*(?:star|rating|review)s?\b.*$/i, '')
+                        .replace(/\b(Ratings?|Reviews?)\b.*$/i, '')
                         .replace(/[|]+/g, ' ')
                         .replace(/\s+/g, ' ')
                         .trim();
@@ -1176,7 +1217,10 @@ class PlatformDOMScraperService {
                           }
                           return url;
                         })(),
-                        in_stock: true,
+                        in_stock: !cardTextForMeta.toLowerCase().includes('out of stock') && 
+                                  !cardTextForMeta.toLowerCase().includes('not available') &&
+                                  !cardTextForMeta.toLowerCase().includes('sold out') &&
+                                  !cardTextForMeta.toLowerCase().includes('notify me'),
                         weight: card.querySelector('[qa="size"]')?.textContent?.trim() || meta.quantity || '',
                         quantity: meta.quantity || '',
                         rating: meta.rating || 0,
@@ -1507,7 +1551,7 @@ class PlatformDOMScraperService {
                 }
               };
 
-              setTimeout(pollForCards, POLL_MS);
+              setTimeout(pollForCards, 300);
             } catch (error) {
               log('Error: ' + error.message);
               window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -1659,8 +1703,8 @@ class PlatformDOMScraperService {
               log('URL: ' + window.location.href);
               log('Title: ' + document.title);
 
-              const MAX_WAIT_MS = 8000;  // Align with platform timeout
-              const POLL_MS = 400;       // ⬇ was 1000ms
+              const MAX_WAIT_MS = 7000;  // Align with platform timeout
+              const POLL_MS = 300;       // ⬇ was 400ms
               let pollElapsed = 0;
               let hasSentZepto = false;
 
@@ -1843,7 +1887,10 @@ class PlatformDOMScraperService {
                         mrp: meta.mrp || parsedPrice,
                         image_url: image,
                         product_url: productUrl,
-                        in_stock: true,
+                        in_stock: !cardText.toLowerCase().includes('out of stock') && 
+                                  !cardText.toLowerCase().includes('currently unavailable') &&
+                                  !cardText.toLowerCase().includes('sold out') &&
+                                  !cardText.toLowerCase().includes('notify me'),
                         weight: meta.quantity || '',
                         quantity: meta.quantity || '',
                         rating: meta.rating || 0,
@@ -1986,7 +2033,7 @@ class PlatformDOMScraperService {
               }
 
               // Poll is still the safety net in case MutationObserver misses the first batch.
-              setTimeout(poll, POLL_MS);
+              setTimeout(poll, 300);
               } catch (error) {
                 log('FATAL ERROR: ' + error.message);
                 window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -2179,7 +2226,10 @@ class PlatformDOMScraperService {
                       image_url: image || '',
                       product_url: finalUrl,
                       deep_link: deepLink,
-                      in_stock: true,
+                      in_stock: !card.textContent.toLowerCase().includes('out of stock') && 
+                                 !card.textContent.toLowerCase().includes('currently unavailable') &&
+                                 !card.textContent.toLowerCase().includes('notify me') &&
+                                 !card.textContent.toLowerCase().includes('sold out'),
                       weight: '',
                       platform: 'Amazon',
                       _card: card // Store card for generic fallback
@@ -2237,8 +2287,8 @@ class PlatformDOMScraperService {
 
               try {
                 let attempt = 0;
-                const maxAttempts = 20;
-                const pollInterval = 600;
+                const maxAttempts = 15;
+                const pollInterval = 400;
                 
                 const poll = () => {
                   attempt++;
@@ -2281,7 +2331,7 @@ class PlatformDOMScraperService {
                               image_url: image || '',
                               product_url: window.location.href,
                               deep_link: window.location.href,
-                              in_stock: true,
+                              in_stock: !obj.name?.toLowerCase().includes('out of stock'),
                               weight: '',
                               platform: 'Amazon'
                           }], true, null);
@@ -2316,7 +2366,7 @@ class PlatformDOMScraperService {
                   setTimeout(poll, pollInterval);
                 };
                 
-                setTimeout(poll, 1200);
+                setTimeout(poll, 800);
               } catch(e) {
                 log('FATAL Error: ' + e.message);
                 sendResults([], false, e.message);
@@ -2510,7 +2560,7 @@ class PlatformDOMScraperService {
                       mrp: mrp,
                       image_url: image,
                       product_url: href,
-                      in_stock: !cardText.toLowerCase().includes('out of stock'),
+                      in_stock: !cardText.toLowerCase().includes('out of stock') && !cardText.toLowerCase().includes('notify me') && !cardText.toLowerCase().includes('sold out') && !cardText.toLowerCase().includes('unavailable') && !cardText.toLowerCase().includes('not available'),
                       weight: '',
                       platform: 'Flipkart'
                     });
@@ -2560,7 +2610,7 @@ class PlatformDOMScraperService {
                         mrp,
                         image_url: image,
                         product_url: url,
-                        in_stock: !cardText.toLowerCase().includes('out of stock'),
+                        in_stock: !cardText.toLowerCase().includes('out of stock') && !cardText.toLowerCase().includes('notify me') && !cardText.toLowerCase().includes('sold out') && !cardText.toLowerCase().includes('unavailable') && !cardText.toLowerCase().includes('not available'),
                         weight: '',
                         platform: 'Flipkart'
                       });
@@ -2643,7 +2693,7 @@ class PlatformDOMScraperService {
                       mrp: mrp > price ? mrp : price,
                       image_url: image,
                       product_url: 'https://www.flipkart.com/product/p?pid=' + pid,
-                      in_stock: true,
+                      in_stock: !name.toLowerCase().includes('out of stock') && !name.toLowerCase().includes('sold out') && !name.toLowerCase().includes('unavailable') && !name.toLowerCase().includes('not available'),
                       weight: '',
                       platform: 'Flipkart'
                     });
@@ -2698,8 +2748,8 @@ class PlatformDOMScraperService {
                 log('Search query: ' + searchQuery);
 
                 let attempt = 0;
-                const maxAttempts = 24; // 12s max for DOM, then fall back to API
-                const pollInterval = 500;
+                const maxAttempts = 20; // 8s max for DOM, then fall back to API
+                const pollInterval = 400;
                 let apiTriggered = false;
                 
                 const poll = () => {

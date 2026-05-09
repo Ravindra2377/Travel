@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CompareZ — Aurora Design System v2
 // Modern vibrant palette · clean surfaces · scalable tokens
@@ -162,31 +164,36 @@ const SHADOWS = {
 
 const FONTS = {
   h1: {
+    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
     fontSize: 32,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#0F172A",
-    letterSpacing: -0.8,
+    letterSpacing: Platform.OS === "ios" ? -0.5 : -1.2,
   },
   h1Dark: {
+    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
     fontSize: 32,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: -0.8,
+    letterSpacing: Platform.OS === "ios" ? -0.5 : -1.2,
   },
   h2: {
+    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
     fontSize: 24,
     fontWeight: "700",
     color: "#0F172A",
-    letterSpacing: -0.4,
+    letterSpacing: Platform.OS === "ios" ? -0.3 : -0.8,
   },
   h2Dark: {
+    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
     fontSize: 24,
     fontWeight: "700",
     color: "#FFFFFF",
-    letterSpacing: -0.4,
+    letterSpacing: Platform.OS === "ios" ? -0.3 : -0.8,
   },
   h3: {
-    fontSize: 16,        // Optimized for 8pt grid
+    fontFamily: Platform.OS === "ios" ? "Avenir-Medium" : "sans-serif-medium",
+    fontSize: 16,
     fontWeight: "600",
     color: "#0F172A",
     letterSpacing: -0.2,
@@ -198,10 +205,12 @@ const FONTS = {
     letterSpacing: -0.2,
   },
   body: {
-    fontSize: 14,        // Standard production size
+    fontFamily: Platform.OS === "ios" ? "AvenirNext-Medium" : "sans-serif-light",
+    fontSize: 15,
     fontWeight: "400",
-    color: "#64748B",
-    lineHeight: 20,      // 1.4x line height
+    color: "#475569",
+    lineHeight: 22,
+    letterSpacing: -0.1,
   },
   bodyDark: {
     fontSize: 14,
@@ -210,10 +219,12 @@ const FONTS = {
     lineHeight: 20,
   },
   bodyBold: {
-    fontSize: 14,
-    fontWeight: "700",   // Increased weight for hierarchy
+    fontFamily: Platform.OS === "ios" ? "AvenirNext-DemiBold" : "sans-serif-medium",
+    fontSize: 15,
+    fontWeight: "700",
     color: "#0F172A",
-    lineHeight: 20,
+    lineHeight: 22,
+    letterSpacing: -0.2,
   },
   bodyBoldDark: {
     fontSize: 14,
@@ -222,7 +233,8 @@ const FONTS = {
     lineHeight: 20,
   },
   caption: {
-    fontSize: 12,        // Standard caption size
+    fontFamily: Platform.OS === "ios" ? "AvenirNext-Regular" : "sans-serif",
+    fontSize: 12,
     fontWeight: "400",
     color: "#94A3B8",
     lineHeight: 16,
@@ -234,6 +246,7 @@ const FONTS = {
     lineHeight: 16,
   },
   captionBold: {
+    fontFamily: Platform.OS === "ios" ? "AvenirNext-Medium" : "sans-serif-medium",
     fontSize: 12,
     fontWeight: "600",
     color: "#64748B",
@@ -246,10 +259,11 @@ const FONTS = {
     letterSpacing: 0.2,
   },
   price: {
-    fontSize: 28,
-    fontWeight: "700",
+    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
+    fontSize: 30,
+    fontWeight: "900",
     color: "#0F172A",
-    letterSpacing: -0.5,
+    letterSpacing: Platform.OS === "ios" ? -0.5 : -1,
   },
   priceDark: {
     fontSize: 28,
@@ -258,9 +272,10 @@ const FONTS = {
     letterSpacing: -0.5,
   },
   priceSmall: {
+    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
     fontSize: 18,
     fontWeight: "600",
-    color: "#0F172A",
+    color: "#1A1A1A",
   },
   badge: {
     fontSize: 10,
@@ -269,10 +284,11 @@ const FONTS = {
     letterSpacing: 1,
   },
   luxury: {
-    fontSize: 40,
-    fontWeight: "800",
+    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
+    fontSize: 38,
+    fontWeight: "900",
     color: "#FFFFFF",
-    letterSpacing: -1,
+    letterSpacing: Platform.OS === "ios" ? -0.8 : -1.5,
   },
   luxurySub: {
     fontSize: 16,

@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext, AuthProvider } from "./context/AuthContext";
+import { WishlistProvider } from "./context/WishlistContext";
 import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { BlurView } from "expo-blur";
 import { COLORS, SHADOWS, FONTS } from "./config/theme";
@@ -17,6 +18,7 @@ import HomeScreen from "./screens/HomeScreen";
 import SearchScreen from "./screens/SearchScreen";
 import ProductDetailScreen from "./screens/ProductDetailScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+import WishlistScreen from "./screens/WishlistScreen";
 import AccountsScreen from "./screens/AccountsScreen";
 import SupportChatScreen from "./screens/SupportChatScreen";
 import TermsScreen from "./screens/TermsScreen";
@@ -39,6 +41,7 @@ const MainTabs = () => {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="Likes" component={WishlistScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -135,7 +138,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <AppNav />
+        <WishlistProvider>
+          <AppNav />
+        </WishlistProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useContext } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,10 @@ import {
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import GlassCard from "./GlassCard";
-import { COLORS, SPACING, RADIUS, FONTS } from "../config/theme";
+import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { WishlistContext } from "../context/WishlistContext";
+import * as Haptics from "expo-haptics";
+import { TouchableOpacity } from "react-native";
 
 const PLATFORM_COLORS = {
   Blinkit: COLORS.platformBlinkit,
@@ -44,6 +47,9 @@ const ProductCard = ({ product, onPress }) => {
     unitPrice,
     unitLabel,
   } = product;
+
+  const { toggleWishlist, isLiked } = useContext(WishlistContext);
+  const liked = isLiked(product.id);
 
   const [imageError, setImageError] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
@@ -124,6 +130,21 @@ const ProductCard = ({ product, onPress }) => {
                 </View>
               )}
             </View>
+
+            {/* Like Button Overlay */}
+            <TouchableOpacity
+              style={styles.likeBtn}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                toggleWishlist(product);
+              }}
+            >
+              <Ionicons
+                name={liked ? "heart" : "heart-outline"}
+                size={22}
+                color={liked ? COLORS.primary : COLORS.textTertiary}
+              />
+            </TouchableOpacity>
 
             <View style={styles.info}>
               <Text style={styles.name} numberOfLines={2}>
@@ -386,6 +407,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accentLight,
     alignItems: "center",
     justifyContent: "center",
+  },
+  likeBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    padding: 8,
+    borderRadius: RADIUS.full,
+    ...SHADOWS.sm,
+    zIndex: 10,
   },
 });
 
