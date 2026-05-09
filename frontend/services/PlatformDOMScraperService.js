@@ -918,7 +918,12 @@ class PlatformDOMScraperService {
                 }));
               };
 
-              const runParse = (attempt) => {
+              const MAX_WAIT_MS = 12000;
+              const POLL_MS = 500;
+              let elapsed = 0;
+              let hasExtracted = false;
+
+              const runParse = () => {
                 const products = [];
                 let productCards = document.querySelectorAll('[data-test-id="product-pod"], .product-card, .SKUDeck___StyledDiv-sc-1e5d9gk-0, li[class*="Product"]');
 
@@ -931,7 +936,7 @@ class PlatformDOMScraperService {
                   log('Fallback link-based cards: ' + productCards.length);
                 }
                 
-                log('Found ' + productCards.length + ' product cards');
+                log('Found ' + productCards.length + ' product cards at ' + elapsed + 'ms');
                 
                 // Debug first card
                 if (productCards.length > 0) {
@@ -1255,7 +1260,7 @@ class PlatformDOMScraperService {
                 });
                 
                 const finalize = () => {
-                  log('Attempt ' + attempt + ' parsed ' + products.length + ' products');
+                  log('Parsed ' + products.length + ' products');
                   if (products.length > 0) {
                     sendResults(products, true, null);
                   }
@@ -1358,14 +1363,33 @@ class PlatformDOMScraperService {
                    }
                 } else if (products.length > 0) {
                    finalize();
-                } else if (attempt < 3) {
-                   setTimeout(() => runParse(attempt + 1), 1500);
                 } else {
                    sendResults([], false, 'No products parsed from BigBasket');
                 }
               };
 
-              setTimeout(() => runParse(1), 3000);
+              const pollForCards = () => {
+                if (hasExtracted) return;
+                
+                let productCards = document.querySelectorAll('[data-test-id="product-pod"], .product-card, .SKUDeck___StyledDiv-sc-1e5d9gk-0, li[class*="Product"]');
+                if (productCards.length === 0) {
+                  const candidateLinks = Array.from(document.querySelectorAll('a[href*="/pd/"], a[href*="/product/"]'));
+                  productCards = candidateLinks.filter((a) => {
+                    const text = a.textContent || '';
+                    return text.length > 20 && text.length < 500 && /₹\s*\d+/.test(text);
+                  });
+                }
+                
+                if (productCards.length > 0 || elapsed >= MAX_WAIT_MS) {
+                  hasExtracted = true;
+                  runParse();
+                } else {
+                  elapsed += POLL_MS;
+                  setTimeout(pollForCards, POLL_MS);
+                }
+              };
+
+              setTimeout(pollForCards, POLL_MS);
             } catch (error) {
               log('Error: ' + error.message);
               window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -2427,7 +2451,7 @@ class PlatformDOMScraperService {
                 log('Search query: ' + searchQuery);
 
                 let attempt = 0;
-                const maxAttempts = 16; // 8s max for DOM, then fall back to API
+                const maxAttempts = 24; // 12s max for DOM, then fall back to API
                 const pollInterval = 500;
                 let apiTriggered = false;
                 
