@@ -344,38 +344,79 @@ class PlatformDOMScraperService {
                     }
 
                     const price = priceText ? parseFloat(priceText.replace(/[^0-9.]/g, '')) : 0;
-                    const imgEl = card.querySelector('img') || card.parentElement.querySelector('img');
+
+                    // Walk UP from the card to find the product container that has both image and link
+                    // Blinkit puts image in a sibling div, not inside the price+ADD card
+                    var productContainer = card;
+                    for (var up = 0; up < 5; up++) {
+                      if (!productContainer.parentElement) break;
+                      productContainer = productContainer.parentElement;
+                      // Stop when we find a container that has an img AND is reasonably sized
+                      var hasImg = productContainer.querySelector('img');
+                      var hasLink = productContainer.querySelector('a[href]') || (productContainer.closest && productContainer.tagName === 'A');
+                      if (hasImg) break;
+                    }
+
+                    // Extract image - first from card, then from product container
+                    var imgEl = card.querySelector('img') || card.parentElement.querySelector('img') || productContainer.querySelector('img');
                     let image = '';
                     if (imgEl) {
                       image = imgEl.getAttribute('data-src') || imgEl.getAttribute('srcset')?.split(' ')[0] || imgEl.src || '';
                       if (image.includes('data:image') || image.includes('placeholder')) {
                           image = imgEl.getAttribute('data-original') || imgEl.getAttribute('data-lazy-src') || image;
                       }
-                    } else {
-                      // Ultra-broad fallback for images in Blinkit cards
-                      const allImgs = Array.from(card.querySelectorAll('img, [style*="background-image"]'));
-                      for (const item of allImgs) {
-                        const src = item.src || (item.style?.backgroundImage?.match(/url\(['"]?([^'"]+)['"]?\)/) || [])[1];
-                        if (src && !src.includes('data:image') && !src.includes('transparent')) {
-                          image = src;
+                    }
+                    // Blinkit optimization: use higher resolution image if possible
+                    if (image && image.includes('w=')) {
+                      image = image.replace(/w=[0-9]+/, 'w=450');
+                    }
+
+                    // Extract product URL - check card, then product container, then ancestors
+                    var productUrl = '';
+
+                    // 1. Check if the product container IS an <a> or is wrapped by one
+                    var containerAnchor = productContainer.tagName === 'A' ? productContainer : (productContainer.closest ? productContainer.closest('a[href]') : null);
+                    if (containerAnchor && containerAnchor.href) {
+                      var href = String(containerAnchor.href);
+                      if (href.indexOf('/s/?q=') < 0 && href.indexOf('/s?q=') < 0 && href.indexOf('/search') < 0) {
+                        productUrl = href;
+                      }
+                    }
+
+                    // 2. Check nested anchors inside the product container
+                    if (!productUrl) {
+                      var containerAnchors = productContainer.querySelectorAll('a[href]');
+                      for (var ai = 0; ai < containerAnchors.length; ai++) {
+                        var aHref = String(containerAnchors[ai].href || '');
+                        if (aHref.indexOf('/prn/') >= 0 || aHref.indexOf('/product/') >= 0) {
+                          productUrl = aHref;
                           break;
                         }
                       }
                     }
-                    // Blinkit optimization: use higher resolution image if possible
-                    if (image && image.includes('w=')) {
-                      image = image.replace(/w=\d+/, 'w=450');
-                    }
-                    const nestedAnchor = card.querySelector('a[href]');
-                    const closestAnchor = card.closest ? card.closest('a[href]') : null;
-                    let productUrl =
-                      card.href ||
-                      nestedAnchor?.href ||
-                      closestAnchor?.href ||
-                      card.querySelector('[href]')?.getAttribute('href') ||
-                      '';
 
-                    if (productUrl && productUrl.startsWith('/')) {
+                    // 3. Walk further up to find any ancestor <a> with a product link
+                    if (!productUrl) {
+                      var walker = card;
+                      for (var w = 0; w < 8 && walker; w++) {
+                        if (walker.tagName === 'A' && walker.href) {
+                          var wHref = String(walker.href);
+                          if (wHref.indexOf('/prn/') >= 0 || wHref.indexOf('/product/') >= 0) {
+                            productUrl = wHref;
+                            break;
+                          }
+                        }
+                        // Also check if this element has an onclick or data attribute with a URL
+                        var dataUrl = walker.getAttribute && (walker.getAttribute('data-url') || walker.getAttribute('data-href') || walker.getAttribute('data-link'));
+                        if (dataUrl && dataUrl.indexOf('/prn/') >= 0) {
+                          productUrl = dataUrl;
+                          break;
+                        }
+                        walker = walker.parentElement;
+                      }
+                    }
+
+                    if (productUrl && productUrl.charAt(0) === '/') {
                       productUrl = 'https://blinkit.com' + productUrl;
                     }
 
@@ -386,6 +427,7 @@ class PlatformDOMScraperService {
                     if (index === 0) {
                       log('First product - name: ' + (name || 'NOT FOUND') + ', price: ' + price);
                        log('First product - name: ' + (name || 'NOT FOUND') + ', priceText: "' + priceText + '", image: ' + (image || 'NOT FOUND'));
+                       log('First product - productUrl: ' + productUrl);
                     }
                     
                     if (name && name.length > 3 && price > 0) {
@@ -414,6 +456,131 @@ class PlatformDOMScraperService {
                     }
                   }
                 });
+
+                // === ENRICH PRODUCT URLs USING REACT FIBER TREE ===
+                // Blinkit uses React. Each DOM element has __reactFiber$ with component props
+                // containing the real product_id. Extract it directly from React's internal state.
+                try {
+                  // Also try __NEXT_DATA__ script tag
+                  var nextDataEl = document.getElementById('__NEXT_DATA__');
+                  var stateProducts = [];
+                  if (nextDataEl) {
+                    try {
+                      var nd = JSON.parse(nextDataEl.textContent || '{}');
+                      var collectFromState = function(node, depth) {
+                        if (!node || depth > 12) return;
+                        if (Array.isArray(node)) {
+                          for (var i = 0; i < node.length; i++) collectFromState(node[i], depth + 1);
+                          return;
+                        }
+                        if (typeof node !== 'object') return;
+                        var pName = node.name || node.display_name || node.product_name || '';
+                        var pId = node.product_id || node.id || node.prid || '';
+                        var pSlug = node.slug || '';
+                        if (typeof pName === 'string' && pName.length > 2 && pId) {
+                          stateProducts.push({ name: pName.trim().toLowerCase(), id: String(pId), slug: pSlug });
+                        }
+                        try { var ks = Object.keys(node); for (var k = 0; k < ks.length; k++) collectFromState(node[ks[k]], depth + 1); } catch(e) {}
+                      };
+                      collectFromState(nd, 0);
+                      log('__NEXT_DATA__ found ' + stateProducts.length + ' products with IDs');
+                    } catch(e) { log('__NEXT_DATA__ parse failed: ' + e.message); }
+                  }
+
+                  // Try React fiber on each product card to get the real product_id
+                  productCards.forEach(function(card, idx) {
+                    if (idx >= products.length) return;
+                    var product = products[idx];
+                    if (product.product_url && product.product_url.indexOf('/s/?q=') < 0 && product.product_url.indexOf('/s?q=') < 0) return;
+
+                    // Walk up DOM from card to find a React fiber with product data
+                    var cursor = card;
+                    var foundId = null;
+                    var foundSlug = null;
+                    for (var up = 0; up < 10 && cursor && !foundId; up++) {
+                      var fiberKey = null;
+                      try {
+                        var keys = Object.keys(cursor);
+                        for (var ki = 0; ki < keys.length; ki++) {
+                          if (keys[ki].indexOf('__reactFiber$') === 0 || keys[ki].indexOf('__reactInternalInstance$') === 0) {
+                            fiberKey = keys[ki];
+                            break;
+                          }
+                        }
+                      } catch(e) {}
+
+                      if (fiberKey) {
+                        var fiber = cursor[fiberKey];
+                        var walker = fiber;
+                        for (var fi = 0; fi < 25 && walker && !foundId; fi++) {
+                          var props = walker.memoizedProps || walker.pendingProps || {};
+                          // Check props directly
+                          if (props.product_id) { foundId = props.product_id; foundSlug = props.slug || props.product_slug || ''; }
+                          else if (props.prid) { foundId = props.prid; foundSlug = props.slug || ''; }
+                          // Check nested product/item objects
+                          else if (props.product && (props.product.product_id || props.product.id || props.product.prid)) {
+                            foundId = props.product.product_id || props.product.id || props.product.prid;
+                            foundSlug = props.product.slug || '';
+                          }
+                          else if (props.item && (props.item.product_id || props.item.id || props.item.prid)) {
+                            foundId = props.item.product_id || props.item.id || props.item.prid;
+                            foundSlug = props.item.slug || '';
+                          }
+                          else if (props.data && typeof props.data === 'object' && (props.data.product_id || props.data.id || props.data.prid)) {
+                            foundId = props.data.product_id || props.data.id || props.data.prid;
+                            foundSlug = props.data.slug || '';
+                          }
+                          // Check href prop (React Router Link)
+                          else if (props.href && typeof props.href === 'string' && props.href.indexOf('/prn/') >= 0) {
+                            product.product_url = props.href.charAt(0) === '/' ? 'https://blinkit.com' + props.href : props.href;
+                            foundId = 'FROM_HREF';
+                          }
+                          else if (props.to && typeof props.to === 'string' && props.to.indexOf('/prn/') >= 0) {
+                            product.product_url = props.to.charAt(0) === '/' ? 'https://blinkit.com' + props.to : props.to;
+                            foundId = 'FROM_TO';
+                          }
+                          walker = walker['return'];
+                        }
+                      }
+                      cursor = cursor.parentElement;
+                    }
+
+                    if (foundId && foundId !== 'FROM_HREF' && foundId !== 'FROM_TO') {
+                      var slug = foundSlug || (product.product_name || 'product').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                      product.product_url = 'https://blinkit.com/prn/' + slug + '/prid/' + foundId;
+                    }
+
+                    // If React fiber didn't work, try matching against __NEXT_DATA__ products
+                    if ((product.product_url.indexOf('/s/?q=') >= 0 || product.product_url.indexOf('/s?q=') >= 0) && stateProducts.length > 0) {
+                      var pNameLower = (product.product_name || '').toLowerCase().trim();
+                      var pWords = pNameLower.split(/[^a-z0-9]+/).filter(function(w) { return w.length > 2; });
+                      var bestMatch = null;
+                      var bestScore = 0;
+                      for (var si = 0; si < stateProducts.length; si++) {
+                        var sp = stateProducts[si];
+                        var sWords = sp.name.split(/[^a-z0-9]+/).filter(function(w) { return w.length > 2; });
+                        var overlap = 0;
+                        for (var wi = 0; wi < pWords.length; wi++) {
+                          for (var wj = 0; wj < sWords.length; wj++) {
+                            if (pWords[wi] === sWords[wj]) { overlap++; break; }
+                          }
+                        }
+                        var score = pWords.length > 0 ? overlap / pWords.length : 0;
+                        if (score > bestScore && score >= 0.5) { bestScore = score; bestMatch = sp; }
+                      }
+                      if (bestMatch) {
+                        var mSlug = bestMatch.slug || pNameLower.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                        product.product_url = 'https://blinkit.com/prn/' + mSlug + '/prid/' + bestMatch.id;
+                      }
+                    }
+
+                    if (idx === 0) {
+                      log('Product[0] URL after enrichment: ' + product.product_url + ' (foundId: ' + foundId + ')');
+                    }
+                  });
+                } catch(enrichErr) {
+                  log('URL enrichment failed: ' + enrichErr.message);
+                }
 
                 if (products.length === 0) {
                   try {
@@ -488,8 +655,15 @@ class PlatformDOMScraperService {
                           mrp: price,
                           image_url: obj?.image_url || obj?.imageUrl || obj?.image || '',
                           product_url: (function() {
-                            let url = obj?.deep_link || obj?.url || '';
-                            if (url && url.startsWith('/')) {
+                            let url = obj?.deep_link || obj?.url || obj?.action?.url || obj?.defaultAction?.url || obj?.deeplink || '';
+                            if (!url) {
+                              const slug = obj?.name ? String(obj.name).toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'product';
+                              const pid = obj?.product_id || obj?.id || obj?.inventory_id || obj?.prid || obj?.product?.product_id || obj?.product?.id || obj?.product?.prid || obj?.item_id || obj?.item?.id || obj?.item?.product_id;
+                              if (pid) {
+                                url = '/prn/' + slug + '/prid/' + pid;
+                              }
+                            }
+                            if (url && String(url).startsWith('/')) {
                               url = 'https://blinkit.com' + url;
                             }
                             return url;
