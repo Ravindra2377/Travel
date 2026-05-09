@@ -181,11 +181,104 @@ const normalizeUnits = (str) => {
     .replace(/\bgm\b/gi, "g");
 };
 
-const getProductMatchKey = (name) => {
+// Parse quantity like "500g", "1 kg", "250 ml" from a product title.
+// Returns {amount: number, unit: 'g'|'ml'|'unknown'} or null.
+const parseQuantity = (text) => {
+  if (!text) return null;
+  const s = String(text).toLowerCase();
+
+  // Normalize common forms
+  const replaced = s
+    .replace(/\bgrams?\b/gi, "g")
+    .replace(/\bgm\b/gi, "g")
+    .replace(/\bkilograms?\b/gi, "kg")
+    .replace(/\blitres?\b/gi, "l")
+    .replace(/\bml\b/gi, "ml")
+    .replace(/\bltr\b/gi, "l");
+
+  // Match patterns like 1kg, 1 kg, 500g, 250 ml, 0.5 l
+  const m = replaced.match(/([0-9]+(?:\.[0-9]+)?)\s*(kg|g|ml|l)\b/);
+  if (!m) return null;
+  const rawVal = parseFloat(m[1]);
+  if (!Number.isFinite(rawVal) || rawVal <= 0) return null;
+  const unit = m[2];
+
+  // Convert to base: grams for weight, milliliters for volume
+  if (unit === "kg") return { amount: rawVal * 1000, unit: "g" };
+  if (unit === "g") return { amount: rawVal, unit: "g" };
+  if (unit === "l") return { amount: rawVal * 1000, unit: "ml" };
+  if (unit === "ml") return { amount: rawVal, unit: "ml" };
+  return null;
+};
+
+// Compute normalized unit price per 100g or per 100ml when possible.
+// Returns { unitPrice: number, unitLabel: string } or null.
+const computeUnitPrice = (price, title) => {
+  const qty = parseQuantity(title);
+  if (!qty || !price || price <= 0) return null;
+
+  if (qty.unit === "g") {
+    // price per 100g
+    const per100 = (price / qty.amount) * 100;
+    return {
+      unitPrice: Math.round(per100 * 100) / 100,
+      unitLabel: "per 100 g",
+    };
+  }
+  if (qty.unit === "ml") {
+    const per100 = (price / qty.amount) * 100;
+    return {
+      unitPrice: Math.round(per100 * 100) / 100,
+      unitLabel: "per 100 ml",
+    };
+  }
+  return null;
+};
+
+const getProductMatchKey = (name, extraTextForQty = "") => {
+  // 1. EXTRACT QUANTITY FROM COMBINED TEXT FIRST
+  let qtyText = `${name} ${extraTextForQty}`.toLowerCase();
+  qtyText = normalizeUnits(qtyText);
+  let preNormalizedForQty = qtyText
+    .replace(/(\d+)\s+(ml|g|kg|l|gm|ltr|pcs?|pack)\b/g, "$1$2")
+    .replace(/(ml|g|kg|l|gm|ltr|pcs?|pack)\b/g, " $1")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const qtyRegex = /\b(\d+(?:\.\d+)?)\s*(ml|g|kg|l|gm|ltr|pcs?|pack)\b/g;
+  let matches = [];
+  let m;
+  while ((m = qtyRegex.exec(preNormalizedForQty)) !== null) {
+    matches.push({
+      full: m[0],
+      num: parseFloat(m[1]),
+      unit: m[2].toLowerCase(),
+    });
+  }
+
+  let qty = "";
+  if (matches.length > 0) {
+    let best = matches[0];
+    for (const match of matches) {
+      if (match.unit.includes("pc") && best.unit.includes("pack")) {
+        best = match;
+      }
+    }
+    let u = best.unit;
+    if (u.startsWith("g")) u = "g";
+    else if (u.startsWith("k")) u = "kg";
+    else if (u.startsWith("m")) u = "ml";
+    else if (u.startsWith("l")) u = "l";
+    else if (u.startsWith("pc")) u = "pc";
+    else if (u === "pack") u = "pack";
+
+    qty = best.num + u;
+  }
+
+  // 2. EXTRACT BASE WORDS ONLY FROM NAME
   let clean = sanitizeProductName(name).toLowerCase();
   if (!clean) return "";
 
-  // Normalize units before stripping punctuation
   clean = normalizeUnits(clean);
 
   // Common brand normalizations for grocery
@@ -197,12 +290,10 @@ const getProductMatchKey = (name) => {
     .replace(/\btata\s*salt\b/gi, "tata salt")
     .replace(/\bamul\s+pure\s+ghee\b/gi, "amul ghee");
 
-  // Strip punctuation and unnecessary words
   const stopWords = new Set([
     "fresh",
     "new",
     "original",
-    "pack",
     "pouch",
     "bottle",
     "net",
@@ -210,8 +301,6 @@ const getProductMatchKey = (name) => {
     "medium",
     "large",
     "small",
-    "pc",
-    "pcs",
     "the",
     "a",
     "an",
@@ -235,29 +324,14 @@ const getProductMatchKey = (name) => {
 
   let normalized = baseWords.join(" ");
 
-  // Standardize spaces between numbers and units
-  normalized = normalized
-    .replace(/(\d+)\s+(ml|g|kg|l|gm|ltr)\b/g, "$1$2")
-    .replace(/(ml|g|kg|l|gm|ltr)\b/g, " $1")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  // Extract primary quantity to append at the end
-  let qtyMatch = normalized.match(/\b\d+(?:\.\d+)?\s?(ml|g|kg|l|gm|ltr)\b/);
-  let qty = qtyMatch ? qtyMatch[0].replace(/\s+/g, "") : "";
-
-  // If quantity was extracted, remove it from the main string
-  if (qty) {
-    normalized = normalized
-      .replace(new RegExp(qtyMatch[0], "g"), "")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
-
-  // Remove isolated numbers
+  // Remove all numbers to prevent noise in base string
   normalized = normalized
     .split(/\s+/)
-    .filter((t) => !/^\d+(\.\d+)?$/.test(t))
+    .filter(
+      (t) =>
+        !/^\d+(\.\d+)?$/.test(t) &&
+        !/^\d+(ml|g|kg|l|gm|ltr|pcs?|pack)$/.test(t),
+    )
     .join(" ");
 
   let finalWords = normalized.split(/\s+/).slice(0, 4);
@@ -1498,7 +1572,9 @@ const SearchScreen = ({ navigation, route }) => {
 
         relevantProducts++;
 
-        const key = getProductMatchKey(product.product_name);
+        const extraText =
+          `${product.quantity || product.weight || ""} ${product.raw_text || ""}`.trim();
+        const key = getProductMatchKey(product.product_name, extraText);
 
         if (!productMap[key]) {
           productMap[key] = {
@@ -1647,6 +1723,23 @@ const SearchScreen = ({ navigation, route }) => {
         brand: first.brand || "",
         price: best > 0 ? best : first.price || 0,
         originalPrice: worst > best ? worst : undefined,
+        // Unit price normalization (per 100g / per 100ml) when quantity is present in title
+        ...(() => {
+          const resolvedPrice = best > 0 ? best : first.price || 0;
+          const titleForQty =
+            uniqueListings.find((l) => l.raw_product_name)?.raw_product_name ||
+            displayName ||
+            group.name ||
+            "";
+          const unitInfo = computeUnitPrice(resolvedPrice, titleForQty);
+          if (unitInfo) {
+            return {
+              unitPrice: unitInfo.unitPrice,
+              unitLabel: unitInfo.unitLabel,
+            };
+          }
+          return { unitPrice: undefined, unitLabel: undefined };
+        })(),
         platformCount: listings.length,
         totalPlatforms: uniqueListings.length,
         discount:

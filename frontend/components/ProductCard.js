@@ -41,6 +41,8 @@ const ProductCard = ({ product, onPress }) => {
     bestPlatform = "",
     image_url: imageURL,
     imageCandidates = [],
+    unitPrice,
+    unitLabel,
   } = product;
 
   const [imageError, setImageError] = useState(false);
@@ -130,8 +132,17 @@ const ProductCard = ({ product, onPress }) => {
 
               <View style={styles.priceRow}>
                 <View>
-                  <Text style={[styles.priceLabel, { color: COLORS.accent }]}>BEST PRICE</Text>
-                  <Text style={styles.price}>₹{formatPrice(effectivePrice)}</Text>
+                  <Text style={[styles.priceLabel, { color: COLORS.accent }]}>
+                    BEST PRICE
+                  </Text>
+                  <Text style={styles.price}>
+                    ₹{formatPrice(effectivePrice)}
+                  </Text>
+                  {unitPrice ? (
+                    <Text style={styles.unitPriceText}>
+                      ₹{formatPrice(unitPrice)} {unitLabel}
+                    </Text>
+                  ) : null}
                 </View>
 
                 {hasOriginal ? (
@@ -144,12 +155,16 @@ const ProductCard = ({ product, onPress }) => {
                 ) : null}
 
                 {savingsValue > 0 ? (
-                  <View style={[styles.savingsChip, { backgroundColor: COLORS.savings, paddingHorizontal: 10 }]}>
-                    <Ionicons
-                      name="trending-down"
-                      size={11}
-                      color="#FFF"
-                    />
+                  <View
+                    style={[
+                      styles.savingsChip,
+                      {
+                        backgroundColor: COLORS.savings,
+                        paddingHorizontal: 10,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="trending-down" size={11} color="#FFF" />
                     <Text style={[styles.savingsText, { color: "#FFF" }]}>
                       Save ₹{formatPrice(savingsValue)}
                     </Text>
@@ -225,6 +240,8 @@ const areEqual = (prev, next) => {
     p.platformCount === n.platformCount &&
     p.discount === n.discount &&
     p.bestPlatform === n.bestPlatform &&
+    p.unitPrice === n.unitPrice &&
+    p.unitLabel === n.unitLabel &&
     prev.onPress === next.onPress
   );
 };
@@ -289,7 +306,7 @@ const styles = StyleSheet.create({
   },
   price: {
     ...FONTS.price,
-    fontSize: 24,         // Refined for card layout
+    fontSize: 24, // Refined for card layout
     lineHeight: 32,
   },
   mrpBlock: { paddingBottom: 4 },
@@ -317,8 +334,9 @@ const styles = StyleSheet.create({
   },
   savingsText: {
     ...FONTS.captionBold,
-    fontSize: 11,
-    color: COLORS.savings,
+    fontSize: 12,
+    color: COLORS.textTertiary,
+    marginTop: 2,
   },
   discountBadge: {
     backgroundColor: COLORS.warningLight,
