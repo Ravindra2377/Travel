@@ -1254,8 +1254,8 @@ class PlatformDOMScraperService {
                     
                     // Sort to put probable product images first
                     allImgs.sort((a, b) => {
-                       const aScore = (a.className.includes('product') || a.className.includes('listing') || a.parentElement.className.includes('image')) ? 1 : 0;
-                       const bScore = (b.className.includes('product') || b.className.includes('listing') || b.parentElement.className.includes('image')) ? 1 : 0;
+                       const aScore = (a.className.includes('product') || a.className.includes('listing') || a.parentElement.className.includes('image') || a.getAttribute('alt')) ? 1 : 0;
+                       const bScore = (b.className.includes('product') || b.className.includes('listing') || b.parentElement.className.includes('image') || b.getAttribute('alt')) ? 1 : 0;
                        return bScore - aScore;
                     });
 
@@ -1645,10 +1645,10 @@ class PlatformDOMScraperService {
             const extractBestPrice = (card, cardText, meta) => {
               if (!cardText) return 0;
 
-              // 1. Target the High-Priority Tag (Zepto uses <h4> for the actual selling price)
-              const h4Price = card.querySelector('h4');
-              if (h4Price && /₹/.test(h4Price.textContent)) {
-                const val = parseFloat(h4Price.textContent.replace(/[^0-9.]/g, ''));
+              // 1. Target the High-Priority Tag (Zepto uses h4 or data-testid for the actual selling price)
+              const priceEl = card.querySelector('h4, [data-testid="product-card-price"], [class*="price-val"], [class*="selling-price"]');
+              if (priceEl && /₹/.test(priceEl.textContent)) {
+                const val = parseFloat(priceEl.textContent.replace(/[^0-9.]/g, ''));
                 if (val > 0) return val;
               }
 
@@ -1707,10 +1707,12 @@ class PlatformDOMScraperService {
               const POLL_MS = 300;       // ⬇ was 400ms
               let pollElapsed = 0;
               let hasSentZepto = false;
+              let extractAttempts = 0;
+              const MAX_EXTRACT_ATTEMPTS = 3;
 
               const doExtract = () => {
                 if (hasSentZepto) return;
-                hasSentZepto = true;
+                extractAttempts++;
                 log('Extracting products (' + (pollElapsed / 1000).toFixed(0) + 's elapsed)...');
                 log('ReadyState: ' + document.readyState);
                 log('Body children count: ' + document.body.children.length);
@@ -1770,18 +1772,31 @@ class PlatformDOMScraperService {
                 
                 productCards.forEach((card, index) => {
                   try {
-                    // Get name - try heading elements first (no optional chaining)
+                    // Get name - prioritize data-testid
                     let name = '';
-                    let rawName = ''; // exact platform text before any transforms
-                    const heading = card.querySelector('h4, h3, h2');
-                    if (heading && heading.textContent) {
-                      rawName = heading.textContent.trim();
+                    let rawName = ''; 
+                    
+                    const testIdName = card.querySelector('[data-testid="product-card-name"], [class*="product-name"], [class*="title"]');
+                    if (testIdName && testIdName.textContent) {
+                      rawName = testIdName.textContent.trim();
                       name = rawName;
+                    }
+                    
+                    if (!name || name.length < 3) {
+                      const heading = card.querySelector('h5, h4, h3, h2, p[class*="name"]');
+                      if (heading && heading.textContent) {
+                        const hText = heading.textContent.trim();
+                        // Only use if it doesn't look like a price
+                        if (!/₹/.test(hText)) {
+                          rawName = hText;
+                          name = rawName;
+                        }
+                      }
                     }
                     
                     // If no heading, get longest text that looks like a product name
                     if (!name || name.length < 5) {
-                      const textEls = Array.from(card.querySelectorAll('div, p, span'));
+                      const textEls = Array.from(card.querySelectorAll('p, div, span'));
                       const allText = [];
                       for (let i = 0; i < textEls.length; i++) {
                         const text = textEls[i].textContent;
@@ -1987,8 +2002,18 @@ class PlatformDOMScraperService {
                   }
                 }
                 
-                log('Parsed ' + products.length + ' products');
+                log('Parsed ' + products.length + ' products (attempt ' + extractAttempts + '/' + MAX_EXTRACT_ATTEMPTS + ')');
                 
+                // If we found links but extracted 0 products, React hasn't hydrated yet.
+                // Retry after a delay instead of sending empty results.
+                const productLinksCount = document.querySelectorAll('a[href*="/pn/"], a[href*="/product/"]').length;
+                if (products.length === 0 && productLinksCount > 0 && extractAttempts < MAX_EXTRACT_ATTEMPTS) {
+                  log('Links exist (' + productLinksCount + ') but 0 products extracted. Retrying in 1.5s (attempt ' + extractAttempts + ')...');
+                  setTimeout(doExtract, 1500);
+                  return;
+                }
+                
+                hasSentZepto = true;
                 window.ReactNativeWebView.postMessage(JSON.stringify({
                   type: 'SEARCH_RESULTS',
                   platform: 'Zepto',
@@ -2010,6 +2035,10 @@ class PlatformDOMScraperService {
                   doExtract();
                 } else {
                   pollElapsed += POLL_MS;
+                  // Gently scroll to trigger lazy loading if we are stuck
+                  if (pollElapsed > 1000 && pollElapsed % 900 === 0) {
+                     window.scrollBy(0, 300);
+                  }
                   setTimeout(poll, POLL_MS);
                 }
               };
@@ -2021,10 +2050,11 @@ class PlatformDOMScraperService {
                   if (hasSentZepto) return;
                   const productLinks = document.querySelectorAll('a[href*="/pn/"], a[href*="/product/"]');
                   if (productLinks.length > 0) {
-                    log('MutationObserver fired: ' + productLinks.length + ' product links detected instantly');
+                    log('MutationObserver fired: ' + productLinks.length + ' product links detected — waiting 2s for React hydration...');
                     observer.disconnect();
                     observer = null;
-                    doExtract();
+                    // DON'T extract immediately! Wait for React to hydrate the content inside the links.
+                    setTimeout(doExtract, 2000);
                   }
                 });
                 observer.observe(document.body, { childList: true, subtree: true });

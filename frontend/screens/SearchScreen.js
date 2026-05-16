@@ -955,6 +955,17 @@ const SearchScreen = ({ navigation, route }) => {
     }, [checkConnectedPlatforms]),
   );
 
+  // ── Sync query from navigation params (e.g. from Meals Planner / AI Copilot) ──
+  useEffect(() => {
+    const incomingQuery = route?.params?.query;
+    if (incomingQuery && incomingQuery.trim() && incomingQuery.trim() !== query.trim()) {
+      console.log(`[Search] Received new query from navigation params: "${incomingQuery}"`);
+      setQuery(incomingQuery.trim());
+      // Clear the param so navigating back and forth doesn't re-trigger
+      navigation.setParams({ query: undefined });
+    }
+  }, [route?.params?.query]);
+
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
@@ -1180,8 +1191,15 @@ const SearchScreen = ({ navigation, route }) => {
 
   const handleWebViewMessage = (platform, event) => {
     try {
-      const monitor = getGlobalMonitor();
       const rawData = JSON.parse(event.nativeEvent.data);
+
+      // ── FAST PATH: LOG messages are just debug output, skip all heavy work ──
+      if (rawData.type === "LOG") {
+        console.log(`[WebView-${platform}]`, rawData.message);
+        return;
+      }
+
+      const monitor = getGlobalMonitor();
 
       const normalizeIncomingProduct = (product, fallbackPlatform) => {
         const rawName = String(
@@ -2267,11 +2285,16 @@ const SearchScreen = ({ navigation, route }) => {
           data={filteredAndSortedResults}
           renderItem={renderProductItem}
           keyExtractor={(item) => String(item.id)}
-          initialNumToRender={8}
-          maxToRenderPerBatch={8}
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
           windowSize={5}
-          updateCellsBatchingPeriod={50}
+          updateCellsBatchingPeriod={100}
           removeClippedSubviews={true}
+          getItemLayout={(data, index) => ({
+            length: 160,
+            offset: 160 * index,
+            index,
+          })}
           contentContainerStyle={styles.list}
           ListHeaderComponent={renderSearchProgress}
           ListEmptyComponent={renderEmpty}
@@ -2292,8 +2315,8 @@ const SearchScreen = ({ navigation, route }) => {
             }
             javaScriptEnabled={true}
             domStorageEnabled={true}
-            cacheEnabled={true}
-            cacheMode="LOAD_CACHE_ELSE_NETWORK"
+            cacheEnabled={false}
+            cacheMode="LOAD_NO_CACHE"
             onMessage={(event) => handleWebViewMessage(platform, event)}
             // ── Optimization 1: Block images, fonts, and trackers ──────────
             onShouldStartLoadWithRequest={(request) => {

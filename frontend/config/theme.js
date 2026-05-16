@@ -24,11 +24,12 @@ const COLORS = {
   divider:        "#E2E8F0",
 
   // ── Glassmorphism ─────────────────────────────────────────────────
-  glassSurface:     "rgba(255, 255, 255, 0.80)",
-  glassSurfaceDark: "rgba(15, 23, 42, 0.85)",
-  glassBorder:      "rgba(148, 163, 184, 0.15)",
-  glassBorderDark:  "rgba(255, 255, 255, 0.10)",
-  glassHighlight:   "rgba(255, 255, 255, 0.60)",
+  glassSurface:     "rgba(255, 255, 255, 0.45)",
+  glassSurfaceDark: "rgba(15, 23, 42, 0.55)",
+  glassBorder:      "rgba(255, 255, 255, 0.50)",
+  glassBorderDark:  "rgba(255, 255, 255, 0.12)",
+  glassHighlight:   "rgba(255, 255, 255, 0.30)",
+  glassShadow:      "rgba(124, 58, 237, 0.08)",
 
   // ── Accent (Logo Derived) ─────────────────────────────────────────
   accent:       "#EC4899",          // Logo Pink
