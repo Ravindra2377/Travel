@@ -67,13 +67,27 @@ const AppNav = () => {
     ...Ionicons.font,
   });
 
+  // Safety Valve: If initialization takes more than 5 seconds, force hide the splash
+  React.useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      if (showSplash) {
+        console.log("[App] Safety valve triggered: forcing splash hide");
+        setShowSplash(false);
+      }
+    }, 5000);
+    return () => clearTimeout(safetyTimer);
+  }, [showSplash]);
+
   React.useEffect(() => {
     if (Platform.OS === "android") {
       NavigationBar.setButtonStyleAsync(isDark ? "light" : "dark");
     }
   }, [isDark]);
 
-  if (!fontsLoaded || isLoading || showSplash) {
+  // Use !! to ensure boolean, and fallback to true for fonts if they take too long
+  const isAppReady = (fontsLoaded || false) && !isLoading && !showSplash;
+
+  if (!isAppReady && showSplash) {
     return (
       <>
         <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
