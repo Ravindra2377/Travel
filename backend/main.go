@@ -3,15 +3,12 @@ package main
 import (
 	"comparez/database"
 	"comparez/handlers"
-	"comparez/models"
 	"comparez/scraper"
 	"comparez/search"
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -26,14 +23,6 @@ func main() {
 
 	// Initialize Database
 	database.Connect()
-	if database.DB != nil {
-		database.DB.AutoMigrate(
-			&models.User{},
-			&models.SearchHistory{},
-			&models.PlatformListing{},
-			&models.SearchRequest{},
-		)
-	}
 
 	// Initialize Meilisearch
 	search.Connect()
@@ -66,11 +55,10 @@ func main() {
 	})
 
 	e.GET("/health", func(c echo.Context) error {
-		sqlDB, err := database.DB.DB()
-		if err != nil {
+		if database.Client == nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"status": "db_connection_error"})
 		}
-		if err := sqlDB.Ping(); err != nil {
+		if err := database.Client.Ping(context.Background(), nil); err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"status": "db_ping_failed"})
 		}
 		return c.JSON(http.StatusOK, map[string]string{
@@ -111,111 +99,9 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	// Start Background Worker for SQL-triggered searches
-	go startSearchWorker(scraperService)
+	// Legacy Background Worker disabled during MongoDB Migration
+	// go startSearchWorker(scraperService)
 
 	// Start Echo server
-	e.Logger.Fatal(e.Start(":" + port))
-}
-
-func startSearchWorker(s *scraper.Service) {
-	log.Println("👷 SQL Search Worker started (Polling for new requests...)")
-	for {
-		time.Sleep(2 * time.Second)
-
-		if database.DB == nil {
-			continue
-		}
-
-		var req models.SearchRequest
-		if err := database.DB.Where("status = ?", "pending").First(&req).Error; err != nil {
-			continue // No pending requests
-		}
-
-		// Update status to processing
-		database.DB.Model(&req).Update("status", "processing")
-		log.Printf("🔨 Processing SQL Search Request: '%s' (ID: %d)", req.Query, req.ID)
-
-		// Trigger scrape (Note: uses server-side scrapers)
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		results, err := s.Compare(ctx, req.Query, 12.9716, 77.5946, nil) // Default to Bangalore
-		cancel()
-
-		if err != nil {
-			log.Printf("❌ SQL Search Request failed: %v", err)
-			database.DB.Model(&req).Update("status", "failed")
-			continue
-		}
-
-		// FALLBACK: If real scrapers returned 0 items (likely blocked on Render),
-		// inject sample data so the user can test the SQL workflow with "real" looking data.
-		realCount := 0
-		for _, p := range results.Products {
-			for _, l := range p.Listings {
-				if l.Price > 0 {
-					realCount++
-				}
-			}
-		}
-
-		if realCount == 0 {
-			log.Printf("💡 Scrapers blocked on server. Generating comprehensive Smart-Mock data for '%s'...", req.Query)
-
-			platforms := []string{"Blinkit", "Zepto", "BigBasket", "Amazon", "Flipkart"}
-			variants := []string{"Premium", "Organic", "Value Pack", "Fresh", "Standard", "Large Pack"}
-
-			for _, pName := range platforms {
-				// Generate 3-5 variants per platform
-				for i := 0; i < 4; i++ {
-					basePrice := 40.0 + float64(i*5)
-					variant := variants[(i+len(pName))%len(variants)]
-
-					l := models.PlatformListing{
-						Platform:     pName,
-						ProductName:  fmt.Sprintf("%s (%s) %d", req.Query, variant, i+1),
-						Price:        basePrice - 2.0,
-						MRP:          basePrice,
-						ImageURL:     "https://via.placeholder.com/150",
-						InStock:      true,
-						DeliveryTime: "15 mins",
-					}
-
-					results.Products = append(results.Products, models.ComparedProduct{
-						Name:      l.ProductName,
-						BestPrice: l.Price,
-						Listings:  []models.PlatformListing{l},
-					})
-				}
-			}
-		}
-
-		// Save results to SearchHistory for SQL testing
-		history := models.SearchHistory{
-			Query:           req.Query,
-			SearchRequestID: req.ID,
-			CreatedAt:       time.Now(),
-		}
-
-		totalListings := 0
-		if err := database.DB.Create(&history).Error; err == nil {
-			for _, product := range results.Products {
-				for _, listing := range product.Listings {
-					listing.SearchHistoryID = history.ID
-					listing.ScrapedAt = time.Now()
-					database.DB.Create(&listing)
-					totalListings++
-				}
-			}
-			log.Printf("✅ SQL Search Request completed: saved %d results", totalListings)
-
-			// Update history with result count so SQL queries can find it
-			database.DB.Model(&history).Update("result_count", totalListings)
-
-			database.DB.Model(&req).Updates(map[string]interface{}{
-				"status": "completed",
-			})
-		} else {
-			database.DB.Model(&req).Update("status", "failed")
-		}
-	}
+	e.Logger.Fatal(e.Start("0.0.0.0:" + port))
 }

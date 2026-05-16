@@ -16,6 +16,7 @@ import { COLORS, SPACING, RADIUS, FONTS } from "../config/theme";
 import { AppButton, SurfaceCard, TextField } from "../components/SharedUI";
 
 const RegisterScreen = ({ navigation }) => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -24,11 +25,41 @@ const RegisterScreen = ({ navigation }) => {
   const { register } = useContext(AuthContext);
 
   const handleRegister = () => {
+    if (!name.trim()) {
+      alert("Please enter your name");
+      return;
+    }
+
+    // Password validation
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,16}$/;
+    
+    if (password.length < 8 || password.length > 16) {
+      alert("Password must be between 8 and 16 characters");
+      return;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      alert("Password must contain at least one uppercase letter");
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      alert("Password must contain at least one lowercase letter");
+      return;
+    }
+    if (!/\d/.test(password)) {
+      alert("Password must contain at least one number");
+      return;
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      alert("Password must contain at least one special character");
+      return;
+    }
+
     if (password !== confirmPassword) {
       alert("Passwords do not match");
       return;
     }
-    register(email, password);
+    register(name, email, password);
   };
 
   return (
@@ -54,6 +85,13 @@ const RegisterScreen = ({ navigation }) => {
         <Text style={styles.subtitle}>Join CompareZ and start saving</Text>
 
         <SurfaceCard style={styles.formCard}>
+          <TextField
+            icon="person-outline"
+            value={name}
+            onChangeText={setName}
+            placeholder="Full Name"
+          />
+
           <TextField
             icon="mail-outline"
             value={email}
@@ -84,7 +122,7 @@ const RegisterScreen = ({ navigation }) => {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             placeholder="Confirm password"
-            secureTextEntry={!showPassword}
+            secureTextEntry={true}
           />
 
           <View style={styles.termsRow}>

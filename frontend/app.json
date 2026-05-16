@@ -39,7 +39,8 @@
         {
           "locationWhenInUsePermission": "Allow CompareZ to use your location to find the best delivery prices."
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "extra": {
       "eas": {

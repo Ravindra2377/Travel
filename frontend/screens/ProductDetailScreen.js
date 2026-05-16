@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useContext } from "react";
+import React, { useCallback, useMemo, useContext, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +19,7 @@ import PlatformRow from "../components/PlatformRow";
 import { WishlistContext } from "../context/WishlistContext";
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import * as Haptics from "expo-haptics";
+import GroqService from "../services/GroqService";
 
 const extractQuantity = (text) => {
   const compact = String(text || "")
@@ -192,6 +194,26 @@ const ProductDetailScreen = ({ route, navigation }) => {
   const { product } = route.params || {};
   const { toggleWishlist, isLiked } = useContext(WishlistContext);
   const liked = isLiked(product?.id);
+
+  // ── AI Deal Insight ───────────────────────────────────────────────────
+  const [aiInsight, setAiInsight] = useState(null);
+  const [loadingInsight, setLoadingInsight] = useState(false);
+
+  useEffect(() => {
+    const listings = product?.listings || [];
+    const priceList = listings
+      .filter((l) => l.price > 0 && l.in_stock !== false)
+      .map((l) => ({ platform: l.platform, price: Number(l.price) }));
+
+    if (priceList.length < 2) return; // Need at least 2 platforms to compare
+
+    setLoadingInsight(true);
+    GroqService.getDealAnalysis({ name: product?.name || "this product", prices: priceList })
+      .then((insight) => setAiInsight(insight))
+      .catch((e) => console.log("[AI Deal] Skipped:", e.message))
+      .finally(() => setLoadingInsight(false));
+  }, [product?.id]);
+  // ─────────────────────────────────────────────────────────────
 
   const rawListings = product?.listings || [];
 
@@ -439,6 +461,22 @@ const ProductDetailScreen = ({ route, navigation }) => {
             </View>
           )}
 
+          {/* AI Deal Insight */}
+          {loadingInsight ? (
+            <View style={styles.aiInsightCard}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
+              <Text style={styles.aiInsightLoading}>AI analyzing prices...</Text>
+            </View>
+          ) : aiInsight ? (
+            <View style={styles.aiInsightCard}>
+              <View style={styles.aiInsightHeader}>
+                <Ionicons name="sparkles" size={15} color={COLORS.primary} />
+                <Text style={styles.aiInsightTitle}>AI Deal Insight</Text>
+              </View>
+              <Text style={styles.aiInsightText}>{aiInsight}</Text>
+            </View>
+          ) : null}
+
 
 
           {/* Platforms */}
@@ -624,6 +662,43 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     color: COLORS.textSecondary,
     marginBottom: SPACING.md,
+  },
+  aiInsightCard: {
+    marginHorizontal: SPACING.xl,
+    marginBottom: SPACING.lg,
+    backgroundColor: COLORS.cardAlt || "#F0F4FF",
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+    flexDirection: "column",
+    ...SHADOWS.sm,
+  },
+  aiInsightHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+    gap: 6,
+  },
+  aiInsightTitle: {
+    ...FONTS.captionBold,
+    color: COLORS.primary,
+    fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginLeft: 5,
+  },
+  aiInsightText: {
+    ...FONTS.body,
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    lineHeight: 20,
+  },
+  aiInsightLoading: {
+    ...FONTS.caption,
+    color: COLORS.textSecondary,
+    marginLeft: SPACING.sm,
+    fontSize: 13,
   },
 });
 

@@ -22,8 +22,10 @@ import WishlistScreen from "./screens/WishlistScreen";
 import AccountsScreen from "./screens/AccountsScreen";
 import SupportChatScreen from "./screens/SupportChatScreen";
 import TermsScreen from "./screens/TermsScreen";
+import MealPlannerScreen from "./screens/MealPlannerScreen";
 import InAppBrowser from "./components/InAppBrowser";
 import CustomTabBar from "./components/CustomTabBar";
+import AICopilot from "./components/AICopilot";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -40,6 +42,7 @@ const MainTabs = () => {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="MealPlanner" component={MealPlannerScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Likes" component={WishlistScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
@@ -72,53 +75,62 @@ const AppNav = () => {
 
   return (
     <NavigationContainer theme={customTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {userToken !== null ? (
-          <>
-            <Stack.Screen name="MainTabs" component={MainTabs} />
-            <Stack.Screen
-              name="ProductDetail"
-              component={ProductDetailScreen}
-              options={{ animation: "slide_from_right" }}
-            />
-            <Stack.Screen
-              name="InAppBrowser"
-              component={InAppBrowser}
-              options={{ animation: "slide_from_bottom" }}
-            />
-            <Stack.Screen
-              name="Accounts"
-              component={AccountsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="SupportChat"
-              component={SupportChatScreen}
-              options={{ animation: "slide_from_right", headerShown: false }}
-            />
-            <Stack.Screen
-              name="Terms"
-              component={TermsScreen}
-              options={{ animation: "slide_from_right", headerShown: false }}
-            />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen
-              name="SupportChat"
-              component={SupportChatScreen}
-              options={{ animation: "slide_from_right", headerShown: false }}
-            />
-            <Stack.Screen
-              name="Terms"
-              component={TermsScreen}
-              options={{ animation: "slide_from_right", headerShown: false }}
-            />
-          </>
-        )}
-      </Stack.Navigator>
+      <View style={{ flex: 1 }}>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {userToken !== null ? (
+            <>
+              <Stack.Screen name="MainTabs" component={MainTabs} />
+              <Stack.Screen
+                name="ProductDetail"
+                component={ProductDetailScreen}
+                options={{ animation: "slide_from_right" }}
+              />
+              <Stack.Screen
+                name="InAppBrowser"
+                component={InAppBrowser}
+                options={{ animation: "slide_from_bottom" }}
+              />
+              <Stack.Screen
+                name="Accounts"
+                component={AccountsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="SupportChat"
+                component={SupportChatScreen}
+                options={{ animation: "slide_from_right", headerShown: false }}
+              />
+              <Stack.Screen
+                name="Terms"
+                component={TermsScreen}
+                options={{ animation: "slide_from_right", headerShown: false }}
+              />
+              <Stack.Screen
+                name="MealPlanner"
+                component={MealPlannerScreen}
+                options={{ animation: "slide_from_bottom", headerShown: false }}
+              />
+            </>
+          ) : (
+            <>
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Register" component={RegisterScreen} />
+              <Stack.Screen
+                name="SupportChat"
+                component={SupportChatScreen}
+                options={{ animation: "slide_from_right", headerShown: false }}
+              />
+              <Stack.Screen
+                name="Terms"
+                component={TermsScreen}
+                options={{ animation: "slide_from_right", headerShown: false }}
+              />
+            </>
+          )}
+        </Stack.Navigator>
+        {/* AICopilot must be inside NavigationContainer to use useNavigationState */}
+        {userToken !== null && <AICopilot />}
+      </View>
     </NavigationContainer>
   );
 };

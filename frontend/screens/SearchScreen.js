@@ -34,6 +34,8 @@ import PlatformScraperService from "../services/PlatformScraperService";
 import PlatformDOMScraperService from "../services/PlatformDOMScraperService";
 import api from "../config/api";
 import { AuthContext } from "../context/AuthContext";
+import GroqService from "../services/GroqService";
+import { useAudioRecorder, AudioModule, RecordingPresets } from "expo-audio";
 
 const SUGGESTIONS = [
   "Eggs",
@@ -562,6 +564,10 @@ const SearchScreen = ({ navigation, route }) => {
   const [currentSearchQuery, setCurrentSearchQuery] = useState("");
   const [tipIndex, setTipIndex] = useState(0);
   const [captchaPlatform, setCaptchaPlatform] = useState(null); // Platform currently showing CAPTCHA
+  const [aiExpandedQuery, setAiExpandedQuery] = useState(null); // Set when AI rewrites a query
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState(""); // "recording" | "transcribing" | ""
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [sortBy, setSortBy] = useState("relevance");
@@ -572,6 +578,65 @@ const SearchScreen = ({ navigation, route }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseLoopRef = useRef(null);
   const { user } = useContext(AuthContext);
+
+  // ── Voice Search ──────────────────────────────────────────────────────────
+  const startRecording = async () => {
+    try {
+      const permission = await AudioModule.requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        setVoiceStatus("Microphone permission denied");
+        return;
+      }
+      
+      await audioRecorder.prepareToRecordAsync();
+      await audioRecorder.record();
+      
+      setIsRecording(true);
+      setVoiceStatus("recording");
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+      // Auto-stop after 8 seconds
+      setTimeout(() => {
+        if (audioRecorder.isRecording) stopRecording();
+      }, 8000);
+    } catch (e) {
+      console.log("[Voice] Start error:", e.message);
+      setVoiceStatus("");
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      if (!audioRecorder.isRecording) return;
+      setIsRecording(false);
+      setVoiceStatus("transcribing");
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+
+      // Transcribe with Groq Whisper
+      const transcript = await GroqService.transcribeAudio(uri);
+      const cleaned = transcript?.trim();
+      if (cleaned) {
+        setQuery(cleaned);
+        setVoiceStatus("");
+        // Trigger search automatically
+        handleSearch(cleaned);
+      } else {
+        setVoiceStatus("");
+      }
+    } catch (e) {
+      console.log("[Voice] Stop/transcribe error:", e.message);
+      setVoiceStatus("");
+    }
+  };
+
+  const handleMicPress = () => {
+    if (isRecording) stopRecording();
+    else startRecording();
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   const [state, dispatch] = useReducer(reducer, {
     connectedPlatforms: [],
@@ -1014,6 +1079,26 @@ const SearchScreen = ({ navigation, route }) => {
     // Clear any existing platform timeouts
     Object.values(platformTimeoutsRef.current).forEach(clearTimeout);
     platformTimeoutsRef.current = {};
+    setAiExpandedQuery(null); // Reset AI banner for new search
+
+    // ── AI Query Expansion ────────────────────────────────────────────────────
+    // If the query looks like natural language (>3 words), use Groq AI to
+    // extract the best grocery keyword before launching the scrapers.
+    // This runs fast (<500ms) and always falls back gracefully.
+    let finalQuery = q;
+    if (q.trim().split(/\s+/).length > 3) {
+      try {
+        const expanded = await GroqService.expandSearchQuery(q.trim());
+        if (expanded?.isNaturalLanguage && expanded?.keyword) {
+          console.log(`[AI] Expanded "${q}" → "${expanded.keyword}"`);
+          finalQuery = expanded.keyword;
+          setAiExpandedQuery(expanded.keyword); // Show banner
+        }
+      } catch (e) {
+        console.log("[AI] Search expansion skipped:", e.message);
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // Generate new session ID to reject old results
     const newSessionId = Date.now();
@@ -1045,10 +1130,10 @@ const SearchScreen = ({ navigation, route }) => {
       return;
     }
 
-    // Generate search URLs for each platform
+    // Generate search URLs for each platform using AI-expanded query when available
     const urls = {};
     platformsSnapshot.forEach((platform) => {
-      const url = PlatformDOMScraperService.getSearchUrl(platform, q);
+      const url = PlatformDOMScraperService.getSearchUrl(platform, finalQuery);
       if (url) {
         urls[platform] = url;
       }
@@ -2118,16 +2203,50 @@ const SearchScreen = ({ navigation, route }) => {
           </View>
           <SearchBar
             value={query}
-            onChangeText={setQuery}
+            onChangeText={(text) => {
+              setQuery(text);
+              if (!text) setAiExpandedQuery(null);
+            }}
             onClear={() => {
               setQuery("");
               setResults([]);
               setHasSearched(false);
+              setAiExpandedQuery(null);
             }}
             onFilterPress={() => setFilterModalVisible(true)}
+            onMicPress={handleMicPress}
+            isRecording={isRecording}
             autoFocus={!hasSearched && query === ""}
             testID="searchInput"
           />
+
+          {/* Voice status banner */}
+          {voiceStatus === "recording" && (
+            <View style={styles.voiceBanner}>
+              <View style={styles.voiceDot} />
+              <Text style={styles.voiceBannerText}>Listening... Tap mic to stop</Text>
+            </View>
+          )}
+          {voiceStatus === "transcribing" && (
+            <View style={styles.voiceBanner}>
+              <Ionicons name="sparkles" size={13} color="#7C3AED" />
+              <Text style={styles.voiceBannerText}>AI is transcribing your voice...</Text>
+            </View>
+          )}
+
+          {/* AI Query Expansion Banner */}
+          {aiExpandedQuery ? (
+            <View style={styles.aiBanner}>
+              <Ionicons name="sparkles" size={13} color="#7C3AED" />
+              <Text style={styles.aiBannerText}>
+                AI searched for{" "}
+                <Text style={styles.aiBannerKeyword}>"{aiExpandedQuery}"</Text>
+              </Text>
+              <TouchableOpacity onPress={() => setAiExpandedQuery(null)}>
+                <Ionicons name="close" size={14} color="#7C3AED" />
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
 
         {captchaPlatform && (
@@ -2395,6 +2514,51 @@ const styles = StyleSheet.create({
   captchaDismissTxt: {
     ...FONTS.bodyBold,
     color: "#fff",
+  },
+  aiBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#EDE9FE",
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 7,
+    marginHorizontal: SPACING.md,
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  aiBannerText: {
+    flex: 1,
+    ...FONTS.caption,
+    color: "#5B21B6",
+    fontSize: 12,
+  },
+  aiBannerKeyword: {
+    ...FONTS.captionBold,
+    color: "#5B21B6",
+  },
+  voiceBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FEF2F2",
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 7,
+    marginHorizontal: SPACING.md,
+    marginTop: 4,
+  },
+  voiceDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#EF4444",
+  },
+  voiceBannerText: {
+    ...FONTS.caption,
+    color: "#7C3AED",
+    fontSize: 12,
+    flex: 1,
   },
   loaderContainer: {
     paddingHorizontal: SPACING.md,

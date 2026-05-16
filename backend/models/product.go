@@ -1,38 +1,42 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 // Product represents a generic product across all platforms
 type Product struct {
-	ID       string  `json:"id"`
-	Name     string  `json:"name"`
-	Brand    string  `json:"brand,omitempty"`
-	Category string  `json:"category,omitempty"`
-	ImageURL string  `json:"image_url,omitempty"`
-	Weight   string  `json:"weight,omitempty"` // e.g. "500g", "1kg", "12 pcs"
-	Rating   float64 `json:"rating,omitempty"`
+	ID       string  `bson:"id" json:"id"`
+	Name     string  `bson:"name" json:"name"`
+	Brand    string  `bson:"brand,omitempty" json:"brand,omitempty"`
+	Category string  `bson:"category,omitempty" json:"category,omitempty"`
+	ImageURL string  `bson:"image_url,omitempty" json:"image_url,omitempty"`
+	Weight   string  `bson:"weight,omitempty" json:"weight,omitempty"` // e.g. "500g", "1kg", "12 pcs"
+	Rating   float64 `bson:"rating,omitempty" json:"rating,omitempty"`
 }
 
 // PlatformListing represents a product listing on a specific platform
 type PlatformListing struct {
-	ID              uint      `gorm:"primaryKey" json:"id"`
-	SearchHistoryID uint      `gorm:"index" json:"search_history_id"`
-	Platform        string    `json:"platform"`
-	ProductName    string    `json:"product_name"`
-	Brand          string    `json:"brand,omitempty"`
-	ImageURL       string    `json:"image_url,omitempty"`
-	Price          float64   `json:"price"`
-	MRP            float64   `json:"mrp,omitempty"`      // Original/MRP price
-	Discount       string    `json:"discount,omitempty"` // e.g. "10% OFF"
-	InStock        bool      `json:"in_stock"`
-	DeliveryTime   string    `json:"delivery_time,omitempty"` // e.g. "10 mins", "2 hours"
-	DeliveryCharge float64   `json:"delivery_charge"`
-	Rating         float64   `json:"rating,omitempty"`
-	Offers         []string  `gorm:"type:text" json:"offers,omitempty"` // Store as comma-separated or similar in DB
-	DeepLink       string    `json:"deep_link,omitempty"`               // URL or app deep link
-	ProductURL     string    `json:"product_url,omitempty"`             // Alias for DeepLink from frontend
-	ScrapedAt      time.Time `json:"scraped_at"`
-	Quantity       string    `json:"quantity,omitempty"`
+	ID              primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	SearchHistoryID primitive.ObjectID `bson:"search_history_id" json:"search_history_id"`
+	Platform        string             `bson:"platform" json:"platform"`
+	ProductName     string             `bson:"product_name" json:"product_name"`
+	Brand           string             `bson:"brand,omitempty" json:"brand,omitempty"`
+	ImageURL        string             `bson:"image_url,omitempty" json:"image_url,omitempty"`
+	Price           float64            `bson:"price" json:"price"`
+	MRP             float64            `bson:"mrp,omitempty" json:"mrp,omitempty"`      // Original/MRP price
+	Discount        string             `bson:"discount,omitempty" json:"discount,omitempty"` // e.g. "10% OFF"
+	InStock         bool               `bson:"in_stock" json:"in_stock"`
+	DeliveryTime    string             `bson:"delivery_time,omitempty" json:"delivery_time,omitempty"` // e.g. "10 mins", "2 hours"
+	DeliveryCharge  float64            `bson:"delivery_charge" json:"delivery_charge"`
+	Rating          float64            `bson:"rating,omitempty" json:"rating,omitempty"`
+	Offers          []string           `bson:"offers,omitempty" json:"offers,omitempty"`
+	DeepLink        string             `bson:"deep_link,omitempty" json:"deep_link,omitempty"`               // URL or app deep link
+	ProductURL      string             `bson:"product_url,omitempty" json:"product_url,omitempty"`             // Alias for DeepLink from frontend
+	ScrapedAt       time.Time          `bson:"scraped_at" json:"scraped_at"`
+	Quantity        string             `bson:"quantity,omitempty" json:"quantity,omitempty"`
 }
 
 // CompareResult is the API response for a comparison query

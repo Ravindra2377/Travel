@@ -62,6 +62,11 @@ const TermsScreen = ({ navigation }) => {
           We reserve the right to modify these terms at any time. Your continued use of the app following any updates constitutes acceptance of the modified Terms of Service.
         </Text>
 
+        <Text style={styles.sectionTitle}>8. AI-Powered Features</Text>
+        <Text style={styles.paragraph}>
+          CompareZ uses Groq AI (powered by Meta's open-source LLaMA models) to provide intelligent features including AI chat support, natural language search, and deal analysis. AI-generated responses are for informational purposes only and do not constitute purchasing advice. Groq processes query data in accordance with their privacy policy at groq.com.
+        </Text>
+
         <View style={styles.footer}>
           <Text style={styles.footerText}>Empowering your shopping decisions with CompareZ.</Text>
         </View>

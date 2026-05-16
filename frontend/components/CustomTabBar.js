@@ -82,6 +82,9 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                 case "Home":
                   iconName = isFocused ? "home" : "home-outline";
                   break;
+                case "MealPlanner":
+                  iconName = isFocused ? "restaurant" : "restaurant-outline";
+                  break;
                 case "Deals":
                   iconName = isFocused ? "pricetags" : "pricetags-outline";
                   break;

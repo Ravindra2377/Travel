@@ -39,3 +39,5 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+# Groq AI — key is hardcoded in GroqService.js, keep out of git
+frontend/services/GroqService.js

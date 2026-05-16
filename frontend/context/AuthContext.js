@@ -84,27 +84,32 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (email, password) => {
+  const register = async (name, email, password) => {
+    const normalizedName = String(name || "").trim();
     const normalizedEmail = String(email || "")
       .trim()
       .toLowerCase();
     const normalizedPassword = String(password || "");
 
-    if (!normalizedEmail || !normalizedPassword) {
-      Alert.alert("Missing details", "Please enter both email and password.");
+    if (!normalizedName || !normalizedEmail || !normalizedPassword) {
+      Alert.alert("Missing details", "Please enter your name, email and password.");
       return;
     }
 
     setIsLoading(true);
+    console.log(`[Auth] Attempting Register at: ${API_URL}/register`);
     try {
-      await axios.post(`${API_URL}/register`, {
+      const response = await axios.post(`${API_URL}/register`, {
+        name: normalizedName,
         email: normalizedEmail,
         password: normalizedPassword,
       });
-      Alert.alert(
-        "Registration successful",
-        "Please sign in with your new account.",
-      );
+      console.log(`[Auth] Register Response:`, response.status);
+      const { token, user: userData } = response.data;
+      setUserToken(token);
+      setUser(userData);
+      await tokenStorage.setItem("userToken", token);
+      await tokenStorage.setItem("userData", JSON.stringify(userData));
     } catch (e) {
       console.log("[Auth] Registration Error:", {
         status: e?.response?.status,

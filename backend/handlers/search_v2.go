@@ -3,11 +3,13 @@ package handlers
 import (
 	"comparez/database"
 	"comparez/models"
+	"context"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // SearchResult represents a product search result from frontend
@@ -24,7 +26,7 @@ func CollectSearchResults(c echo.Context) error {
 	log.Printf("📥 Received search collection request from frontend")
 	var req struct {
 		Query     string                               `json:"query"`
-		UserID    uint                                 `json:"user_id"`
+		UserID    string                               `json:"user_id"`
 		Platforms map[string][]models.PlatformListing `json:"platforms"`
 	}
 
@@ -57,9 +59,15 @@ func CollectSearchResults(c echo.Context) error {
 
 	// Store in database for testing and history
 	if database.DB != nil {
+		var uid primitive.ObjectID
+		if req.UserID != "" {
+			uid, _ = primitive.ObjectIDFromHex(req.UserID)
+		}
+
 		history := models.SearchHistory{
+			ID:          primitive.NewObjectID(),
 			Query:       req.Query,
-			UserID:      req.UserID,
+			UserID:      uid,
 			ResultCount: totalResults,
 			CreatedAt:   time.Now(),
 		}
@@ -67,12 +75,12 @@ func CollectSearchResults(c echo.Context) error {
 		// Determine best price and platform
 		var bestPrice float64
 		var bestPlatform string
-		var platforms []string
 
 		allListings := []models.PlatformListing{}
 		for platform, listings := range req.Platforms {
-			platforms = append(platforms, platform)
 			for _, l := range listings {
+				l.ID = primitive.NewObjectID()
+				l.SearchHistoryID = history.ID
 				l.Platform = platform // Ensure platform is set
 				l.ScrapedAt = time.Now()
 				if l.DeepLink == "" && l.ProductURL != "" {
@@ -89,21 +97,13 @@ func CollectSearchResults(c echo.Context) error {
 
 		history.BestPrice = bestPrice
 		history.BestPlatform = bestPlatform
-		// history.PlatformsUsed = strings.Join(platforms, ", ") // Simple CSV for now
+		history.Listings = allListings
 
-		if err := database.DB.Create(&history).Error; err != nil {
+		collection := database.DB.Collection("search_history")
+		if _, err := collection.InsertOne(context.TODO(), history); err != nil {
 			log.Printf("❌ Failed to save search history: %v", err)
 		} else {
-			// Save individual listings
-			for i := range allListings {
-				allListings[i].SearchHistoryID = history.ID
-			}
-			if len(allListings) > 0 {
-				if err := database.DB.Create(&allListings).Error; err != nil {
-					log.Printf("❌ Failed to save product listings: %v", err)
-				}
-			}
-			log.Printf("✅ Saved search history (ID: %d) with %d listings", history.ID, len(allListings))
+			log.Printf("✅ Saved search history (ID: %s) with %d listings", history.ID.Hex(), len(allListings))
 		}
 	}
 

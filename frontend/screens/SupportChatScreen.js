@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  ActivityIndicator,
   StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,12 +17,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from "../config/theme";
 import * as Haptics from "expo-haptics";
+import GroqService from "../services/GroqService";
 
 const SupportChatScreen = ({ navigation }) => {
   const [messages, setMessages] = useState([
     {
       id: "1",
-      text: "Hi there! 👋 I'm your CompareX assistant. How can I help you today?",
+      text: "Hi there! 👋 I'm your CompareZ AI assistant, powered by Groq. Ask me anything about finding the best grocery deals!",
       sender: "support",
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -30,14 +32,18 @@ const SupportChatScreen = ({ navigation }) => {
     },
   ]);
   const [inputText, setInputText] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  // Conversation history for multi-turn AI context [{role, content}]
+  const historyRef = useRef([]);
   const flatListRef = useRef(null);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (inputText.trim().length === 0) return;
 
+    const userText = inputText.trim();
     const userMessage = {
       id: Date.now().toString(),
-      text: inputText.trim(),
+      text: userText,
       sender: "user",
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -47,36 +53,45 @@ const SupportChatScreen = ({ navigation }) => {
 
     setMessages((prev) => [...prev, userMessage]);
     setInputText("");
+    setIsTyping(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Mock response after a delay
-    setTimeout(() => {
-      const supportResponse = {
+    // Build conversation history for Groq (keep last 20 turns)
+    const newHistory = [
+      ...historyRef.current,
+      { role: "user", content: userText },
+    ].slice(-20);
+    historyRef.current = newHistory;
+
+    try {
+      const reply = await GroqService.chat(newHistory);
+      historyRef.current = [...historyRef.current, { role: "assistant", content: reply }];
+
+      const aiMessage = {
         id: (Date.now() + 1).toString(),
-        text: getMockResponse(userMessage.text),
+        text: reply,
         sender: "support",
         time: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
         }),
       };
-      setMessages((prev) => [...prev, supportResponse]);
+      setMessages((prev) => [...prev, aiMessage]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }, 1500);
-  };
-
-  const getMockResponse = (text) => {
-    const t = text.toLowerCase();
-    if (t.includes("delivery") || t.includes("location")) {
-      return "You can update your delivery location anytime from your Profile screen using the new 'Delivery Location' section! 📍";
+    } catch (e) {
+      console.log("[SupportChat] Groq error:", e.message);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 2).toString(),
+          text: "I'm having trouble connecting right now. Please try again in a moment! 🔄",
+          sender: "support",
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
     }
-    if (t.includes("amazon") || t.includes("blinkit") || t.includes("zepto")) {
-      return "Make sure you've linked your accounts in the 'Link Accounts' section for the best price comparisons! 🔗";
-    }
-    if (t.includes("price") || t.includes("save")) {
-      return "Our app scans all major platforms in real-time to find you the absolute best deals. Just search for any item! 💰";
-    }
-    return "That's a great question! I've noted it down for our support team to look into. Is there anything else I can help with?";
   };
 
   const renderMessage = ({ item }) => {
@@ -150,6 +165,21 @@ const SupportChatScreen = ({ navigation }) => {
             flatListRef.current?.scrollToEnd({ animated: true })
           }
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          ListFooterComponent={
+            isTyping ? (
+              <View style={[styles.messageRow, styles.supportRow]}>
+                <View style={styles.supportAvatar}>
+                  <Ionicons name="sparkles" size={14} color="#FFF" />
+                </View>
+                <View style={[styles.bubble, styles.supportBubble, styles.typingBubble]}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={[styles.messageText, styles.supportText, { marginLeft: 8 }]}>
+                    AI is thinking...
+                  </Text>
+                </View>
+              </View>
+            ) : null
+          }
         />
 
         {/* Input */}
@@ -284,6 +314,11 @@ const styles = StyleSheet.create({
   supportBubble: {
     backgroundColor: "#FFF",
     borderBottomLeftRadius: 4,
+  },
+  typingBubble: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: SPACING.sm,
   },
   messageText: {
     ...FONTS.body,

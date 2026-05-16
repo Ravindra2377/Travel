@@ -1,63 +1,63 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 	"time"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var DB *gorm.DB
+var Client *mongo.Client
+var DB *mongo.Database
 
 func Connect() {
-	dsn := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	if dsn == "" {
-		// Fallback for local dev if env not set, though docker-compose sets it.
-		dsn = "host=localhost user=user password=password dbname=pricepilot port=5432 sslmode=disable"
+	uri := strings.TrimSpace(os.Getenv("MONGO_URI"))
+	if uri == "" {
+		uri = strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	}
+	if uri == "" {
+		log.Println("⚠️  No MONGO_URI or DATABASE_URL provided in .env, falling back to localhost")
+		uri = "mongodb://localhost:27017"
 	}
 
-	gormConfig := &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	// Retry up to 3 times — cloud DBs may take a moment to accept connections
+	clientOptions := options.Client().ApplyURI(uri)
+
 	var connErr error
-	var localDB *gorm.DB
+	var localClient *mongo.Client
 
 	for attempt := 1; attempt <= 3; attempt++ {
-		localDB, connErr = gorm.Open(postgres.Open(dsn), gormConfig)
+		localClient, connErr = mongo.Connect(ctx, clientOptions)
 		if connErr == nil {
-			break
+			// Ping the database
+			connErr = localClient.Ping(ctx, nil)
+			if connErr == nil {
+				break
+			}
 		}
-		log.Printf("⚠️  Database connection attempt %d/3 failed: %v", attempt, connErr)
+		log.Printf("⚠️  MongoDB connection attempt %d/3 failed: %v", attempt, connErr)
 		if attempt < 3 {
 			time.Sleep(time.Duration(attempt*2) * time.Second)
 		}
 	}
 
 	if connErr != nil {
-		fmt.Printf("❌ DATABASE CONNECTION ERROR: %v\n", connErr)
-		log.Printf("⚠️  Database connection failed after 3 attempts: %v", connErr)
-		DB = nil 
+		fmt.Printf("❌ MONGODB CONNECTION ERROR: %v\n", connErr)
+		Client = nil
+		DB = nil
 		return
 	}
 
-	DB = localDB // Successfully connected
+	Client = localClient
+	DB = Client.Database("comparez") // Use 'comparez' database
 
-	// Connection pool tuning for cloud-hosted PostgreSQL (Supabase, Neon, etc.)
-	sqlDB, poolErr := DB.DB()
-	if poolErr == nil {
-		sqlDB.SetMaxOpenConns(10)                  // Max simultaneous connections
-		sqlDB.SetMaxIdleConns(5)                   // Keep 5 warm connections
-		sqlDB.SetConnMaxLifetime(5 * time.Minute)  // Recycle connections every 5 mins
-		sqlDB.SetConnMaxIdleTime(3 * time.Minute)  // Close idle connections after 3 mins
-	}
-
-	fmt.Println("🚀 Connected to Database")
+	fmt.Println("🚀 Connected to MongoDB")
 }
 

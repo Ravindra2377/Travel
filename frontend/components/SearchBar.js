@@ -1,5 +1,5 @@
 import React from "react";
-import { View, TextInput, StyleSheet, TouchableOpacity } from "react-native";
+import { View, TextInput, StyleSheet, TouchableOpacity, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import * as Haptics from "expo-haptics";
@@ -10,6 +10,8 @@ const SearchBar = ({
   placeholder = "Search products...",
   onClear,
   onFilterPress,
+  onMicPress,
+  isRecording = false,
   autoFocus = false,
   testID,
 }) => {
@@ -19,7 +21,6 @@ const SearchBar = ({
         style={styles.iconWrap}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          // Search is already reactive, but this button matches the Appium test script requirement
         }}
         accessibilityLabel="searchButton"
       >
@@ -51,6 +52,30 @@ const SearchBar = ({
           <Ionicons name="close-circle" size={18} color={COLORS.textTertiary} />
         </TouchableOpacity>
       ) : null}
+
+      {/* Mic button — shown when no text typed */}
+      {!value && onMicPress && (
+        <TouchableOpacity
+          onPress={() => {
+            Haptics.impactAsync(
+              isRecording
+                ? Haptics.ImpactFeedbackStyle.Heavy
+                : Haptics.ImpactFeedbackStyle.Medium
+            );
+            onMicPress();
+          }}
+          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+          style={[styles.micBtn, isRecording && styles.micBtnActive]}
+          accessibilityLabel="voiceSearchButton"
+        >
+          <Ionicons
+            name={isRecording ? "stop-circle" : "mic"}
+            size={18}
+            color={isRecording ? "#fff" : COLORS.primary}
+          />
+        </TouchableOpacity>
+      )}
+
       {onFilterPress && (
         <TouchableOpacity
           onPress={() => {
@@ -96,6 +121,18 @@ const styles = StyleSheet.create({
   },
   clearBtn: {
     padding: 4,
+  },
+  micBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.accentLight,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 4,
+  },
+  micBtnActive: {
+    backgroundColor: "#EF4444",
   },
   filterBtn: {
     padding: 4,
