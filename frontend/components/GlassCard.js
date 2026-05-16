@@ -1,19 +1,11 @@
 import React from "react";
-import { View, StyleSheet, Platform } from "react-native";
-import { COLORS, RADIUS, SHADOWS } from "../config/theme";
+import { View, StyleSheet } from "react-native";
+import { RADIUS, SHADOWS } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 
 /**
  * GlassCard — Premium card with frosted-glass aesthetic.
- *
- * On Android, BlurView is extremely expensive inside scrolling lists
- * (each card spins up a separate blur pass on the GPU).  We use a
- * lightweight semi-transparent overlay that looks nearly identical
- * but scrolls at 60 fps.
- *
- * Props:
- *   - style        : extra wrapper styles
- *   - accentColor  : optional left accent bar colour
- *   - noPad        : if true, removes inner padding
+ * Now theme-aware.
  */
 const GlassCard = ({
   children,
@@ -21,14 +13,35 @@ const GlassCard = ({
   accentColor,
   noPad = false,
 }) => {
+  const { themeColors, isDark } = useTheme();
+
   return (
-    <View style={[styles.wrapper, SHADOWS.sm, style]}>
-      {/* Frosted-glass surface — lightweight overlay instead of BlurView */}
-      <View style={[styles.glassSurface, StyleSheet.absoluteFill]} />
-      <View style={[styles.glassBorder, StyleSheet.absoluteFill]} />
+    <View style={[
+      styles.wrapper, 
+      SHADOWS.sm, 
+      { 
+        backgroundColor: themeColors.surface,
+        borderColor: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)"
+      },
+      style
+    ]}>
+      {/* Frosted-glass surface overlay */}
+      <View style={[
+        styles.glassSurface, 
+        StyleSheet.absoluteFill,
+        { backgroundColor: isDark ? "rgba(30, 41, 59, 0.4)" : "rgba(255, 255, 255, 0.6)" }
+      ]} />
+      
+      <View style={[
+        styles.glassBorder, 
+        StyleSheet.absoluteFill,
+        { borderColor: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)" }
+      ]} />
+
       {accentColor && (
         <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
       )}
+      
       <View style={[styles.innerContainer, noPad && styles.noPad]}>
         {children}
       </View>
@@ -40,16 +53,13 @@ const styles = StyleSheet.create({
   wrapper: {
     borderRadius: RADIUS.lg,
     overflow: "hidden",
-    backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
   },
   glassSurface: {
-    backgroundColor: "rgba(255, 255, 255, 0.55)",
+    // Background color is set dynamically based on theme
   },
   glassBorder: {
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.18)",
     borderRadius: RADIUS.lg,
   },
   innerContainer: {

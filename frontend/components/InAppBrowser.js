@@ -18,6 +18,7 @@ import * as Haptics from "expo-haptics";
 
 const InAppBrowser = ({ navigation, route }) => {
   const { url, title, platform } = route.params || {};
+  const { themeColors, isDark } = useTheme();
   const webViewRef = useRef(null);
   const insets = useSafeAreaInsets();
 
@@ -85,17 +86,14 @@ const InAppBrowser = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-
-      {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
         <TouchableOpacity
           onPress={handleClose}
-          style={styles.headerBtn}
+          style={[styles.headerBtn, { backgroundColor: themeColors.cardAlt }]}
           hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
         >
-          <Ionicons name="close" size={22} color={COLORS.textPrimary} />
+          <Ionicons name="close" size={22} color={themeColors.textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
@@ -106,12 +104,12 @@ const InAppBrowser = ({ navigation, route }) => {
               color={COLORS.savings}
               style={{ marginRight: 4 }}
             />
-            <Text style={styles.domainText} numberOfLines={1}>
+            <Text style={[styles.domainText, { color: themeColors.textPrimary }]} numberOfLines={1}>
               {displayDomain}
             </Text>
           </View>
           {pageTitle ? (
-            <Text style={styles.pageTitle} numberOfLines={1}>
+            <Text style={[styles.pageTitle, { color: themeColors.textSecondary }]} numberOfLines={1}>
               {pageTitle}
             </Text>
           ) : null}
@@ -119,21 +117,21 @@ const InAppBrowser = ({ navigation, route }) => {
 
         <TouchableOpacity
           onPress={handleShare}
-          style={styles.headerBtn}
+          style={[styles.headerBtn, { backgroundColor: themeColors.cardAlt }]}
           hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
         >
           <Ionicons
             name="share-outline"
             size={20}
-            color={COLORS.textPrimary}
+            color={themeColors.textPrimary}
           />
         </TouchableOpacity>
       </View>
 
       {/* Loading bar */}
       {loading && (
-        <View style={styles.loadingBar}>
-          <View style={styles.loadingBarInner} />
+        <View style={[styles.loadingBar, { backgroundColor: themeColors.border }]}>
+          <View style={[styles.loadingBarInner, { backgroundColor: themeColors.primary }]} />
         </View>
       )}
 
@@ -160,7 +158,7 @@ const InAppBrowser = ({ navigation, route }) => {
       />
 
       {/* Bottom toolbar */}
-      <View style={[styles.toolbar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      <View style={[styles.toolbar, { backgroundColor: themeColors.surface, paddingBottom: Math.max(insets.bottom, 8) }]}>
         <TouchableOpacity
           onPress={handleGoBack}
           style={[styles.toolBtn, !canGoBack && styles.toolBtnDisabled]}
@@ -169,7 +167,7 @@ const InAppBrowser = ({ navigation, route }) => {
           <Ionicons
             name="chevron-back"
             size={22}
-            color={canGoBack ? COLORS.textPrimary : COLORS.textTertiary}
+            color={canGoBack ? themeColors.textPrimary : themeColors.textTertiary}
           />
         </TouchableOpacity>
 
@@ -181,12 +179,12 @@ const InAppBrowser = ({ navigation, route }) => {
           <Ionicons
             name="chevron-forward"
             size={22}
-            color={canGoForward ? COLORS.textPrimary : COLORS.textTertiary}
+            color={canGoForward ? themeColors.textPrimary : themeColors.textTertiary}
           />
         </TouchableOpacity>
 
         <TouchableOpacity onPress={handleReload} style={styles.toolBtn}>
-          <Ionicons name="reload" size={20} color={COLORS.textPrimary} />
+          <Ionicons name="reload" size={20} color={themeColors.textPrimary} />
         </TouchableOpacity>
       </View>
       </View>
@@ -197,18 +195,16 @@ const InAppBrowser = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
     ...SHADOWS.sm,
     zIndex: 10,
   },

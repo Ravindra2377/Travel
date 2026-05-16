@@ -2,9 +2,11 @@ import React, { useContext } from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Ionicons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
+import * as NavigationBar from "expo-navigation-bar";
 import { AuthContext, AuthProvider } from "./context/AuthContext";
 import { WishlistProvider } from "./context/WishlistContext";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { BlurView } from "expo-blur";
 import { COLORS, SHADOWS, FONTS } from "./config/theme";
@@ -31,13 +33,14 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const MainTabs = () => {
+  const { themeColors } = useTheme();
   return (
     <Tab.Navigator
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textTertiary,
+        tabBarActiveTintColor: themeColors.primary,
+        tabBarInactiveTintColor: themeColors.textTertiary,
         tabBarShowLabel: false,
       })}
     >
@@ -54,29 +57,45 @@ import SplashScreen from "./screens/SplashScreen";
 
 const AppNav = () => {
   const { isLoading, userToken } = useContext(AuthContext);
+  const { themeColors, isDark } = useTheme();
   const [showSplash, setShowSplash] = React.useState(true);
 
+  React.useEffect(() => {
+    if (Platform.OS === "android") {
+      NavigationBar.setPositionAsync("absolute");
+      NavigationBar.setBackgroundColorAsync("#00000000");
+      NavigationBar.setButtonStyleAsync(isDark ? "light" : "dark");
+    }
+  }, [isDark]);
+
   if (isLoading || showSplash) {
-    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+    return (
+      <>
+        <StatusBar style={isDark ? "light" : "dark"} translucent />
+        <SplashScreen onFinish={() => setShowSplash(false)} />
+      </>
+    );
   }
 
   const customTheme = {
     ...DefaultTheme,
+    dark: isDark,
     colors: {
       ...DefaultTheme.colors,
-      background: COLORS.background,
-      card: "#FFFFFF",
-      text: COLORS.textPrimary,
-      border: COLORS.border,
-      primary: COLORS.primary,
-      notification: COLORS.warning,
+      background: themeColors.background,
+      card: themeColors.surface,
+      text: themeColors.textPrimary,
+      border: themeColors.border,
+      primary: themeColors.primary,
+      notification: themeColors.warning,
     },
   };
 
   return (
     <NavigationContainer theme={customTheme}>
-      <View style={{ flex: 1 }}>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <StatusBar style={isDark ? "light" : "dark"} translucent />
+      <View style={{ flex: 1, backgroundColor: themeColors.background }}>
+        <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
           {userToken !== null ? (
             <>
               <Stack.Screen name="MainTabs" component={MainTabs} />
@@ -140,7 +159,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.background,
   },
 });
 
@@ -149,11 +167,13 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <WishlistProvider>
-          <AppNav />
-        </WishlistProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <WishlistProvider>
+            <AppNav />
+          </WishlistProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

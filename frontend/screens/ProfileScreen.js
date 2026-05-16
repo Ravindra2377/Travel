@@ -6,15 +6,19 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  TextInput,
   Alert,
+  Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
-import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 import LocationService from "../services/LocationService";
 import LocationPickerModal from "../components/LocationPickerModal";
+import { AppButton, SurfaceCard, ScreenHeader } from "../components/SharedUI";
+import { useNavigation } from "@react-navigation/native";
+import * as Haptics from "expo-haptics";
 
 const MENU = [
   {
@@ -34,11 +38,11 @@ const MENU = [
   },
 ];
 
-import { useNavigation } from "@react-navigation/native";
-
 const ProfileScreen = () => {
   const { user, logout } = useContext(AuthContext);
   const navigation = useNavigation();
+  const { themeColors, isDark, toggleTheme } = useTheme();
+
   const [locationCity, setLocationCity] = useState("");
   const [locationPincode, setLocationPincode] = useState("");
   const [locationEditing, setLocationEditing] = useState(false);
@@ -70,48 +74,50 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
 
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Header */}
-          <View style={styles.header}>
-            <Text style={FONTS.h1}>Profile</Text>
+          <View style={{ paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl }}>
+            <ScreenHeader title="Profile" />
           </View>
 
           {/* User Info */}
           <View style={styles.userSection}>
-            <View style={styles.avatar}>
+            <View style={[styles.avatar, { backgroundColor: themeColors.primary, ...SHADOWS.glowSoft }]}>
               <Text style={styles.avatarText}>
                 {(user?.name || user?.email || "U").charAt(0).toUpperCase()}
               </Text>
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user?.name || "User"}</Text>
-              <Text style={styles.userEmail}>{user?.email || "No email provided"}</Text>
+              <Text style={[styles.userName, { color: themeColors.textPrimary }]}>{user?.name || "User"}</Text>
+              <Text style={[styles.userEmail, { color: themeColors.textSecondary }]}>{user?.email || "No email provided"}</Text>
             </View>
           </View>
 
           {/* Location Settings */}
           <TouchableOpacity
-            style={styles.locationSection}
-            onPress={() => setLocationEditing(true)}
+            style={[styles.locationSection, { backgroundColor: themeColors.surface, ...SHADOWS.sm }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setLocationEditing(true);
+            }}
             activeOpacity={0.7}
           >
             <View style={styles.locationHeader}>
-              <View style={styles.locationIconWrap}>
-                <Ionicons name="location" size={18} color={COLORS.primary} />
+              <View style={[styles.locationIconWrap, { backgroundColor: themeColors.accentLight }]}>
+                <Ionicons name="location" size={18} color={themeColors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.locationTitle}>Delivery Location</Text>
-                <Text style={styles.locationSubtitle}>
+                <Text style={[styles.locationTitle, { color: themeColors.textPrimary }]}>Delivery Location</Text>
+                <Text style={[styles.locationSubtitle, { color: themeColors.textSecondary }]}>
                   {locationCity || "Not set"} • {locationPincode || "—"}
                 </Text>
               </View>
               <Ionicons
                 name="chevron-forward"
                 size={18}
-                color={COLORS.textTertiary}
+                color={themeColors.textTertiary}
               />
             </View>
           </TouchableOpacity>
@@ -125,14 +131,37 @@ const ProfileScreen = () => {
             }}
           />
 
-          {/* Menu */}
+          {/* Settings Section */}
           <View style={styles.menuSection}>
+            {/* Theme Toggle */}
+            <View style={[styles.menuItem, { backgroundColor: themeColors.surface, ...SHADOWS.sm }]}>
+              <Ionicons
+                name={isDark ? "moon" : "sunny"}
+                size={20}
+                color={themeColors.primary}
+              />
+              <View style={styles.menuInfo}>
+                <Text style={[styles.menuLabel, { color: themeColors.textPrimary }]}>Dark Mode</Text>
+                <Text style={[styles.menuSubtitle, { color: themeColors.textSecondary }]}>Switch app theme</Text>
+              </View>
+              <Switch
+                value={isDark}
+                onValueChange={(val) => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  toggleTheme(val ? "dark" : "light");
+                }}
+                trackColor={{ false: themeColors.border, true: themeColors.primary }}
+                thumbColor={"#FFF"}
+              />
+            </View>
+
             {MENU.map((item) => (
               <TouchableOpacity
                 key={item.label}
-                style={styles.menuItem}
+                style={[styles.menuItem, { backgroundColor: themeColors.surface, ...SHADOWS.sm }]}
                 activeOpacity={0.6}
                 onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   if (item.label === "Link Accounts") {
                     navigation.navigate("Accounts");
                   } else if (item.label === "Help & Support") {
@@ -145,31 +174,36 @@ const ProfileScreen = () => {
                 <Ionicons
                   name={item.icon}
                   size={20}
-                  color={COLORS.textSecondary}
+                  color={themeColors.textSecondary}
                 />
                 <View style={styles.menuInfo}>
-                  <Text style={styles.menuLabel}>{item.label}</Text>
-                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                  <Text style={[styles.menuLabel, { color: themeColors.textPrimary }]}>{item.label}</Text>
+                  <Text style={[styles.menuSubtitle, { color: themeColors.textSecondary }]}>{item.subtitle}</Text>
                 </View>
                 <Ionicons
                   name="chevron-forward"
                   size={16}
-                  color={COLORS.textTertiary}
+                  color={themeColors.textTertiary}
                 />
               </TouchableOpacity>
             ))}
           </View>
 
           {/* Logout */}
-          <TouchableOpacity
-            style={styles.logoutBtn}
-            onPress={logout}
-            activeOpacity={0.6}
-            testID="profileLogoutBtn"
-          >
-            <Ionicons name="log-out-outline" size={20} color={COLORS.error} />
-            <Text style={styles.logoutText}>Sign Out</Text>
-          </TouchableOpacity>
+          <View style={{ marginHorizontal: SPACING.xl }}>
+            <AppButton
+              label="Sign Out"
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                logout();
+              }}
+              variant="ghost"
+              icon="log-out-outline"
+              style={{ borderColor: themeColors.error, backgroundColor: themeColors.errorLight }}
+              textStyle={{ color: themeColors.error }}
+              testID="profileLogoutBtn"
+            />
+          </View>
 
           <View style={{ height: 100 }} />
         </ScrollView>
@@ -181,38 +215,28 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    paddingTop: SPACING.xl,
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING.lg,
-    backgroundColor: COLORS.surface,
-    ...SHADOWS.sm,
   },
   userSection: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.xxl,
+    paddingBottom: SPACING.xxl,
     gap: SPACING.lg,
   },
   avatar: {
-    width: 56, // Normalized (8*7)
+    width: 56,
     height: 56,
     borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
-    ...SHADOWS.glowSoft,
   },
   avatarText: {
     ...FONTS.h2Dark,
     fontSize: 20,
+    color: "#FFFFFF",
   },
   userInfo: {
     flex: 1,
@@ -224,30 +248,6 @@ const styles = StyleSheet.create({
   userEmail: {
     ...FONTS.caption,
   },
-  statsRow: {
-    flexDirection: "row",
-    marginHorizontal: SPACING.xl,
-    paddingVertical: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.surface,
-    marginBottom: SPACING.xxl,
-    ...SHADOWS.sm,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  statValue: {
-    ...FONTS.h2,
-    marginBottom: 2,
-  },
-  statLabel: {
-    ...FONTS.caption,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: COLORS.border,
-  },
   menuSection: {
     marginHorizontal: SPACING.xl,
     marginBottom: SPACING.xxl,
@@ -255,10 +255,8 @@ const styles = StyleSheet.create({
   locationSection: {
     marginHorizontal: SPACING.xl,
     marginBottom: SPACING.xxl,
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
-    ...SHADOWS.sm,
   },
   locationHeader: {
     flexDirection: "row",
@@ -266,10 +264,9 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   locationIconWrap: {
-    width: 40, // Normalized (8*5)
+    width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.accentLight,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -280,47 +277,14 @@ const styles = StyleSheet.create({
     ...FONTS.caption,
     marginTop: 1,
   },
-  locationEditBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.cardAlt,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  locationForm: {
-    marginTop: SPACING.md,
-    gap: SPACING.sm,
-  },
-  locationInput: {
-    backgroundColor: COLORS.cardAlt,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    ...FONTS.body,
-    color: COLORS.textPrimary,
-  },
-  locationSaveBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.sm,
-    alignItems: "center",
-    marginTop: SPACING.xs,
-  },
-  locationSaveTxt: {
-    ...FONTS.bodyBold,
-    color: "#FFFFFF",
-  },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.md,
     borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.surface,
     marginBottom: SPACING.sm,
     gap: SPACING.lg,
-    ...SHADOWS.sm,
   },
   menuInfo: {
     flex: 1,
@@ -331,20 +295,6 @@ const styles = StyleSheet.create({
   },
   menuSubtitle: {
     ...FONTS.caption,
-  },
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: SPACING.xl,
-    paddingVertical: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    gap: SPACING.sm,
-    backgroundColor: COLORS.errorLight,
-  },
-  logoutText: {
-    ...FONTS.bodyBold,
-    color: COLORS.error,
   },
 });
 

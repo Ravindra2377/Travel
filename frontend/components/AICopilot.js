@@ -18,7 +18,8 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { WishlistContext } from "../context/WishlistContext";
-import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 import GroqService from "../services/GroqService";
 import * as Haptics from "expo-haptics";
 
@@ -40,6 +41,7 @@ const AICopilot = () => {
   const fabScale = useRef(new Animated.Value(1)).current;
   const { wishlist } = useContext(WishlistContext);
   const navigation = useNavigation();
+  const { themeColors, isDark } = useTheme();
 
   const openCopilot = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -89,10 +91,10 @@ const AICopilot = () => {
 
     try {
       const reply = await GroqService.copilotChat(newHistory, ctx);
-      
+
       const showCart = reply.includes("[SHOW_CART]");
       let cleanedReply = reply.replace(/\[SHOW_CART\]/g, "");
-      
+
       const suggestedSearches = [];
       const searchRegex = /\[SUGGEST_SEARCH:\s*(.*?)\]/g;
       let match;
@@ -107,7 +109,13 @@ const AICopilot = () => {
       ];
       setMessages((prev) => [
         ...prev,
-        { id: (Date.now() + 1).toString(), role: "assistant", text: cleanedReply, showCart, suggestedSearches },
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          text: cleanedReply,
+          showCart,
+          suggestedSearches,
+        },
       ]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
@@ -129,43 +137,81 @@ const AICopilot = () => {
     return (
       <View style={[styles.messageRow, isUser ? styles.userRow : styles.aiRow]}>
         {!isUser && (
-          <LinearGradient colors={COLORS.gradientAccent} style={styles.aiAvatar}>
+          <LinearGradient
+            colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
+            style={styles.aiAvatar}
+          >
             <Ionicons name="sparkles" size={12} color="#fff" />
           </LinearGradient>
         )}
-        <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
+        <View
+          style={[
+            styles.bubble,
+            isUser ? styles.userBubble : styles.aiBubble,
+            {
+              backgroundColor: isUser
+                ? themeColors.primary
+                : themeColors.surface,
+            },
+          ]}
+        >
           {item.text ? (
-            <Text style={[styles.bubbleText, isUser && styles.userBubbleText]}>
+            <Text
+              style={[
+                styles.bubbleText,
+                { color: isUser ? "#fff" : themeColors.textPrimary },
+              ]}
+            >
               {item.text}
             </Text>
           ) : null}
-          
+
           {item.showCart && wishlist.length > 0 && (
-            <ScrollView 
-              horizontal 
+            <ScrollView
+              horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.cartCarousel}
             >
               {wishlist.map((product, idx) => (
-                <TouchableOpacity 
-                  key={idx} 
-                  style={styles.miniProductCard}
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.miniProductCard,
+                    {
+                      backgroundColor: themeColors.background,
+                      borderColor: themeColors.border,
+                    },
+                  ]}
                   activeOpacity={0.8}
                   onPress={() => {
                     closeCopilot();
                     navigation.navigate("ProductDetail", { product });
                   }}
                 >
-                  <Image 
-                    source={{ uri: product.image_url || product.image }} 
-                    style={styles.miniProductImg} 
-                    resizeMode="contain" 
+                  <Image
+                    source={{ uri: product.image_url || product.image }}
+                    style={styles.miniProductImg}
+                    resizeMode="contain"
                   />
-                  <Text style={styles.miniProductTitle} numberOfLines={2}>
+                  <Text
+                    style={[
+                      styles.miniProductTitle,
+                      { color: themeColors.textPrimary },
+                    ]}
+                    numberOfLines={2}
+                  >
                     {product.name || product.title}
                   </Text>
-                  <Text style={styles.miniProductPrice}>
-                    ₹{product.price || (product.listings && product.listings[0]?.price) || "--"}
+                  <Text
+                    style={[
+                      styles.miniProductPrice,
+                      { color: themeColors.primary },
+                    ]}
+                  >
+                    ₹
+                    {product.price ||
+                      (product.listings && product.listings[0]?.price) ||
+                      "--"}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -175,17 +221,25 @@ const AICopilot = () => {
           {item.suggestedSearches && item.suggestedSearches.length > 0 && (
             <View style={styles.suggestedSearchesContainer}>
               {item.suggestedSearches.map((searchQuery, idx) => (
-                <TouchableOpacity 
-                  key={idx} 
-                  style={styles.searchChip}
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.searchChip,
+                    { backgroundColor: themeColors.primary },
+                  ]}
                   activeOpacity={0.8}
                   onPress={() => {
                     closeCopilot();
-                    navigation.navigate("MainTabs", { screen: "Search", params: { query: searchQuery } });
+                    navigation.navigate("MainTabs", {
+                      screen: "Search",
+                      params: { query: searchQuery },
+                    });
                   }}
                 >
                   <Ionicons name="search" size={12} color="#fff" />
-                  <Text style={styles.searchChipText}>Search {searchQuery}</Text>
+                  <Text style={styles.searchChipText}>
+                    Search {searchQuery}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -220,7 +274,7 @@ const AICopilot = () => {
         >
           <TouchableOpacity onPress={pressFab} activeOpacity={1}>
             <LinearGradient
-              colors={COLORS.gradientAccent}
+              colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
               style={styles.fabGradient}
             >
               <Ionicons name="sparkles" size={22} color="#fff" />
@@ -232,16 +286,22 @@ const AICopilot = () => {
       {/* Slide-up Panel */}
       {open && (
         <Animated.View
-          style={[styles.panel, { transform: [{ translateY: slideAnim }] }]}
+          style={[
+            styles.panel,
+            {
+              backgroundColor: themeColors.background,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
         >
           {/* Header */}
           <LinearGradient
-            colors={COLORS.gradientHero}
+            colors={themeColors.gradientHero || ["#7C3AED", "#4C1D95"]}
             style={styles.panelHeader}
           >
             <View style={styles.panelHeaderLeft}>
               <LinearGradient
-                colors={COLORS.gradientAccent}
+                colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
                 style={styles.panelAvatar}
               >
                 <Ionicons name="sparkles" size={16} color="#fff" />
@@ -279,16 +339,33 @@ const AICopilot = () => {
                 isTyping ? (
                   <View style={[styles.messageRow, styles.aiRow]}>
                     <LinearGradient
-                      colors={COLORS.gradientAccent}
+                      colors={
+                        themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]
+                      }
                       style={styles.aiAvatar}
                     >
                       <Ionicons name="sparkles" size={12} color="#fff" />
                     </LinearGradient>
                     <View
-                      style={[styles.bubble, styles.aiBubble, styles.typingBubble]}
+                      style={[
+                        styles.bubble,
+                        styles.aiBubble,
+                        styles.typingBubble,
+                        { backgroundColor: themeColors.surface },
+                      ]}
                     >
-                      <ActivityIndicator size="small" color={COLORS.primary} />
-                      <Text style={styles.typingText}>Thinking...</Text>
+                      <ActivityIndicator
+                        size="small"
+                        color={themeColors.primary}
+                      />
+                      <Text
+                        style={[
+                          styles.typingText,
+                          { color: themeColors.textSecondary },
+                        ]}
+                      >
+                        Thinking...
+                      </Text>
                     </View>
                   </View>
                 ) : null
@@ -296,12 +373,28 @@ const AICopilot = () => {
             />
 
             {/* Input */}
-            <View style={styles.inputContainer}>
-              <View style={styles.inputWrapper}>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: themeColors.surface,
+                  borderTopColor: themeColors.border,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.inputWrapper,
+                  {
+                    backgroundColor: themeColors.background,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: themeColors.textPrimary }]}
                   placeholder="Ask me anything..."
-                  placeholderTextColor={COLORS.textTertiary}
+                  placeholderTextColor={themeColors.textTertiary}
                   value={inputText}
                   onChangeText={setInputText}
                   returnKeyType="send"
@@ -315,8 +408,8 @@ const AICopilot = () => {
                   <LinearGradient
                     colors={
                       inputText.trim()
-                        ? COLORS.gradientAccent
-                        : [COLORS.border, COLORS.border]
+                        ? themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]
+                        : [themeColors.border, themeColors.border]
                     }
                     style={styles.sendGradient}
                   >
@@ -335,7 +428,7 @@ const AICopilot = () => {
 const styles = StyleSheet.create({
   fab: {
     position: "absolute",
-    bottom: 100,
+    bottom: 140,
     right: 20,
     zIndex: 9999,
     ...SHADOWS.md,
@@ -353,7 +446,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: SCREEN_H * 0.72,
-    backgroundColor: COLORS.background,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     zIndex: 9998,
@@ -384,11 +476,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
-  },
-  panelSubtitle: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.6)",
-    marginTop: 2,
   },
   closeBtn: {
     width: 36,
@@ -426,20 +513,16 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   userBubble: {
-    backgroundColor: COLORS.primary,
     borderBottomRightRadius: 4,
   },
   aiBubble: {
-    backgroundColor: "#fff",
     borderBottomLeftRadius: 4,
   },
   bubbleText: {
     ...FONTS.body,
     fontSize: 14,
-    color: COLORS.textPrimary,
     lineHeight: 20,
   },
-  userBubbleText: { color: "#fff" },
   typingBubble: {
     flexDirection: "row",
     alignItems: "center",
@@ -447,30 +530,24 @@ const styles = StyleSheet.create({
   },
   typingText: {
     ...FONTS.caption,
-    color: COLORS.textSecondary,
   },
   inputContainer: {
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
-    backgroundColor: "#fff",
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
     paddingBottom: Platform.OS === "ios" ? 36 : 32,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.background,
     borderRadius: RADIUS.full,
     paddingHorizontal: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
   },
   input: {
     flex: 1,
     minHeight: 44,
     ...FONTS.body,
-    color: COLORS.textPrimary,
     fontSize: 14,
   },
   sendBtn: { marginLeft: 8 },
@@ -487,12 +564,10 @@ const styles = StyleSheet.create({
   },
   miniProductCard: {
     width: 110,
-    backgroundColor: COLORS.background,
     borderRadius: RADIUS.md,
     padding: SPACING.sm,
     marginRight: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
   },
   miniProductImg: {
     width: "100%",
@@ -502,14 +577,12 @@ const styles = StyleSheet.create({
   miniProductTitle: {
     ...FONTS.captionBold,
     fontSize: 10,
-    color: COLORS.textPrimary,
     lineHeight: 14,
     marginBottom: 4,
   },
   miniProductPrice: {
     ...FONTS.bodyBold,
     fontSize: 12,
-    color: COLORS.textPrimary,
   },
   suggestedSearchesContainer: {
     marginTop: SPACING.sm,
@@ -518,7 +591,6 @@ const styles = StyleSheet.create({
   searchChip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.primary,
     borderRadius: RADIUS.full,
     paddingHorizontal: SPACING.md,
     paddingVertical: 8,

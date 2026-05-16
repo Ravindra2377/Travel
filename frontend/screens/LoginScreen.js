@@ -24,7 +24,7 @@ const LoginScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" />
+
 
       <LinearGradient colors={COLORS.gradientHero} style={styles.heroBg} />
 
@@ -94,7 +94,6 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   container: {
     flex: 1,

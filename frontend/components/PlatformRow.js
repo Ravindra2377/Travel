@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 
 const PLATFORM_ICONS = {
   blinkit: "flash-outline",
@@ -11,15 +12,19 @@ const PLATFORM_ICONS = {
   zomato: "restaurant-outline",
 };
 
-const PlatformRow = ({ platform, isCheapest = false, onOpenStore }) => {
+const PlatformRow = ({ listing, isBest = false, onOpenStore }) => {
+  const { themeColors, isDark } = useTheme();
+  
+  if (!listing) return null;
+  
   const {
-    name = "Platform",
+    platform: name = "Platform",
     price = 0,
     deliveryTime = "",
     deliveryCharge = 0,
     inStock = true,
     image_url: imageURL,
-  } = platform;
+  } = listing;
 
   const [imageError, setImageError] = useState(false);
 
@@ -28,19 +33,26 @@ const PlatformRow = ({ platform, isCheapest = false, onOpenStore }) => {
 
   if (!isAvailable) {
     return (
-      <View style={[styles.row, styles.unavailable]}>
-        <Ionicons name={iconName} size={18} color={COLORS.textTertiary} />
-        <Text style={[styles.name, { color: COLORS.textTertiary }]}>
+      <View style={[styles.row, { backgroundColor: themeColors.cardAlt, opacity: 0.5 }]}>
+        <Ionicons name={iconName} size={18} color={themeColors.textTertiary} />
+        <Text style={[styles.name, { color: themeColors.textTertiary }]}>
           {name}
         </Text>
-        <Text style={styles.naText}>Out of Stock</Text>
+        <Text style={[styles.naText, { color: themeColors.textTertiary }]}>Out of Stock</Text>
       </View>
     );
   }
 
   return (
     <TouchableOpacity
-      style={[styles.row, isCheapest && styles.cheapest]}
+      style={[
+        styles.row,
+        { backgroundColor: themeColors.surface, ...SHADOWS.sm },
+        isBest && [
+          styles.cheapest,
+          { backgroundColor: isDark ? "rgba(124, 58, 237, 0.15)" : "#F4EDFD", borderColor: "rgba(124, 58, 237, 0.3)" }
+        ]
+      ]}
       onPress={onOpenStore}
       activeOpacity={0.6}
     >
@@ -59,26 +71,30 @@ const PlatformRow = ({ platform, isCheapest = false, onOpenStore }) => {
           <Ionicons
             name={iconName}
             size={20}
-            color={COLORS.textSecondary}
+            color={themeColors.textSecondary}
           />
         )}
       </View>
       <View style={styles.info}>
-        <Text style={styles.name}>{name}</Text>
+        <Text style={[styles.name, { color: themeColors.textPrimary }]}>{name}</Text>
         {deliveryTime ? (
-          <Text style={styles.delivery}>{deliveryTime}</Text>
+          <Text style={[styles.delivery, { color: themeColors.textSecondary }]}>{deliveryTime}</Text>
         ) : null}
       </View>
 
       <View style={styles.right}>
-        {deliveryCharge === 0 && <Text style={styles.freeTag}>FREE</Text>}
-        <Text style={[styles.price, isCheapest && { color: COLORS.primary }]}>
+        {deliveryCharge === 0 && <Text style={[styles.freeTag, { color: themeColors.savings }]}>FREE</Text>}
+        <Text style={[styles.price, { color: themeColors.textPrimary }, isBest && { color: themeColors.primary }]}>
           ₹{price}
         </Text>
       </View>
+      
+      <View style={[styles.buyBtn, { backgroundColor: themeColors.primary + "15" }]}>
+        <Ionicons name="chevron-forward" size={16} color={themeColors.primary} />
+      </View>
 
-      {isCheapest && (
-        <View style={styles.bestBadge}>
+      {isBest && (
+        <View style={[styles.bestBadge, { backgroundColor: themeColors.primary, ...SHADOWS.glowSoft }]}>
           <Text style={styles.bestText}>BEST</Text>
         </View>
       )}
@@ -107,10 +123,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.lg,
-    backgroundColor: "#FFFFFF",
     borderRadius: RADIUS.lg,
     marginBottom: SPACING.sm,
-    ...SHADOWS.sm,
     gap: SPACING.md,
   },
   imageIconContainer: {
@@ -126,13 +140,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   cheapest: {
-    backgroundColor: "#F4EDFD", // Solid color avoids shadow bleed-through
     borderWidth: 1.5,
-    borderColor: "rgba(124, 58, 237, 0.3)",
-  },
-  unavailable: {
-    opacity: 0.40,
-    backgroundColor: COLORS.cardAlt,
   },
   info: {
     flex: 1,
@@ -140,7 +148,6 @@ const styles = StyleSheet.create({
   name: {
     ...FONTS.bodyBold,
     fontSize: 15,
-    color: COLORS.textPrimary,
     marginBottom: 2,
   },
   delivery: {
@@ -157,7 +164,6 @@ const styles = StyleSheet.create({
   },
   freeTag: {
     ...FONTS.badge,
-    color: COLORS.savings,
     marginBottom: 4,
   },
   naText: {
@@ -166,16 +172,22 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   bestBadge: {
-    backgroundColor: COLORS.primary,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
     borderRadius: RADIUS.full,
     marginLeft: SPACING.sm,
-    ...SHADOWS.glowSoft,
   },
   bestText: {
     ...FONTS.badge,
     color: "#FFFFFF",
+  },
+  buyBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 4,
   },
 });
 

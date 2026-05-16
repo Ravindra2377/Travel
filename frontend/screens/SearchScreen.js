@@ -8,6 +8,7 @@ import React, {
   useMemo,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../context/ThemeContext";
 import {
   View,
   Text,
@@ -16,6 +17,7 @@ import {
   StatusBar,
   TouchableOpacity,
   Animated,
+  ActivityIndicator,
   Image as RNImage,
 } from "react-native";
 import { Image } from "expo-image";
@@ -555,6 +557,7 @@ const reducer = (state, action) => {
 };
 
 const SearchScreen = ({ navigation, route }) => {
+  const { themeColors, isDark } = useTheme();
   const [query, setQuery] = useState(route?.params?.query || "");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1813,7 +1816,7 @@ const SearchScreen = ({ navigation, route }) => {
       const bbListing = uniqueListings.find((l) => l.platform === "BigBasket");
       if (bbListing) {
         console.log(
-          `[Debug-BigBasket] Aggregated listing for "${group.name}": price=${bbListing.price}, mrp=${bbListing.mrp}, raw="${String(
+          `[Debug-BigBasket] Aggregated listing for "${group?.name || "Unknown"}": price=${bbListing.price}, mrp=${bbListing.mrp}, raw="${String(
             bbListing.raw_text || "",
           ).slice(0, 180)}"`,
         );
@@ -1828,7 +1831,7 @@ const SearchScreen = ({ navigation, route }) => {
       const first = listings[0] || uniqueListings[0] || {};
       const displayName =
         uniqueListings.find((l) => l.raw_product_name)?.raw_product_name ||
-        selectBestDisplayName(uniqueListings, group.name);
+        selectBestDisplayName(uniqueListings, group?.name || "");
 
       const imageCandidates = [
         first.image_url,
@@ -1850,7 +1853,7 @@ const SearchScreen = ({ navigation, route }) => {
           const titleForQty =
             uniqueListings.find((l) => l.raw_product_name)?.raw_product_name ||
             displayName ||
-            group.name ||
+            group?.name ||
             "";
           const unitInfo = computeUnitPrice(resolvedPrice, titleForQty);
           if (unitInfo) {
@@ -1899,8 +1902,9 @@ const SearchScreen = ({ navigation, route }) => {
     if (cappedResults.length > 0) {
       console.log(`[Search] Showing ${cappedResults.length} products:`);
       cappedResults.forEach((p, idx) => {
+        if (!p) return;
         console.log(
-          `  ${idx + 1}. "${p.name.substring(0, 40)}" (${p.platformCount} platform${p.platformCount !== 1 ? "s" : ""}, ₹${p.price})`,
+          `  ${idx + 1}. "${(p.name || "Unknown").substring(0, 40)}" (${p.platformCount || 0} platform${p.platformCount !== 1 ? "s" : ""}, ₹${p.price || 0})`,
         );
       });
     }
@@ -2018,28 +2022,28 @@ const SearchScreen = ({ navigation, route }) => {
     if (!hasSearched) {
       return (
         <View style={styles.emptyState}>
-          <View style={styles.emptyCard}>
-            <View style={styles.emptyIconWrap}>
+          <View style={[styles.emptyCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+            <View style={[styles.emptyIconWrap, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
               <Ionicons
                 name="search-outline"
                 size={36}
-                color={COLORS.textTertiary}
+                color={themeColors.textTertiary}
               />
             </View>
-            <Text style={styles.emptyTitle}>Search for a product</Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>Search for a product</Text>
+            <Text style={[styles.emptySubtitle, { color: themeColors.textSecondary }]}>
               Compare prices across {state.connectedPlatforms.length} connected
               platforms
             </Text>
 
             {state.connectedPlatforms.length === 0 && (
-              <View style={styles.warning}>
+              <View style={[styles.warning, { backgroundColor: themeColors.errorLight, borderColor: themeColors.error + "30" }]}>
                 <Ionicons
                   name="warning-outline"
                   size={24}
-                  color={COLORS.warning}
+                  color={themeColors.error}
                 />
-                <Text style={styles.warningText}>
+                <Text style={[styles.warningText, { color: themeColors.error }]}>
                   No platforms connected. Go to Accounts tab to link your
                   accounts.
                 </Text>
@@ -2047,17 +2051,17 @@ const SearchScreen = ({ navigation, route }) => {
             )}
 
             <View style={styles.suggestions}>
-              <Text style={styles.suggestTitle}>Try searching for:</Text>
+              <Text style={[styles.suggestTitle, { color: themeColors.textSecondary }]}>Try searching for:</Text>
               <View style={styles.chips}>
                 {SUGGESTIONS.map((s) => (
                   <TouchableOpacity
                     key={s}
                     onPress={() => setQuery(s)}
                     activeOpacity={0.85}
-                    style={styles.chipButton}
+                    style={[styles.chipButton, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}
                     testID={`searchSuggestion_${s}`}
                   >
-                    <Text style={styles.chip}>{s}</Text>
+                    <Text style={[styles.chip, { color: themeColors.textSecondary }]}>{s}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -2069,9 +2073,9 @@ const SearchScreen = ({ navigation, route }) => {
     if (results.length === 0) {
       return (
         <View style={styles.emptyState}>
-          <Ionicons name="sad-outline" size={48} color={COLORS.border} />
-          <Text style={styles.emptyTitle}>No results found</Text>
-          <Text style={styles.emptySubtitle}>Try a different search term</Text>
+          <Ionicons name="sad-outline" size={48} color={themeColors.border} />
+          <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>No results found</Text>
+          <Text style={[styles.emptySubtitle, { color: themeColors.textSecondary }]}>Try a different search term</Text>
         </View>
       );
     }
@@ -2094,13 +2098,13 @@ const SearchScreen = ({ navigation, route }) => {
     const progressRatio = Math.min(1, completedCount / totalCount);
 
     return (
-      <View style={styles.loaderContainer}>
+      <View style={[styles.loaderContainer, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
         {/* Title row */}
         <View style={styles.loaderTitleRow}>
-          <Ionicons name="search" size={16} color={COLORS.textPrimary} />
-          <Text style={styles.loaderStatusText}>Scanning Prices</Text>
+          <ActivityIndicator size="small" color={themeColors.primary} style={{ marginRight: 8 }} />
+          <Text style={[styles.loaderStatusText, { color: themeColors.textPrimary }]}>Scanning Prices</Text>
         </View>
-        <Text style={styles.loaderDetail}>
+        <Text style={[styles.loaderDetail, { color: themeColors.textSecondary }]}>
           {completedCount === 0
             ? "Opening platforms..."
             : completedCount < totalCount
@@ -2113,22 +2117,23 @@ const SearchScreen = ({ navigation, route }) => {
           {state.connectedPlatforms.map((platform) => {
             const isDone = !!platformResults[platform];
             const meta = PLATFORM_META[platform] || {
-              color: COLORS.textPrimary,
+              color: themeColors.textPrimary,
               icon: "search",
               label: platform,
             };
             const entry = platformResults[platform];
             const products = entry?.products || [];
-            const count = products.filter(p => p.in_stock === true).length;
+            const count = products.filter(p => p && p.in_stock === true).length;
             return (
               <Animated.View
                 key={platform}
                 style={[
                   styles.platformStatusCard,
+                  { backgroundColor: themeColors.background, borderColor: themeColors.border },
                   isDone
                     ? {
-                        borderColor: COLORS.textPrimary,
-                        backgroundColor: COLORS.accentMuted,
+                        borderColor: themeColors.primary,
+                        backgroundColor: isDark ? themeColors.primary + "15" : COLORS.accentMuted,
                       }
                     : { opacity: pulseAnim },
                 ]}
@@ -2136,18 +2141,19 @@ const SearchScreen = ({ navigation, route }) => {
                 <Ionicons
                   name={isDone ? "checkmark-circle" : meta.icon}
                   size={18}
-                  color={isDone ? COLORS.savings : COLORS.textTertiary}
+                  color={isDone ? "#10B981" : themeColors.textTertiary}
                   style={styles.platformStatusIcon}
                 />
                 <Text
                   style={[
                     styles.platformStatusName,
-                    isDone && { color: COLORS.textPrimary },
+                    { color: themeColors.textPrimary },
+                    isDone && { color: themeColors.primary },
                   ]}
                 >
                   {meta.label}
                 </Text>
-                <Text style={styles.platformStatusCount}>
+                <Text style={[styles.platformStatusCount, { color: themeColors.textTertiary }]}>
                   {isDone ? `${count} items` : "Scanning..."}
                 </Text>
               </Animated.View>
@@ -2156,25 +2162,25 @@ const SearchScreen = ({ navigation, route }) => {
         </View>
 
         {/* Progress bar */}
-        <View style={styles.progressTrack}>
+        <View style={[styles.progressTrack, { backgroundColor: themeColors.background }]}>
           <View
             style={[
               styles.progressFill,
-              { width: `${Math.max(progressRatio * 100, 8)}%` },
+              { width: `${Math.max(progressRatio * 100, 8)}%`, backgroundColor: themeColors.primary },
             ]}
           />
         </View>
 
         {/* Cycling tip */}
-        <View style={styles.tipBox}>
+        <View style={[styles.tipBox, { backgroundColor: isDark ? themeColors.primary + "10" : COLORS.cardAlt, borderColor: themeColors.border }]}>
           <Ionicons
             name="bulb"
             size={13}
-            color={COLORS.accentGold}
+            color={themeColors.accent}
             style={styles.tipIcon}
           />
-          <Text style={styles.tipLabel}>Tip</Text>
-          <Text style={styles.tipText}>{SAVING_TIPS[tipIndex]}</Text>
+          <Text style={[styles.tipLabel, { color: themeColors.accent }]}>Tip</Text>
+          <Text style={[styles.tipText, { color: themeColors.textSecondary }]}>{SAVING_TIPS[tipIndex]}</Text>
         </View>
       </View>
     );
@@ -2185,7 +2191,8 @@ const SearchScreen = ({ navigation, route }) => {
 
     // Filter by platforms and update prices
     finalResults = finalResults.map((product) => {
-      const filteredListings = product.listings.filter((listing) => selectedPlatforms[listing.platform]);
+      if (!product || !product.listings) return null;
+      const filteredListings = product.listings.filter((listing) => listing && selectedPlatforms[listing.platform]);
       if (filteredListings.length === 0) return null;
 
       const bestListing = filteredListings.reduce((a, b) => (a.price < b.price ? a : b));
@@ -2210,13 +2217,12 @@ const SearchScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
           <View style={styles.headerTopRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.headerLabel}>CompareZ</Text>
-              <Text style={styles.headerTitle}>Collection</Text>
+              <Text style={[styles.headerLabel, { color: themeColors.textSecondary }]}>CompareX</Text>
+              <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Collection</Text>
             </View>
           </View>
           <SearchBar
@@ -2240,28 +2246,28 @@ const SearchScreen = ({ navigation, route }) => {
 
           {/* Voice status banner */}
           {voiceStatus === "recording" && (
-            <View style={styles.voiceBanner}>
+            <View style={[styles.voiceBanner, { backgroundColor: isDark ? themeColors.primary + "20" : "#FEF2F2" }]}>
               <View style={styles.voiceDot} />
-              <Text style={styles.voiceBannerText}>Listening... Tap mic to stop</Text>
+              <Text style={[styles.voiceBannerText, { color: themeColors.primary }]}>Listening... Tap mic to stop</Text>
             </View>
           )}
           {voiceStatus === "transcribing" && (
-            <View style={styles.voiceBanner}>
-              <Ionicons name="sparkles" size={13} color="#7C3AED" />
-              <Text style={styles.voiceBannerText}>AI is transcribing your voice...</Text>
+            <View style={[styles.voiceBanner, { backgroundColor: isDark ? themeColors.primary + "20" : "#FEF2F2" }]}>
+              <Ionicons name="sparkles" size={13} color={themeColors.primary} />
+              <Text style={[styles.voiceBannerText, { color: themeColors.primary }]}>AI is transcribing your voice...</Text>
             </View>
           )}
 
           {/* AI Query Expansion Banner */}
           {aiExpandedQuery ? (
-            <View style={styles.aiBanner}>
-              <Ionicons name="sparkles" size={13} color="#7C3AED" />
-              <Text style={styles.aiBannerText}>
+            <View style={[styles.aiBanner, { backgroundColor: isDark ? themeColors.primary + "20" : "#EDE9FE" }]}>
+              <Ionicons name="sparkles" size={13} color={isDark ? themeColors.primary : "#7C3AED"} />
+              <Text style={[styles.aiBannerText, { color: isDark ? themeColors.textPrimary : "#7C3AED" }]}>
                 AI searched for{" "}
-                <Text style={styles.aiBannerKeyword}>"{aiExpandedQuery}"</Text>
+                <Text style={[styles.aiBannerKeyword, { color: isDark ? themeColors.primary : "#7C3AED" }]}>"{aiExpandedQuery}"</Text>
               </Text>
               <TouchableOpacity onPress={() => setAiExpandedQuery(null)}>
-                <Ionicons name="close" size={14} color="#7C3AED" />
+                <Ionicons name="close" size={14} color={isDark ? themeColors.textSecondary : "#7C3AED"} />
               </TouchableOpacity>
             </View>
           ) : null}
@@ -2480,7 +2486,6 @@ function getPlatformUrl(platform) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   container: {
     flex: 1,
@@ -2490,7 +2495,6 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.xl,
     paddingBottom: 18,
     paddingHorizontal: SPACING.lg,
-    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
     ...SHADOWS.sm,
@@ -2513,7 +2517,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 400,
     marginTop: 10,
-    backgroundColor: "#fff",
   },
   captchaOverlay: {
     padding: SPACING.lg,
@@ -2542,7 +2545,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#EDE9FE",
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md,
     paddingVertical: 7,
@@ -2564,7 +2566,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#FEF2F2",
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md,
     paddingVertical: 7,

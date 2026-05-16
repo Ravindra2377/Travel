@@ -14,13 +14,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
-import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from "../config/theme";
+import { SPACING, RADIUS, SHADOWS, FONTS } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
 import { WishlistContext } from "../context/WishlistContext";
 import GroqService from "../services/GroqService";
+import { AppButton, SurfaceCard, ScreenHeader } from "../components/SharedUI";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const H_PADDING = SPACING.xl;
@@ -66,9 +67,7 @@ const DIRECT_PLATFORMS = [
   },
 ];
 
-// --- Sub-components ---
-
-const BrowseCard = ({ item, navigation }) => (
+const BrowseCard = ({ item, navigation, themeColors }) => (
   <TouchableOpacity
     style={styles.browseCardWrapper}
     activeOpacity={0.8}
@@ -91,15 +90,14 @@ const BrowseCard = ({ item, navigation }) => (
         resizeMode="contain"
       />
     </View>
-    <Text style={styles.browseName}>{item.name}</Text>
+    <Text style={[styles.browseName, { color: themeColors.textPrimary }]}>{item.name}</Text>
   </TouchableOpacity>
 );
-
-// --- Main Screen ---
 
 const HomeScreen = ({ navigation }) => {
   const { user, logout } = useContext(AuthContext);
   const { wishlist } = useContext(WishlistContext);
+  const { themeColors, isDark } = useTheme();
 
   const [optimizing, setOptimizing] = useState(false);
   const [optimization, setOptimization] = useState(null);
@@ -158,7 +156,7 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const slideUp = (anim) => ({
-    opacity: 1, // Fix Detox visibility issue
+    opacity: anim,
     transform: [
       {
         translateY: anim.interpolate({
@@ -171,8 +169,8 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -182,19 +180,19 @@ const HomeScreen = ({ navigation }) => {
           {/* ── Dark Hero Section (inspired by luxury splash) ── */}
           <Animated.View style={slideUp(fadeHero)}>
             <LinearGradient
-              colors={COLORS.gradientHero}
+              colors={themeColors.gradientHero}
               start={{ x: 0, y: 0 }}
               end={{ x: 0.3, y: 1 }}
               style={styles.hero}
             >
               {/* Top bar */}
               <View style={styles.heroTop}>
-                <Text style={styles.heroEyebrow}>CompareZ</Text>
+                <Text style={styles.heroEyebrow}>CompareX</Text>
                 <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
                   <Ionicons
                     name="log-out-outline"
                     size={18}
-                    color={COLORS.textOnDarkSec}
+                    color="rgba(255,255,255,0.70)"
                   />
                 </TouchableOpacity>
               </View>
@@ -212,7 +210,7 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={styles.heroTitle}>Save on{"\n"}Every Cart</Text>
                 <Text style={styles.heroSubtitle}>
                   Compare prices across Blinkit, Zepto, BigBasket{"\n"}and more
-                  — all in one search.
+                  — all in one search. Powered by AI for smart deal insights.
                 </Text>
               </View>
 
@@ -264,10 +262,10 @@ const HomeScreen = ({ navigation }) => {
                   <Ionicons
                     name="wallet-outline"
                     size={16}
-                    color={COLORS.secondary}
+                    color={themeColors.secondary}
                     style={{ marginBottom: 4 }}
                   />
-                  <Text style={[styles.statValue, { color: COLORS.secondary }]}>
+                  <Text style={[styles.statValue, { color: themeColors.secondary }]}>
                     Best
                   </Text>
                   <Text style={styles.statLabel}>Price</Text>
@@ -275,54 +273,47 @@ const HomeScreen = ({ navigation }) => {
               </Animated.View>
 
               {/* CTA Button */}
-              <TouchableOpacity
-                style={styles.ctaButton}
-                activeOpacity={0.85}
+              <AppButton
+                label="Start Comparing"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   navigation.navigate("Search");
                 }}
+                rightIcon="arrow-forward"
+                variant="ghost"
+                style={{ 
+                  backgroundColor: "#FFFFFF", 
+                  marginTop: SPACING.xl,
+                  borderWidth: 0,
+                  borderRadius: RADIUS.lg,
+                  ...SHADOWS.md
+                }}
+                textStyle={{ color: "#7C3AED" }}
                 testID="homeSearchCta"
-              >
-                <Text style={styles.ctaText}>Start Comparing</Text>
-                <Ionicons
-                  name="arrow-forward"
-                  size={18}
-                  color={COLORS.textPrimary}
-                />
-              </TouchableOpacity>
+              />
             </LinearGradient>
           </Animated.View>
 
-          {/* ── Light Collection Section ── */}
+          {/* ── Content Section ── */}
           <Animated.View style={[styles.lightSection, slideUp(fadeContent)]}>
             {/* ── Browse Directly Section ── */}
-            <View
-              style={[
-                styles.sectionHeader,
-                { marginTop: SPACING.xl, marginBottom: SPACING.md },
-              ]}
-            >
-              <View>
-                <Text style={styles.sectionTitle}>
-                  Browse Directly: All in One
-                </Text>
-                <Text style={styles.sectionSubtitle}>
-                  Browse directly on top platforms without installing the app
-                </Text>
-              </View>
+            <View style={{ paddingHorizontal: H_PADDING }}>
+              <ScreenHeader 
+                title="Browse Directly" 
+                subtitle="Access top platforms directly"
+              />
             </View>
 
             <View style={styles.browseGrid}>
               {DIRECT_PLATFORMS.map((item) => (
-                <BrowseCard key={item.id} item={item} navigation={navigation} />
+                <BrowseCard key={item.id} item={item} navigation={navigation} themeColors={themeColors} />
               ))}
             </View>
           </Animated.View>
 
           {/* ── AI Basket Optimizer Card ── */}
           <Animated.View style={[{ paddingHorizontal: H_PADDING, marginTop: SPACING.xl }, slideUp(fadeContent)]}>
-            <View style={styles.optimizerContainer}>
+            <SurfaceCard style={{ padding: SPACING.lg }}>
               <TouchableOpacity 
                 style={styles.optimizerHeaderRow}
                 onPress={() => {
@@ -331,57 +322,52 @@ const HomeScreen = ({ navigation }) => {
                 }}
                 activeOpacity={0.7}
               >
-                <Ionicons name="basket" size={24} color={COLORS.primary} />
+                <Ionicons name="basket" size={24} color={themeColors.primary} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={styles.optimizerTitle}>Smart Basket Optimizer</Text>
-                  <Text style={styles.optimizerSubtitle}>
+                  <Text style={[styles.optimizerTitle, { color: themeColors.textPrimary }]}>Smart Basket Optimizer</Text>
+                  <Text style={[styles.optimizerSubtitle, { color: themeColors.textSecondary }]}>
                     {wishlist.length} {wishlist.length === 1 ? "item" : "items"} liked
                   </Text>
                 </View>
                 {wishlist.length >= 2 && !optimization && !optimizing && (
-                  <TouchableOpacity
-                    style={styles.optimizeBtn}
+                  <AppButton
+                    label="Optimize"
                     onPress={handleOptimize}
-                    activeOpacity={0.85}
-                  >
-                    <LinearGradient
-                      colors={COLORS.gradientAccent}
-                      style={styles.optimizeBtnGradient}
-                    >
-                      <Ionicons name="sparkles" size={14} color="#fff" />
-                      <Text style={styles.optimizeBtnText}>Optimize</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                    variant="gradient"
+                    icon="sparkles"
+                    style={{ minHeight: 40, paddingHorizontal: SPACING.md, borderRadius: RADIUS.full }}
+                    textStyle={{ fontSize: 13 }}
+                  />
                 )}
               </TouchableOpacity>
 
               {wishlist.length < 2 && (
-                <Text style={styles.optimizerHint}>
+                <Text style={[styles.optimizerHint, { color: themeColors.textTertiary }]}>
                   Add at least 2 items to your Likes to find the cheapest way to buy them across platforms.
                 </Text>
               )}
 
               {optimizing && (
-                <View style={styles.optimizerLoadingCard}>
-                  <ActivityIndicator color={COLORS.primary} />
-                  <Text style={styles.optimizerLoadingText}>
+                <View style={[styles.optimizerLoadingCard, { backgroundColor: themeColors.violetLight }]}>
+                  <ActivityIndicator color={themeColors.primary} />
+                  <Text style={[styles.optimizerLoadingText, { color: themeColors.primary }]}>
                     AI calculating cheapest split...
                   </Text>
                 </View>
               )}
 
               {optimizeError ? (
-                <View style={styles.optimizerErrorCard}>
-                  <Ionicons name="alert-circle-outline" size={16} color={COLORS.error} />
-                  <Text style={styles.optimizerErrorText}>{optimizeError}</Text>
+                <View style={[styles.optimizerErrorCard, { backgroundColor: themeColors.errorLight }]}>
+                  <Ionicons name="alert-circle-outline" size={16} color={themeColors.error} />
+                  <Text style={[styles.optimizerErrorText, { color: themeColors.error }]}>{optimizeError}</Text>
                 </View>
               ) : null}
 
               {optimization && !optimizing && (
-                <View style={styles.optimizerResultCard}>
+                <View style={[styles.optimizerResultCard, { borderColor: themeColors.border }]}>
                   {optimization.savings > 0 ? (
                     <LinearGradient
-                      colors={["#10B981", "#059669"]}
+                      colors={themeColors.gradientSavings}
                       style={styles.savingsBanner}
                     >
                       <Ionicons name="trending-down" size={20} color="#fff" />
@@ -395,29 +381,29 @@ const HomeScreen = ({ navigation }) => {
                       </View>
                     </LinearGradient>
                   ) : (
-                    <View style={styles.noSavingsBanner}>
-                      <Ionicons name="checkmark-circle" size={18} color={COLORS.savings} />
-                      <Text style={styles.noSavingsText}>Your basket is already optimized!</Text>
+                    <View style={[styles.noSavingsBanner, { backgroundColor: themeColors.savingsLight }]}>
+                      <Ionicons name="checkmark-circle" size={18} color={themeColors.savings} />
+                      <Text style={[styles.noSavingsText, { color: themeColors.savings }]}>Your basket is already optimized!</Text>
                     </View>
                   )}
 
                   {optimization.recommendation ? (
-                    <Text style={styles.optimizerRecommendation}>
+                    <Text style={[styles.optimizerRecommendation, { color: themeColors.textSecondary, borderBottomColor: themeColors.border }]}>
                       ✨ {optimization.recommendation}
                     </Text>
                   ) : null}
 
                   {(optimization.splits || []).map((split, i) => (
-                    <View key={i} style={styles.optimizerSplitRow}>
+                    <View key={i} style={[styles.optimizerSplitRow, { borderBottomColor: themeColors.border }]}>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.optimizerSplitPlatform}>{split.platform}</Text>
-                        <Text style={styles.optimizerSplitItems} numberOfLines={1}>
+                        <Text style={[styles.optimizerSplitPlatform, { color: themeColors.textPrimary }]}>{split.platform}</Text>
+                        <Text style={[styles.optimizerSplitItems, { color: themeColors.textSecondary }]} numberOfLines={1}>
                           {(split.items || []).join(", ")}
                         </Text>
                       </View>
                       <View style={styles.optimizerSplitCosts}>
-                        <Text style={styles.optimizerSplitSubtotal}>₹{Math.round(split.subtotal || 0)}</Text>
-                        <Text style={styles.optimizerSplitDelivery}>+₹{split.deliveryFee || 40} delivery</Text>
+                        <Text style={[styles.optimizerSplitSubtotal, { color: themeColors.textPrimary }]}>₹{Math.round(split.subtotal || 0)}</Text>
+                        <Text style={[styles.optimizerSplitDelivery, { color: themeColors.textTertiary }]}>+₹{split.deliveryFee || 40} delivery</Text>
                       </View>
                     </View>
                   ))}
@@ -426,11 +412,11 @@ const HomeScreen = ({ navigation }) => {
                     style={styles.optimizerDismissBtn}
                     onPress={() => setOptimization(null)}
                   >
-                    <Text style={styles.optimizerDismissText}>Dismiss</Text>
+                    <Text style={[styles.optimizerDismissText, { color: themeColors.textTertiary }]}>Dismiss</Text>
                   </TouchableOpacity>
                 </View>
               )}
-            </View>
+            </SurfaceCard>
           </Animated.View>
 
           {/* Extra space to ensure last cards are fully visible above floating navbar */}
@@ -444,11 +430,9 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   scrollContent: {
     paddingBottom: 0,
@@ -472,8 +456,8 @@ const styles = StyleSheet.create({
     ...FONTS.eyebrow,
     fontSize: 10,
     opacity: 0.8,
+    color: "#fff",
   },
-
   logoutBtn: {
     width: 40,
     height: 40,
@@ -498,6 +482,7 @@ const styles = StyleSheet.create({
     fontSize: 34,
     lineHeight: 40,
     marginBottom: 16,
+    color: "#fff",
   },
   heroSubtitle: {
     ...FONTS.luxurySub,
@@ -529,63 +514,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.15)",
     marginVertical: SPACING.xs,
   },
-  ctaButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.surface,
-    height: 56,
-    borderRadius: RADIUS.lg,
-    gap: SPACING.sm,
-    ...SHADOWS.lg,
-  },
-  ctaText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: COLORS.primary,
-    letterSpacing: 0.3,
-  },
 
   // ── Light Section ──
   lightSection: {
     paddingTop: SPACING.xxl,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: H_PADDING,
-    marginBottom: SPACING.lg,
-  },
-  sectionTitle: {
-    ...FONTS.h3,
-  },
-  seeAll: {
-    ...FONTS.captionBold,
-    color: COLORS.textAccent,
-  },
-
-  sectionSubtitle: {
-    ...FONTS.caption,
-    marginTop: 2,
-  },
-
-  // ── Search CTA ──
-  searchCta: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: H_PADDING,
-    height: 56, // Standardized with search bar
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
-    paddingHorizontal: SPACING.xl,
-    gap: SPACING.sm,
-    ...SHADOWS.sm,
-  },
-  searchCtaText: {
-    ...FONTS.body,
-    color: COLORS.textTertiary,
-    flex: 1,
   },
 
   // ── Browse Directly ──
@@ -617,15 +549,7 @@ const styles = StyleSheet.create({
     ...FONTS.caption,
     fontSize: 12,
     fontWeight: "600",
-    color: COLORS.textPrimary,
     textAlign: "center",
-  },
-  optimizerContainer: {
-    backgroundColor: "#fff",
-    borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
-    marginBottom: SPACING.lg,
-    ...SHADOWS.sm,
   },
   optimizerHeaderRow: {
     flexDirection: "row",
@@ -634,25 +558,13 @@ const styles = StyleSheet.create({
   optimizerTitle: {
     ...FONTS.h3,
     fontSize: 18,
-    color: COLORS.textPrimary,
   },
   optimizerSubtitle: {
     ...FONTS.caption,
-    color: COLORS.textSecondary,
     marginTop: 2,
   },
-  optimizeBtn: { borderRadius: RADIUS.full, overflow: "hidden" },
-  optimizeBtnGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 10,
-    gap: 6,
-  },
-  optimizeBtnText: { ...FONTS.bodyBold, color: "#fff", fontSize: 13 },
   optimizerHint: {
     ...FONTS.caption,
-    color: COLORS.textTertiary,
     marginTop: SPACING.md,
     fontStyle: "italic",
   },
@@ -662,27 +574,23 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: SPACING.md,
     padding: SPACING.md,
-    backgroundColor: COLORS.violetLight,
     borderRadius: RADIUS.lg,
   },
-  optimizerLoadingText: { ...FONTS.body, color: COLORS.primary },
+  optimizerLoadingText: { ...FONTS.body },
   optimizerErrorCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginTop: SPACING.md,
     padding: SPACING.md,
-    backgroundColor: COLORS.errorLight,
     borderRadius: RADIUS.lg,
   },
-  optimizerErrorText: { ...FONTS.body, color: COLORS.error, flex: 1 },
+  optimizerErrorText: { ...FONTS.body, flex: 1 },
   optimizerResultCard: {
     marginTop: SPACING.lg,
-    backgroundColor: "#fff",
     borderRadius: RADIUS.lg,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: COLORS.border,
   },
   savingsBanner: {
     flexDirection: "row",
@@ -697,17 +605,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     padding: SPACING.lg,
-    backgroundColor: COLORS.savingsLight,
   },
-  noSavingsText: { ...FONTS.bodyBold, color: COLORS.savings },
+  noSavingsText: { ...FONTS.bodyBold },
   optimizerRecommendation: {
     ...FONTS.body,
-    color: COLORS.textSecondary,
     fontSize: 13,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
   optimizerSplitRow: {
     flexDirection: "row",
@@ -716,15 +621,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
-  optimizerSplitPlatform: { ...FONTS.bodyBold, color: COLORS.textPrimary, fontSize: 14 },
-  optimizerSplitItems: { ...FONTS.caption, color: COLORS.textSecondary, marginTop: 2 },
+  optimizerSplitPlatform: { ...FONTS.bodyBold, fontSize: 14 },
+  optimizerSplitItems: { ...FONTS.caption, marginTop: 2 },
   optimizerSplitCosts: { alignItems: "flex-end" },
-  optimizerSplitSubtotal: { ...FONTS.bodyBold, color: COLORS.textPrimary },
-  optimizerSplitDelivery: { ...FONTS.caption, color: COLORS.textTertiary },
+  optimizerSplitSubtotal: { ...FONTS.bodyBold },
+  optimizerSplitDelivery: { ...FONTS.caption },
   optimizerDismissBtn: { padding: SPACING.md, alignItems: "center" },
-  optimizerDismissText: { ...FONTS.body, color: COLORS.textTertiary, fontSize: 13 },
+  optimizerDismissText: { ...FONTS.body, fontSize: 13 },
 });
 
 export default HomeScreen;

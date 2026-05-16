@@ -16,7 +16,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
-import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 import GroqService from "../services/GroqService";
 import * as Haptics from "expo-haptics";
 
@@ -39,6 +40,7 @@ const MEAL_SUGGESTIONS = [
 
 const MealPlannerScreen = () => {
   const navigation = useNavigation();
+  const { themeColors, isDark } = useTheme();
   const [mealInput, setMealInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [ingredients, setIngredients] = useState(null);
@@ -96,42 +98,42 @@ const MealPlannerScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={22} color={COLORS.textPrimary} />
+      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          {/* Header */}
+          <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
+            <TouchableOpacity
+              style={[styles.backBtn, { backgroundColor: themeColors.background }]}
+              onPress={() => navigation.goBack()}
+            >
+            <Ionicons name="arrow-back" size={22} color={themeColors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerEyebrow}>AI-Powered</Text>
-            <Text style={styles.headerTitle}>Meal Planner</Text>
-            <Text style={styles.headerSubtitle}>
+            <Text style={[styles.headerEyebrow, { color: themeColors.primary }]}>AI-Powered</Text>
+            <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Meal Planner</Text>
+            <Text style={[styles.headerSubtitle, { color: themeColors.textSecondary }]}>
               Tell us what you want to cook — we'll find every ingredient
             </Text>
           </View>
         </View>
 
         <ScrollView
-          style={styles.scroll}
+          style={[styles.scroll, { backgroundColor: themeColors.background }]}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           {/* Input Card */}
-          <View style={styles.inputCard}>
-            <View style={styles.inputRow}>
-              <Ionicons name="restaurant-outline" size={20} color={COLORS.primary} style={{ marginRight: 10 }} />
+          <View style={[styles.inputCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+            <View style={[styles.inputRow, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
+              <Ionicons name="restaurant-outline" size={20} color={themeColors.primary} style={{ marginRight: 10 }} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: themeColors.textPrimary }]}
                 placeholder="e.g. Butter chicken for 4 people"
-                placeholderTextColor={COLORS.textTertiary}
+                placeholderTextColor={themeColors.textTertiary}
                 value={mealInput}
                 onChangeText={setMealInput}
                 returnKeyType="done"
@@ -140,7 +142,7 @@ const MealPlannerScreen = () => {
               />
               {mealInput.length > 0 && (
                 <TouchableOpacity onPress={() => { setMealInput(""); setIngredients(null); }}>
-                  <Ionicons name="close-circle" size={20} color={COLORS.textTertiary} />
+                  <Ionicons name="close-circle" size={20} color={themeColors.textTertiary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -152,7 +154,7 @@ const MealPlannerScreen = () => {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={mealInput.trim() ? COLORS.gradientAccent : [COLORS.border, COLORS.border]}
+                colors={mealInput.trim() ? (themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]) : [themeColors.border, themeColors.border]}
                 style={styles.planBtnGradient}
               >
                 {loading ? (
@@ -170,17 +172,17 @@ const MealPlannerScreen = () => {
           {/* Quick suggestions */}
           {!ingredients && !loading && (
             <View style={styles.suggestionsSection}>
-              <Text style={styles.suggestionsTitle}>Try one of these</Text>
+              <Text style={[styles.suggestionsTitle, { color: themeColors.textSecondary }]}>TRY ONE OF THESE</Text>
               {MEAL_SUGGESTIONS.map((s) => (
                 <TouchableOpacity
                   key={s}
-                  style={styles.suggestionChip}
+                  style={[styles.suggestionChip, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}
                   onPress={() => { setMealInput(s); handlePlan(s); }}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="flame-outline" size={15} color={COLORS.accentGold} />
-                  <Text style={styles.suggestionText}>{s}</Text>
-                  <Ionicons name="arrow-forward" size={14} color={COLORS.textTertiary} />
+                  <Ionicons name="flame-outline" size={15} color={themeColors.accent} />
+                  <Text style={[styles.suggestionText, { color: themeColors.textPrimary }]}>{s}</Text>
+                  <Ionicons name="arrow-forward" size={14} color={themeColors.textTertiary} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -188,21 +190,21 @@ const MealPlannerScreen = () => {
 
           {/* Error */}
           {error ? (
-            <View style={styles.errorCard}>
-              <Ionicons name="alert-circle-outline" size={18} color={COLORS.error} />
-              <Text style={styles.errorText}>{error}</Text>
+            <View style={[styles.errorCard, { backgroundColor: themeColors.error + "15", borderColor: themeColors.error + "30" }]}>
+              <Ionicons name="alert-circle-outline" size={18} color={themeColors.error} />
+              <Text style={[styles.errorText, { color: themeColors.error }]}>{error}</Text>
             </View>
           ) : null}
 
           {/* Results */}
           {ingredients && (
             <Animated.View style={{ opacity: fadeAnim }}>
-              <View style={styles.resultsHeader}>
+              <View style={[styles.resultsHeader, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
                 <View style={styles.dishNameRow}>
-                  <Ionicons name="checkmark-circle" size={20} color={COLORS.savings} />
-                  <Text style={styles.dishName}>{dish}</Text>
+                  <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                  <Text style={[styles.dishName, { color: themeColors.textPrimary }]}>{dish}</Text>
                 </View>
-                <Text style={styles.ingredientCount}>
+                <Text style={[styles.ingredientCount, { color: themeColors.textSecondary }]}>
                   {ingredients.length} ingredients found
                 </Text>
               </View>
@@ -211,20 +213,20 @@ const MealPlannerScreen = () => {
               {ingredients.map((ing, i) => (
                 <TouchableOpacity
                   key={i}
-                  style={styles.ingredientRow}
+                  style={[styles.ingredientRow, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}
                   onPress={() => handleSearchIngredient(ing.name)}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.ingredientIndex}>
-                    <Text style={styles.ingredientIndexText}>{i + 1}</Text>
+                  <View style={[styles.ingredientIndex, { backgroundColor: themeColors.primary + "15" }]}>
+                    <Text style={[styles.ingredientIndexText, { color: themeColors.primary }]}>{i + 1}</Text>
                   </View>
                   <View style={styles.ingredientInfo}>
-                    <Text style={styles.ingredientName}>{ing.name}</Text>
-                    <Text style={styles.ingredientQty}>{ing.quantity}</Text>
+                    <Text style={[styles.ingredientName, { color: themeColors.textPrimary }]}>{ing.name}</Text>
+                    <Text style={[styles.ingredientQty, { color: themeColors.textSecondary }]}>{ing.quantity}</Text>
                   </View>
-                  <View style={styles.searchChip}>
-                    <Ionicons name="search" size={13} color={COLORS.primary} />
-                    <Text style={styles.searchChipText}>Compare</Text>
+                  <View style={[styles.searchChip, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
+                    <Ionicons name="search" size={13} color={themeColors.primary} />
+                    <Text style={[styles.searchChipText, { color: themeColors.primary }]}>Compare</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -236,7 +238,7 @@ const MealPlannerScreen = () => {
                 activeOpacity={0.85}
               >
                 <LinearGradient
-                  colors={COLORS.gradientAccent}
+                  colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
                   style={styles.searchAllGradient}
                 >
                   <Ionicons name="cart-outline" size={18} color="#fff" />
@@ -246,202 +248,221 @@ const MealPlannerScreen = () => {
                 </LinearGradient>
               </TouchableOpacity>
 
-              <Text style={styles.searchAllHint}>
+              <Text style={[styles.searchAllHint, { color: themeColors.textTertiary }]}>
                 Tap any ingredient to compare prices across all platforms
               </Text>
             </Animated.View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
+    </View>
+  </SafeAreaView>
+);
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
+  safeArea: { flex: 1 },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "flex-start",
     paddingTop: SPACING.xl,
     paddingBottom: SPACING.lg,
     paddingHorizontal: SPACING.lg,
-    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
     ...SHADOWS.sm,
     zIndex: 10,
   },
   backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: SPACING.md,
-    marginTop: 6, // align with eyebrow text
+    marginTop: 6,
   },
   headerTextContainer: { flex: 1 },
   headerEyebrow: {
     ...FONTS.eyebrow,
     fontSize: 10,
-    color: COLORS.primary,
     marginBottom: SPACING.xs,
   },
   headerTitle: {
     ...FONTS.h1,
     fontSize: 28,
     lineHeight: 34,
-    color: COLORS.textPrimary,
   },
   headerSubtitle: {
     ...FONTS.body,
-    color: COLORS.textSecondary,
     lineHeight: 20,
     marginTop: 4,
   },
-  scroll: { flex: 1, backgroundColor: COLORS.background },
+  scroll: { flex: 1 },
   scrollContent: { padding: SPACING.lg, paddingBottom: 100 },
   inputCard: {
-    backgroundColor: "#fff",
-    borderRadius: RADIUS.xl,
     padding: SPACING.lg,
-    marginBottom: SPACING.xl,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
     ...SHADOWS.md,
+    marginBottom: SPACING.xxl,
   },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    paddingBottom: SPACING.md,
-    marginBottom: SPACING.md,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    marginBottom: SPACING.lg,
   },
   input: {
     flex: 1,
+    paddingVertical: 12,
     ...FONTS.body,
-    color: COLORS.textPrimary,
     fontSize: 15,
   },
-  planBtn: { borderRadius: RADIUS.lg, overflow: "hidden" },
-  planBtnDisabled: { opacity: 0.5 },
+  planBtn: {
+    borderRadius: RADIUS.lg,
+    overflow: "hidden",
+    ...SHADOWS.md,
+  },
   planBtnGradient: {
+    paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
     gap: 8,
   },
-  planBtnText: { ...FONTS.bodyBold, color: "#fff", fontSize: 15 },
-  suggestionsSection: { marginBottom: SPACING.xl },
+  planBtnText: {
+    ...FONTS.bodyBold,
+    color: "#fff",
+  },
+  suggestionsSection: {
+    marginTop: SPACING.md,
+  },
   suggestionsTitle: {
-    ...FONTS.captionBold,
-    color: COLORS.textSecondary,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    ...FONTS.eyebrow,
+    fontSize: 10,
     marginBottom: SPACING.md,
+    letterSpacing: 1,
   },
   suggestionChip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: RADIUS.lg,
-    paddingHorizontal: SPACING.md,
     paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.lg,
     marginBottom: SPACING.sm,
-    gap: 10,
-    ...SHADOWS.sm,
+    borderWidth: 1,
+    gap: 12,
   },
-  suggestionText: { flex: 1, ...FONTS.body, color: COLORS.textPrimary },
-  errorCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: COLORS.errorLight,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.lg,
+  suggestionText: {
+    flex: 1,
+    ...FONTS.body,
+    fontSize: 15,
   },
-  errorText: { ...FONTS.body, color: COLORS.error, flex: 1 },
   resultsHeader: {
+    padding: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
     marginBottom: SPACING.lg,
+    ...SHADOWS.sm,
   },
   dishNameRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginBottom: 4,
   },
   dishName: {
-    ...FONTS.h3,
+    ...FONTS.h2,
     fontSize: 20,
-    color: COLORS.textPrimary,
-    textTransform: "capitalize",
+    flex: 1,
   },
   ingredientCount: {
     ...FONTS.caption,
-    color: COLORS.textSecondary,
+    marginTop: 4,
     marginLeft: 28,
   },
   ingredientRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: RADIUS.lg,
     padding: SPACING.md,
+    borderRadius: RADIUS.lg,
     marginBottom: SPACING.sm,
+    borderWidth: 1,
     gap: 12,
-    ...SHADOWS.sm,
   },
   ingredientIndex: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: COLORS.violetLight,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   ingredientIndexText: {
     ...FONTS.captionBold,
-    color: COLORS.primary,
     fontSize: 12,
   },
-  ingredientInfo: { flex: 1 },
+  ingredientInfo: {
+    flex: 1,
+  },
   ingredientName: {
     ...FONTS.bodyBold,
-    color: COLORS.textPrimary,
     fontSize: 15,
-    textTransform: "capitalize",
   },
   ingredientQty: {
     ...FONTS.caption,
-    color: COLORS.textSecondary,
-    marginTop: 2,
+    marginTop: 1,
   },
   searchChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: COLORS.violetLight,
-    borderRadius: RADIUS.sm,
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    gap: 4,
   },
-  searchChipText: { ...FONTS.captionBold, color: COLORS.primary, fontSize: 11 },
+  searchChipText: {
+    ...FONTS.captionBold,
+    fontSize: 11,
+  },
   searchAllBtn: {
-    borderRadius: RADIUS.xl,
-    overflow: "hidden",
     marginTop: SPACING.xl,
-    ...SHADOWS.colored,
+    borderRadius: RADIUS.lg,
+    overflow: "hidden",
+    ...SHADOWS.md,
   },
   searchAllGradient: {
+    paddingVertical: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
     gap: 10,
   },
-  searchAllText: { ...FONTS.bodyBold, color: "#fff", fontSize: 16 },
+  searchAllText: {
+    ...FONTS.bodyBold,
+    color: "#fff",
+    fontSize: 16,
+  },
   searchAllHint: {
     ...FONTS.caption,
-    color: COLORS.textTertiary,
     textAlign: "center",
     marginTop: SPACING.md,
-    marginBottom: SPACING.xl,
+    fontSize: 12,
+  },
+  errorCard: {
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: SPACING.lg,
+  },
+  errorText: {
+    ...FONTS.captionBold,
+    flex: 1,
   },
 });
 

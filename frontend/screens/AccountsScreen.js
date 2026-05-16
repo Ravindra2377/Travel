@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useContext } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Modal,
   StatusBar,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -15,8 +16,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import api from "../config/api";
-import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
+import { ScreenHeader } from "../components/SharedUI";
 
 // Platform configuration with proper login URLs
 const PLATFORMS = [
@@ -34,7 +37,7 @@ const PLATFORMS = [
     name: "Zepto",
     loginUrl: "https://www.zepto.com/",
     testUrl: "https://api.zepto.co.in/api/v1/search",
-    color: "#5901C9",
+    color: "#7C3AED",
     icon: "bicycle",
     requiredTokens: ["user", "cart"],
   },
@@ -50,7 +53,7 @@ const PLATFORMS = [
   {
     id: "Amazon",
     name: "Amazon",
-    loginUrl: "https://www.amazon.in/ap/signin?openid.return_to=https%3A%2F%2Fwww.amazon.in%2F&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.assoc_handle=inflex&openid.mode=checkid_setup&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0",
+    loginUrl: "https://www.amazon.in/ap/signin",
     testUrl: "https://www.amazon.in/s?k=milk",
     color: "#FF9900",
     icon: "cart",
@@ -68,6 +71,7 @@ const PLATFORMS = [
 ];
 
 export default function AccountsScreen({ navigation }) {
+  const { themeColors, isDark } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [currentPlatform, setCurrentPlatform] = useState(null);
   const [connected, setConnected] = useState({});
@@ -209,176 +213,145 @@ export default function AccountsScreen({ navigation }) {
     }
   };
 
-  const INJECTED_JAVASCRIPT = `
-    (function() {
-      let hasProcessed = false;
-      function log(msg) {
-        try {
-          window.ReactNativeWebView.postMessage(JSON.stringify({type: 'LOG', message: msg}));
-        } catch(e) {}
-      }
-      function sendTokens() {
-        if (hasProcessed) return;
-        const host = window.location.hostname;
-        const cookies = document.cookie;
-        const ls = {...localStorage};
-        let payload = {};
-        let isValid = false;
-        if (host.includes('blinkit')) {
-          if (ls.auth || ls.authKey || (cookies && cookies.includes('gr_1_accessToken'))) {
-            payload['auth'] = ls.auth; payload['authKey'] = ls.authKey; payload['cookie'] = cookies; isValid = true;
-          }
-        } else if (host.includes('zepto')) {
-          if (ls.user || (cookies && cookies.includes('session_id'))) {
-            payload['user'] = ls.user; payload['cookie'] = cookies; isValid = true;
-          }
-        } else if (host.includes('bigbasket')) {
-          if (cookies && (cookies.includes('sessionid') || cookies.includes('_bb_vid'))) {
-            payload['cookie'] = cookies; isValid = true;
-          }
-        } else if (host.includes('amazon')) {
-          if (cookies && cookies.includes('session-id')) {
-            payload['cookie'] = cookies; isValid = true;
-          }
-        } else if (host.includes('flipkart')) {
-          if (cookies && cookies.includes('T=')) {
-            payload['cookie'] = cookies; isValid = true;
-          }
-        }
-        if (isValid && Object.keys(payload).length > 0) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({type: 'TOKENS', payload: payload}));
-          hasProcessed = true;
-        }
-      }
-      sendTokens();
-      setInterval(sendTokens, 3000);
-    })();
-  `;
-
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
 
-        <LinearGradient colors={COLORS.gradientHero} style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              navigation.goBack();
-            }}
-          >
-            <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
+        <View style={{ paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+            <Ionicons name="arrow-back" size={20} color={themeColors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Link Accounts</Text>
-          <Text style={styles.headerSubtitle}>
-            Login once to enable price comparisons
-          </Text>
-        </LinearGradient>
+          <View style={{ marginTop: SPACING.lg }}>
+            <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Link Accounts</Text>
+            <Text style={[styles.headerSubtitle, { color: themeColors.textSecondary }]}>Login once to enable price comparisons</Text>
+          </View>
+        </View>
 
-        <ScrollView contentContainerStyle={styles.list}>
-          <View style={styles.infoCard}>
-            <Ionicons name="information-circle" size={24} color={COLORS.accentGold} />
-            <Text style={styles.infoText}>
-              Tap "Connect" and log in to each platform. Your credentials stay
-              secure in the app.
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Info Card */}
+          <View style={[styles.infoCard, { backgroundColor: themeColors.accentLight, borderColor: themeColors.primary + "30" }]}>
+            <Ionicons name="information-circle" size={20} color={themeColors.primary} />
+            <Text style={[styles.infoText, { color: themeColors.primary }]}>
+              Tap "Connect" and log in to each platform. Your credentials stay secure in the app.
             </Text>
           </View>
 
-          {PLATFORMS.map((platform) => (
-            <View key={platform.id} style={styles.card}>
-              <View style={styles.cardLeft}>
-                <View
-                  style={[
-                    styles.iconContainer,
-                    { backgroundColor: platform.color },
-                  ]}
-                >
-                  <Ionicons name={platform.icon} size={24} color="#fff" />
-                </View>
-                <View style={styles.cardInfo}>
-                  <Text style={styles.platformName}>{platform.name}</Text>
-                  <Text style={styles.platformStatus}>
-                    {connected[platform.id] ? (
-                      <Text style={styles.statusConnected}>● Connected</Text>
-                    ) : (
-                      <Text style={styles.statusDisconnected}>
-                        ○ Not connected
+          {PLATFORMS.map((platform) => {
+            const isConnected = connected[platform.id];
+            return (
+              <View
+                key={platform.id}
+                style={[styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}
+              >
+                <View style={styles.cardLeft}>
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: platform.color + "20" },
+                    ]}
+                  >
+                    <Ionicons name={platform.icon} size={24} color={platform.color} />
+                  </View>
+                  <View style={styles.cardInfo}>
+                    <Text style={[styles.platformName, { color: themeColors.textPrimary }]}>{platform.name}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <View style={[styles.statusDot, { backgroundColor: isConnected ? "#10B981" : themeColors.textTertiary }]} />
+                      <Text
+                        style={[
+                          styles.platformStatus,
+                          isConnected ? styles.statusConnected : { color: themeColors.textTertiary },
+                        ]}
+                      >
+                        {isConnected ? "Connected" : "Not connected"}
                       </Text>
-                    )}
-                  </Text>
+                    </View>
+                  </View>
                 </View>
-              </View>
 
-              <View style={styles.cardButtons}>
-                {connected[platform.id] ? (
-                  <>
+                <View style={styles.cardButtons}>
+                  {isConnected ? (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.buttonReconnect, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}
+                        onPress={() => openLogin(platform)}
+                      >
+                        <Ionicons name="refresh" size={18} color={themeColors.textSecondary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.buttonDisconnect, { backgroundColor: themeColors.error + "15" }]}
+                        onPress={() => disconnectAccount(platform.id)}
+                      >
+                        <Ionicons name="trash-outline" size={18} color={themeColors.error} />
+                      </TouchableOpacity>
+                    </>
+                  ) : (
                     <TouchableOpacity
-                      style={styles.buttonReconnect}
+                      style={[styles.buttonConnect, { backgroundColor: themeColors.primary }]}
                       onPress={() => openLogin(platform)}
                     >
-                      <Ionicons name="refresh" size={18} color="#666" />
+                      <Text style={styles.buttonConnectText}>Connect</Text>
+                      <Ionicons name="arrow-forward" size={16} color="#FFF" />
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.buttonDisconnect}
-                      onPress={() => disconnectAccount(platform.id)}
-                    >
-                      <Ionicons name="close-circle" size={18} color="#ff4444" />
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.buttonConnect}
-                    onPress={() => openLogin(platform)}
-                  >
-                    <Text style={styles.buttonConnectText}>Connect</Text>
-                    <Ionicons name="arrow-forward" size={16} color="#fff" />
-                  </TouchableOpacity>
-                )}
+                  )}
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
 
         <Modal
-          visible={modalVisible}
           animationType="slide"
+          transparent={false}
+          visible={modalVisible}
           onRequestClose={() => setModalVisible(false)}
         >
-          <SafeAreaView style={styles.safeArea}>
-            <View style={styles.modalContainer}>
-              <View style={styles.modalHeader}>
-                <View style={styles.modalHeaderLeft}>
-                  <Text style={styles.modalTitle}>{currentPlatform?.name}</Text>
-                  <Text style={styles.modalSubtitle}>
-                    Please log in to continue
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.modalCloseButton}
-                  onPress={() => setModalVisible(false)}
-                >
-                  <Ionicons name="close" size={28} color={COLORS.textPrimary} />
-                </TouchableOpacity>
+          <SafeAreaView style={[styles.modalContainer, { backgroundColor: themeColors.background }]}>
+            <View style={[styles.modalHeader, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
+              <View style={styles.modalHeaderLeft}>
+                <Text style={[styles.modalTitle, { color: themeColors.textPrimary }]}>Login to {currentPlatform?.name}</Text>
+                <Text style={[styles.modalSubtitle, { color: themeColors.textSecondary }]}>Securely connect your account</Text>
               </View>
-
-              {currentPlatform && (
-                <WebView
-                  ref={webViewRef}
-                  source={{ uri: currentPlatform.loginUrl }}
-                  injectedJavaScriptBeforeContentLoaded={INJECTED_JAVASCRIPT}
-                  onMessage={handleWebViewMessage}
-                  style={styles.webview}
-                  userAgent={
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                  }
-                  javaScriptEnabled={true}
-                  domStorageEnabled={true}
-                  sharedCookiesEnabled={true}
-                  thirdPartyCookiesEnabled={true}
-                />
-              )}
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={[styles.modalCloseButton, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}
+              >
+                <Ionicons name="close" size={24} color={themeColors.textPrimary} />
+              </TouchableOpacity>
             </View>
+
+            <WebView
+              ref={webViewRef}
+              source={{ uri: currentPlatform?.loginUrl }}
+              style={styles.webview}
+              injectedJavaScript={`
+                (function() {
+                  let hasProcessed = false;
+                  function log(msg) {
+                    try { window.ReactNativeWebView.postMessage(JSON.stringify({type: 'LOG', message: msg})); } catch(e) {}
+                  }
+                  function sendTokens() {
+                    if (hasProcessed) return;
+                    const cookies = document.cookie;
+                    const ls = {...localStorage};
+                    let payload = {};
+                    let isValid = false;
+                    const host = window.location.hostname;
+                    if (host.includes('blinkit') && (ls.auth || ls.authKey)) { payload['auth'] = ls.auth; payload['authKey'] = ls.authKey; payload['cookie'] = cookies; isValid = true; }
+                    else if (host.includes('zepto') && (ls.user || cookies.includes('session_id'))) { payload['user'] = ls.user; payload['cookie'] = cookies; isValid = true; }
+                    else if (host.includes('bigbasket') && (cookies.includes('sessionid') || cookies.includes('_bb_vid'))) { payload['cookie'] = cookies; isValid = true; }
+                    else if (host.includes('amazon') && cookies.includes('session-id')) { payload['cookie'] = cookies; isValid = true; }
+                    else if (host.includes('flipkart') && cookies.includes('T=')) { payload['cookie'] = cookies; isValid = true; }
+                    
+                    if (isValid) {
+                      window.ReactNativeWebView.postMessage(JSON.stringify({type: 'TOKENS', payload: payload}));
+                      hasProcessed = true;
+                    }
+                  }
+                  setInterval(sendTokens, 2000);
+                })();
+              `}
+              onMessage={handleWebViewMessage}
+            />
           </SafeAreaView>
         </Modal>
       </View>
@@ -389,68 +362,52 @@ export default function AccountsScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
-  header: {
-    paddingTop: 32,
-    paddingBottom: SPACING.xxl,
-    paddingHorizontal: SPACING.xl,
-    borderBottomLeftRadius: RADIUS.xl,
-    borderBottomRightRadius: RADIUS.xl,
-    ...SHADOWS.md,
-  },
-  backButton: {
+  backBtn: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: SPACING.md,
-    ...SHADOWS.sm,
+    borderWidth: 1,
   },
   headerTitle: {
-    ...FONTS.h1Dark,
-    marginBottom: SPACING.xs,
+    ...FONTS.h1,
+    fontSize: 28,
   },
   headerSubtitle: {
-    ...FONTS.bodyDark,
+    ...FONTS.body,
+    marginTop: 4,
   },
-  list: {
-    padding: SPACING.md,
-    paddingBottom: 100,
+  scrollContent: {
+    padding: SPACING.xl,
+    paddingBottom: 40,
   },
   infoCard: {
     flexDirection: "row",
-    backgroundColor: COLORS.accentLight,
-    borderRadius: RADIUS.md,
     padding: SPACING.lg,
-    marginBottom: SPACING.xl,
-    alignItems: "center",
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: "rgba(196, 162, 101, 0.2)",
+    marginBottom: SPACING.xxl,
+    gap: 12,
   },
   infoText: {
     flex: 1,
-    marginLeft: SPACING.md,
-    ...FONTS.body,
-    color: COLORS.accentGold,
+    ...FONTS.captionBold,
+    lineHeight: 18,
   },
   card: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
     padding: SPACING.lg,
+    borderRadius: RADIUS.xl,
     marginBottom: SPACING.md,
     ...SHADOWS.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
   },
   cardLeft: {
     flexDirection: "row",
@@ -458,9 +415,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: RADIUS.lg,
     justifyContent: "center",
     alignItems: "center",
     marginRight: SPACING.md,
@@ -469,18 +426,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   platformName: {
-    ...FONTS.h3,
-    marginBottom: 4,
+    ...FONTS.bodyBold,
+    fontSize: 16,
+    marginBottom: 2,
   },
   platformStatus: {
     ...FONTS.caption,
+    fontSize: 12,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusConnected: {
-    color: COLORS.savings,
-    fontWeight: "600",
-  },
-  statusDisconnected: {
-    color: COLORS.textTertiary,
+    color: "#10B981",
+    fontWeight: "700",
   },
   cardButtons: {
     flexDirection: "row",
@@ -488,72 +449,62 @@ const styles = StyleSheet.create({
   },
   buttonConnect: {
     flexDirection: "row",
-    backgroundColor: COLORS.textPrimary,
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
+    paddingVertical: 10,
     borderRadius: RADIUS.full,
     alignItems: "center",
-    gap: SPACING.sm,
+    gap: 8,
+    ...SHADOWS.md,
   },
   buttonConnectText: {
     color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   buttonReconnect: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.cardAlt,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: COLORS.border,
   },
   buttonDisconnect: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.errorLight,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(196, 84, 84, 0.15)",
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.xl,
-    paddingBottom: SPACING.lg,
-    backgroundColor: COLORS.surface,
+    paddingVertical: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
   modalHeaderLeft: {
     flex: 1,
   },
   modalTitle: {
-    ...FONTS.h2,
-    marginBottom: 4,
+    ...FONTS.h3,
+    fontSize: 18,
   },
   modalSubtitle: {
     ...FONTS.caption,
+    marginTop: 2,
   },
   modalCloseButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.cardAlt,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: COLORS.border,
   },
   webview: {
     flex: 1,

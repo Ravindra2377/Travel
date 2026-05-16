@@ -12,7 +12,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { COLORS, SHADOWS, RADIUS, SPACING } from "../config/theme";
+import { SHADOWS, RADIUS, SPACING } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -20,6 +21,7 @@ const { width } = Dimensions.get("window");
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { bottom: bottomInset } = useSafeAreaInsets();
+  const { themeColors, isDark } = useTheme();
   const scaleAnims = useRef(
     state.routes.map(() => new Animated.Value(1)),
   ).current;
@@ -30,12 +32,12 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 
   return (
     <View style={[styles.container, { bottom: containerBottom }]}>
-      <View style={styles.floatingBar}>
+      <View style={[styles.floatingBar, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
         {/* Glassmorphism Background */}
         <View style={styles.blurContainer}>
           <BlurView
             intensity={85}
-            tint="light"
+            tint={isDark ? "dark" : "light"}
             style={StyleSheet.absoluteFill}
           />
         </View>
@@ -104,12 +106,13 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                   <Ionicons
                     name={iconName}
                     size={22}
-                    color={isFocused ? COLORS.primary : "#A0A0A0"}
+                    color={isFocused ? themeColors.primary : themeColors.textTertiary}
                   />
                   <Text
                     style={[
                       styles.tabLabel,
-                      isFocused && styles.activeTabLabel,
+                      { color: themeColors.textTertiary },
+                      isFocused && [styles.activeTabLabel, { color: themeColors.primary }],
                     ]}
                   >
                     {route.name}
@@ -150,15 +153,12 @@ const styles = StyleSheet.create({
   },
   floatingBar: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
     borderRadius: 35,
     height: 70,
     width: "100%",
     ...SHADOWS.navbar,
     borderWidth: 1,
     borderTopWidth: 1.5,
-    borderColor: "rgba(255, 255, 255, 0.5)",
-    borderTopColor: "rgba(255, 255, 255, 0.8)", // Reflection effect
     overflow: "visible",
   },
   blurContainer: {
@@ -192,12 +192,10 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 10,
-    color: "#A0A0A0",
     marginTop: 2,
     fontWeight: "500",
   },
   activeTabLabel: {
-    color: COLORS.primary,
     fontWeight: "600",
   },
 });

@@ -5,14 +5,15 @@ import {
   StyleSheet,
   Animated,
   TouchableWithoutFeedback,
+  TouchableOpacity
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import GlassCard from "./GlassCard";
-import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { SPACING, RADIUS, FONTS, SHADOWS, COLORS } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 import { WishlistContext } from "../context/WishlistContext";
 import * as Haptics from "expo-haptics";
-import { TouchableOpacity } from "react-native";
 
 const PLATFORM_COLORS = {
   Blinkit: COLORS.platformBlinkit,
@@ -33,6 +34,10 @@ const formatPrice = (value) => {
 };
 
 const ProductCard = ({ product, onPress }) => {
+  const { themeColors, isDark } = useTheme();
+
+  if (!product) return null;
+
   const {
     name = "Product",
     brand = "",
@@ -57,13 +62,9 @@ const ProductCard = ({ product, onPress }) => {
   const resolvedImageURL = imageCandidates[imageIndex] || imageURL || "";
 
   const effectivePrice = Number(price) > 0 ? Number(price) : 0;
-  const effectiveOriginalPrice =
-    Number(originalPrice) > 0 ? Number(originalPrice) : 0;
-  const hasOriginal =
-    effectiveOriginalPrice > effectivePrice && effectivePrice > 0;
-  const savingsValue = hasOriginal
-    ? Math.max(0, effectiveOriginalPrice - effectivePrice)
-    : 0;
+  const effectiveOriginalPrice = Number(originalPrice) > 0 ? Number(originalPrice) : 0;
+  const hasOriginal = effectiveOriginalPrice > effectivePrice && effectivePrice > 0;
+  const savingsValue = hasOriginal ? Math.max(0, effectiveOriginalPrice - effectivePrice) : 0;
   const hasDiscount = discount > 0;
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -84,7 +85,7 @@ const ProductCard = ({ product, onPress }) => {
       bounciness: 4,
     }).start();
 
-  const accentColor = PLATFORM_COLORS[bestPlatform] || COLORS.accent;
+  const accentColor = PLATFORM_COLORS[bestPlatform] || themeColors.accent;
 
   return (
     <TouchableWithoutFeedback
@@ -97,12 +98,13 @@ const ProductCard = ({ product, onPress }) => {
         testID={`productCard_${bestPlatform || "best"}`}
       >
         <GlassCard
-          gradientColors={COLORS.gradientCard}
+          gradientColors={isDark ? themeColors.gradientCard : ["#FFFFFF", "#FFFFFF"]}
           accentColor={accentColor}
           glowColor={accentColor}
+          style={!isDark && { backgroundColor: themeColors.surface, borderWidth: 1, borderColor: themeColors.border, ...SHADOWS.md }}
         >
           <View style={styles.content}>
-            <View style={styles.imageContainer}>
+            <View style={[styles.imageContainer, { backgroundColor: themeColors.cardAlt }]}>
               {resolvedImageURL && !imageError ? (
                 <Image
                   source={{ uri: resolvedImageURL }}
@@ -121,11 +123,11 @@ const ProductCard = ({ product, onPress }) => {
                   }}
                 />
               ) : (
-                <View style={styles.imagePlaceholder}>
+                <View style={[styles.imagePlaceholder, { backgroundColor: themeColors.cardAlt }]}>
                   <Ionicons
                     name="image-outline"
                     size={28}
-                    color={COLORS.textTertiary}
+                    color={themeColors.textTertiary}
                   />
                 </View>
               )}
@@ -133,7 +135,7 @@ const ProductCard = ({ product, onPress }) => {
 
             {/* Like Button Overlay */}
             <TouchableOpacity
-              style={styles.likeBtn}
+              style={[styles.likeBtn, { backgroundColor: themeColors.surface, ...SHADOWS.sm }]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 toggleWishlist(product);
@@ -142,28 +144,28 @@ const ProductCard = ({ product, onPress }) => {
               <Ionicons
                 name={liked ? "heart" : "heart-outline"}
                 size={22}
-                color={liked ? COLORS.primary : COLORS.textTertiary}
+                color={liked ? themeColors.primary : themeColors.textTertiary}
               />
             </TouchableOpacity>
 
             <View style={styles.info}>
-              <Text style={styles.name} numberOfLines={2}>
+              <Text style={[styles.name, { color: themeColors.textPrimary }]} numberOfLines={2}>
                 {name}
               </Text>
               {brand ? (
-                <Text style={styles.brand}>{brand.toUpperCase()}</Text>
+                <Text style={[styles.brand, { color: themeColors.textTertiary }]}>{brand.toUpperCase()}</Text>
               ) : null}
 
               <View style={styles.priceRow}>
                 <View>
-                  <Text style={[styles.priceLabel, { color: COLORS.accent }]}>
+                  <Text style={[styles.priceLabel, { color: themeColors.accent }]}>
                     BEST PRICE
                   </Text>
-                  <Text style={styles.price}>
+                  <Text style={[styles.price, { color: themeColors.textPrimary }]}>
                     ₹{formatPrice(effectivePrice)}
                   </Text>
                   {unitPrice ? (
-                    <Text style={styles.unitPriceText}>
+                    <Text style={[styles.unitPriceText, { color: themeColors.textSecondary, ...FONTS.caption }]}>
                       ₹{formatPrice(unitPrice)} {unitLabel}
                     </Text>
                   ) : null}
@@ -171,8 +173,8 @@ const ProductCard = ({ product, onPress }) => {
 
                 {hasOriginal ? (
                   <View style={styles.mrpBlock}>
-                    <Text style={styles.mrpLabel}>MRP</Text>
-                    <Text style={styles.originalPrice}>
+                    <Text style={[styles.mrpLabel, { color: themeColors.textTertiary }]}>MRP</Text>
+                    <Text style={[styles.originalPrice, { color: themeColors.textTertiary }]}>
                       ₹{formatPrice(effectiveOriginalPrice)}
                     </Text>
                   </View>
@@ -183,7 +185,7 @@ const ProductCard = ({ product, onPress }) => {
                     style={[
                       styles.savingsChip,
                       {
-                        backgroundColor: COLORS.savings,
+                        backgroundColor: themeColors.savings,
                         paddingHorizontal: 10,
                       },
                     ]}
@@ -196,21 +198,21 @@ const ProductCard = ({ product, onPress }) => {
                 ) : null}
 
                 {hasDiscount && (
-                  <View style={styles.discountBadge}>
-                    <Text style={styles.discountText}>{discount}% OFF</Text>
+                  <View style={[styles.discountBadge, { backgroundColor: themeColors.warningLight }]}>
+                    <Text style={[styles.discountText, { color: themeColors.warning }]}>{discount}% OFF</Text>
                   </View>
                 )}
               </View>
 
               <View style={styles.metaRow}>
-                <View style={styles.platformPill}>
+                <View style={[styles.platformPill, { backgroundColor: themeColors.cardAlt }]}>
                   <Ionicons
                     name="layers-outline"
                     size={11}
-                    color={COLORS.textTertiary}
+                    color={themeColors.textTertiary}
                     style={{ marginRight: 4 }}
                   />
-                  <Text style={styles.platformText}>
+                  <Text style={[styles.platformText, { color: themeColors.textSecondary }]}>
                     {platformCount}/{totalPlatforms} Platforms
                   </Text>
                 </View>
@@ -221,6 +223,7 @@ const ProductCard = ({ product, onPress }) => {
                       {
                         backgroundColor: `${accentColor}22`,
                         borderColor: `${accentColor}55`,
+                        borderWidth: 1,
                       },
                     ]}
                   >
@@ -238,11 +241,11 @@ const ProductCard = ({ product, onPress }) => {
               </View>
             </View>
 
-            <View style={styles.arrowWrap}>
+            <View style={[styles.arrowWrap, { backgroundColor: themeColors.accentLight }]}>
               <Ionicons
                 name="chevron-forward"
                 size={18}
-                color={COLORS.textTertiary}
+                color={themeColors.primary}
               />
             </View>
           </View>
@@ -255,8 +258,6 @@ const ProductCard = ({ product, onPress }) => {
 const areEqual = (prev, next) => {
   const p = prev.product || {};
   const n = next.product || {};
-  // Include image fields: without these, late-arriving Amazon images cause a
-  // re-render mid-scroll, which triggers layout recalculation and visible jank.
   const prevCandidates = (p.imageCandidates || []).join(',');
   const nextCandidates = (n.imageCandidates || []).join(',');
   return (
@@ -289,7 +290,6 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: 88,
     height: 88,
-    backgroundColor: COLORS.cardAlt,
     borderRadius: RADIUS.md,
     marginRight: SPACING.md,
     overflow: "hidden",
@@ -305,17 +305,14 @@ const styles = StyleSheet.create({
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.cardAlt,
   },
   info: { flex: 1 },
   name: {
     ...FONTS.bodyBold,
     marginBottom: 4,
-    color: COLORS.textPrimary,
   },
   brand: {
     ...FONTS.caption,
-    color: COLORS.textTertiary,
     marginBottom: SPACING.sm,
     letterSpacing: 1,
     fontSize: 10,
@@ -330,13 +327,12 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     ...FONTS.badge,
-    color: COLORS.textSecondary,
     marginBottom: 2,
     letterSpacing: 1,
   },
   price: {
     ...FONTS.price,
-    fontSize: 24, // Refined for card layout
+    fontSize: 24,
     lineHeight: 32,
   },
   mrpBlock: { paddingBottom: 4 },
@@ -345,15 +341,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 0.6,
     textTransform: "uppercase",
-    color: COLORS.textTertiary,
   },
   originalPrice: {
     ...FONTS.captionBold,
     textDecorationLine: "line-through",
-    color: COLORS.textTertiary,
   },
   savingsChip: {
-    backgroundColor: COLORS.savingsLight,
     paddingHorizontal: SPACING.sm,
     height: 24,
     borderRadius: RADIUS.full,
@@ -365,11 +358,9 @@ const styles = StyleSheet.create({
   savingsText: {
     ...FONTS.captionBold,
     fontSize: 12,
-    color: COLORS.textTertiary,
     marginTop: 2,
   },
   discountBadge: {
-    backgroundColor: COLORS.warningLight,
     paddingHorizontal: 7,
     height: 24,
     borderRadius: RADIUS.full,
@@ -379,7 +370,6 @@ const styles = StyleSheet.create({
   },
   discountText: {
     ...FONTS.badge,
-    color: COLORS.warning,
   },
   metaRow: {
     flexDirection: "row",
@@ -387,7 +377,6 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   platformPill: {
-    backgroundColor: COLORS.cardAlt,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
     borderRadius: RADIUS.full,
@@ -404,7 +393,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.accentLight,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -412,10 +400,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 8,
     right: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
     padding: 8,
     borderRadius: RADIUS.full,
-    ...SHADOWS.sm,
     zIndex: 10,
   },
 });

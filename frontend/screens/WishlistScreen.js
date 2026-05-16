@@ -14,7 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { WishlistContext } from "../context/WishlistContext";
-import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 import { useNavigation } from "@react-navigation/native";
 import GroqService from "../services/GroqService";
 import * as Haptics from "expo-haptics";
@@ -30,6 +31,7 @@ const PLATFORM_COLORS = {
 const WishlistScreen = () => {
   const { wishlist, toggleWishlist } = useContext(WishlistContext);
   const navigation = useNavigation();
+  const { themeColors, isDark } = useTheme();
   const [optimizing, setOptimizing] = useState(false);
   const [optimization, setOptimization] = useState(null);
   const [optimizeError, setOptimizeError] = useState("");
@@ -59,7 +61,7 @@ const WishlistScreen = () => {
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}
         activeOpacity={0.7}
         onPress={() => navigation.navigate("ProductDetail", { product: item })}
       >
@@ -69,15 +71,18 @@ const WishlistScreen = () => {
           resizeMode="contain"
         />
         <View style={styles.content}>
-          <Text style={styles.brand}>{brand}</Text>
-          <Text style={styles.name} numberOfLines={2}>{name}</Text>
+          <Text style={[styles.brand, { color: themeColors.primary }]}>{brand}</Text>
+          <Text style={[styles.name, { color: themeColors.textPrimary }]} numberOfLines={2}>{name}</Text>
           <View style={styles.footer}>
-            <Text style={styles.price}>₹{price}</Text>
+            <Text style={[styles.price, { color: themeColors.textPrimary }]}>₹{price}</Text>
             <TouchableOpacity
-              onPress={() => toggleWishlist(item)}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                toggleWishlist(item);
+              }}
               style={styles.removeBtn}
             >
-              <Ionicons name="heart" size={24} color={COLORS.primary} />
+              <Ionicons name="heart" size={24} color={themeColors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -87,15 +92,15 @@ const WishlistScreen = () => {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <View style={styles.emptyIconWrap}>
-        <Ionicons name="heart-outline" size={60} color={COLORS.textTertiary} />
+      <View style={[styles.emptyIconWrap, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+        <Ionicons name="heart-outline" size={60} color={themeColors.textTertiary} />
       </View>
-      <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
-      <Text style={styles.emptySubtitle}>
+      <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>Your wishlist is empty</Text>
+      <Text style={[styles.emptySubtitle, { color: themeColors.textSecondary }]}>
         Save products you like to compare them later.
       </Text>
       <TouchableOpacity
-        style={styles.exploreBtn}
+        style={[styles.exploreBtn, { backgroundColor: themeColors.primary }]}
         onPress={() => navigation.navigate("Search")}
       >
         <Text style={styles.exploreBtnText}>Explore Products</Text>
@@ -105,14 +110,13 @@ const WishlistScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
 
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
           <View>
-            <Text style={styles.headerTitle}>Liked Products</Text>
-            <Text style={styles.headerSubtitle}>
+            <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Liked Products</Text>
+            <Text style={[styles.headerSubtitle, { color: themeColors.textSecondary }]}>
               {wishlist.length} {wishlist.length === 1 ? "item" : "items"} saved
             </Text>
           </View>
@@ -124,7 +128,7 @@ const WishlistScreen = () => {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={COLORS.gradientAccent}
+                colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
                 style={styles.optimizeBtnGradient}
               >
                 {optimizing ? (
@@ -142,23 +146,23 @@ const WishlistScreen = () => {
 
         {/* Basket Optimizer result card */}
         {optimizing && (
-          <View style={styles.optimizerLoadingCard}>
-            <ActivityIndicator color={COLORS.primary} />
-            <Text style={styles.optimizerLoadingText}>
+          <View style={[styles.optimizerLoadingCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+            <ActivityIndicator color={themeColors.primary} />
+            <Text style={[styles.optimizerLoadingText, { color: themeColors.textPrimary }]}>
               AI calculating cheapest basket split...
             </Text>
           </View>
         )}
 
         {optimizeError ? (
-          <View style={styles.errorCard}>
-            <Ionicons name="alert-circle-outline" size={16} color={COLORS.error} />
-            <Text style={styles.errorText}>{optimizeError}</Text>
+          <View style={[styles.errorCard, { backgroundColor: themeColors.errorLight, borderColor: themeColors.error }]}>
+            <Ionicons name="alert-circle-outline" size={16} color={themeColors.error} />
+            <Text style={[styles.errorText, { color: themeColors.error }]}>{optimizeError}</Text>
           </View>
         ) : null}
 
         {optimization && !optimizing && (
-          <View style={styles.resultCard}>
+          <View style={[styles.resultCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
             {/* Savings banner */}
             {optimization.savings > 0 ? (
               <LinearGradient
@@ -176,37 +180,37 @@ const WishlistScreen = () => {
                 </View>
               </LinearGradient>
             ) : (
-              <View style={styles.noSavingsBanner}>
-                <Ionicons name="checkmark-circle" size={18} color={COLORS.savings} />
-                <Text style={styles.noSavingsText}>Your basket is already optimized!</Text>
+              <View style={[styles.noSavingsBanner, { backgroundColor: themeColors.successLight }]}>
+                <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                <Text style={[styles.noSavingsText, { color: "#10B981" }]}>Your basket is already optimized!</Text>
               </View>
             )}
 
             {/* Recommendation */}
             {optimization.recommendation ? (
-              <Text style={styles.recommendation}>
+              <Text style={[styles.recommendation, { color: themeColors.textPrimary }]}>
                 ✨ {optimization.recommendation}
               </Text>
             ) : null}
 
             {/* Platform splits */}
             {(optimization.splits || []).map((split, i) => (
-              <View key={i} style={styles.splitRow}>
+              <View key={i} style={[styles.splitRow, { borderBottomColor: themeColors.border }]}>
                 <View
                   style={[
                     styles.platformDot,
-                    { backgroundColor: PLATFORM_COLORS[split.platform] || COLORS.primary },
+                    { backgroundColor: PLATFORM_COLORS[split.platform] || themeColors.primary },
                   ]}
                 />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.splitPlatform}>{split.platform}</Text>
-                  <Text style={styles.splitItems} numberOfLines={1}>
+                  <Text style={[styles.splitPlatform, { color: themeColors.textPrimary }]}>{split.platform}</Text>
+                  <Text style={[styles.splitItems, { color: themeColors.textSecondary }]} numberOfLines={1}>
                     {(split.items || []).join(", ")}
                   </Text>
                 </View>
                 <View style={styles.splitCosts}>
-                  <Text style={styles.splitSubtotal}>₹{Math.round(split.subtotal || 0)}</Text>
-                  <Text style={styles.splitDelivery}>+₹{split.deliveryFee || 40} delivery</Text>
+                  <Text style={[styles.splitSubtotal, { color: themeColors.textPrimary }]}>₹{Math.round(split.subtotal || 0)}</Text>
+                  <Text style={[styles.splitDelivery, { color: themeColors.textTertiary }]}>+₹{split.deliveryFee || 40} delivery</Text>
                 </View>
               </View>
             ))}
@@ -215,7 +219,7 @@ const WishlistScreen = () => {
               style={styles.dismissBtn}
               onPress={() => setOptimization(null)}
             >
-              <Text style={styles.dismissText}>Dismiss</Text>
+              <Text style={[styles.dismissText, { color: themeColors.primary }]}>Dismiss</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -234,131 +238,87 @@ const WishlistScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
-  container: { flex: 1, backgroundColor: COLORS.background },
+  safeArea: { flex: 1 },
+  container: { flex: 1 },
   header: {
     paddingTop: SPACING.xl,
     paddingBottom: SPACING.lg,
     paddingHorizontal: SPACING.xl,
-    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     ...SHADOWS.sm,
   },
-  headerTitle: { ...FONTS.h1, fontSize: 28 },
-  headerSubtitle: { ...FONTS.caption, marginTop: 4 },
-  optimizeBtn: { borderRadius: RADIUS.full, overflow: "hidden" },
-  optimizeBtnGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 10,
-    gap: 6,
+  headerTitle: {
+    ...FONTS.h1,
+    fontSize: 24,
   },
-  optimizeBtnText: { ...FONTS.bodyBold, color: "#fff", fontSize: 13 },
-  optimizerLoadingCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    margin: SPACING.md,
-    padding: SPACING.md,
-    backgroundColor: COLORS.violetLight,
-    borderRadius: RADIUS.lg,
+  headerSubtitle: {
+    ...FONTS.caption,
+    marginTop: 2,
   },
-  optimizerLoadingText: { ...FONTS.body, color: COLORS.primary },
-  errorCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    margin: SPACING.md,
-    padding: SPACING.md,
-    backgroundColor: COLORS.errorLight,
-    borderRadius: RADIUS.lg,
-  },
-  errorText: { ...FONTS.body, color: COLORS.error, flex: 1 },
-  resultCard: {
-    margin: SPACING.md,
-    backgroundColor: "#fff",
-    borderRadius: RADIUS.xl,
+  optimizeBtn: {
+    borderRadius: RADIUS.full,
     overflow: "hidden",
     ...SHADOWS.md,
   },
-  savingsBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: SPACING.lg,
-  },
-  savingsAmount: { fontSize: 20, fontWeight: "800", color: "#fff" },
-  savingsCompare: { fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 2 },
-  noSavingsBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    padding: SPACING.lg,
-    backgroundColor: COLORS.savingsLight,
-  },
-  noSavingsText: { ...FONTS.bodyBold, color: COLORS.savings },
-  recommendation: {
-    ...FONTS.body,
-    color: COLORS.textSecondary,
-    fontSize: 13,
+  optimizeBtnGradient: {
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  splitRow: {
+    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    gap: 6,
   },
-  platformDot: { width: 10, height: 10, borderRadius: 5 },
-  splitPlatform: { ...FONTS.bodyBold, color: COLORS.textPrimary, fontSize: 14 },
-  splitItems: { ...FONTS.caption, color: COLORS.textSecondary, marginTop: 2 },
-  splitCosts: { alignItems: "flex-end" },
-  splitSubtotal: { ...FONTS.bodyBold, color: COLORS.textPrimary },
-  splitDelivery: { ...FONTS.caption, color: COLORS.textTertiary },
-  dismissBtn: { padding: SPACING.md, alignItems: "center" },
-  dismissText: { ...FONTS.body, color: COLORS.textTertiary, fontSize: 13 },
-  list: { padding: SPACING.lg, paddingBottom: 100 },
+  optimizeBtnText: {
+    ...FONTS.bodyBold,
+    color: "#FFFFFF",
+    fontSize: 14,
+  },
+  list: {
+    padding: SPACING.lg,
+    paddingBottom: 100,
+  },
   card: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.md,
+    borderWidth: 1,
     ...SHADOWS.sm,
   },
-  image: { width: 80, height: 80, borderRadius: RADIUS.md },
-  content: { flex: 1, marginLeft: SPACING.md, justifyContent: "center" },
+  image: {
+    width: 90,
+    height: 90,
+    borderRadius: RADIUS.md,
+  },
+  content: {
+    flex: 1,
+    marginLeft: SPACING.md,
+    justifyContent: "space-between",
+  },
   brand: {
-    ...FONTS.captionBold,
-    textTransform: "uppercase",
+    ...FONTS.eyebrow,
     fontSize: 10,
-    color: COLORS.textSecondary,
-    marginBottom: 2,
   },
   name: {
     ...FONTS.bodyBold,
     fontSize: 15,
-    color: COLORS.textPrimary,
-    marginBottom: 4,
+    marginTop: 2,
   },
   footer: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
   },
-  price: { ...FONTS.priceSmall, color: COLORS.primary },
-  removeBtn: { padding: 4 },
+  price: {
+    ...FONTS.h3,
+    fontSize: 18,
+  },
+  removeBtn: {
+    padding: 4,
+  },
   emptyContainer: {
     flex: 1,
     alignItems: "center",
@@ -366,29 +326,140 @@ const styles = StyleSheet.create({
     paddingTop: 100,
   },
   emptyIconWrap: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: COLORS.cardAlt,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
     marginBottom: SPACING.xl,
   },
-  emptyTitle: { ...FONTS.h2, marginBottom: SPACING.sm },
+  emptyTitle: {
+    ...FONTS.h2,
+    marginBottom: SPACING.sm,
+  },
   emptySubtitle: {
     ...FONTS.body,
     textAlign: "center",
     paddingHorizontal: 40,
-    marginBottom: SPACING.xxl,
+    lineHeight: 22,
   },
   exploreBtn: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.xxl,
+    marginTop: SPACING.xxl,
+    paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
-    borderRadius: RADIUS.full,
-    ...SHADOWS.colored(COLORS.primary),
+    borderRadius: RADIUS.lg,
+    ...SHADOWS.md,
   },
-  exploreBtnText: { ...FONTS.bodyBold, color: "#FFFFFF" },
+  exploreBtnText: {
+    ...FONTS.bodyBold,
+    color: "#FFFFFF",
+  },
+  optimizerLoadingCard: {
+    margin: SPACING.xl,
+    padding: SPACING.xl,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    alignItems: "center",
+    gap: 12,
+    ...SHADOWS.sm,
+  },
+  optimizerLoadingText: {
+    ...FONTS.bodyBold,
+    textAlign: "center",
+  },
+  resultCard: {
+    margin: SPACING.xl,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    overflow: "hidden",
+    ...SHADOWS.md,
+  },
+  savingsBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: SPACING.lg,
+    gap: 12,
+  },
+  savingsAmount: {
+    ...FONTS.h2,
+    color: "#FFFFFF",
+    fontSize: 22,
+  },
+  savingsCompare: {
+    ...FONTS.caption,
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 11,
+    marginTop: 1,
+  },
+  noSavingsBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: SPACING.lg,
+    gap: 10,
+  },
+  noSavingsText: {
+    ...FONTS.bodyBold,
+    fontSize: 14,
+  },
+  recommendation: {
+    ...FONTS.body,
+    padding: SPACING.lg,
+    lineHeight: 22,
+    fontSize: 14,
+  },
+  splitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  platformDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  splitPlatform: {
+    ...FONTS.bodyBold,
+    fontSize: 14,
+  },
+  splitItems: {
+    ...FONTS.caption,
+    fontSize: 12,
+    marginTop: 1,
+  },
+  splitCosts: {
+    alignItems: "flex-end",
+  },
+  splitSubtotal: {
+    ...FONTS.bodyBold,
+    fontSize: 14,
+  },
+  splitDelivery: {
+    ...FONTS.caption,
+    fontSize: 10,
+  },
+  dismissBtn: {
+    paddingVertical: SPACING.md,
+    alignItems: "center",
+  },
+  dismissText: {
+    ...FONTS.bodyBold,
+  },
+  errorCard: {
+    margin: SPACING.xl,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  errorText: {
+    ...FONTS.captionBold,
+  },
 });
 
 export default WishlistScreen;

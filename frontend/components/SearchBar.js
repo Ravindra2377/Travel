@@ -1,7 +1,8 @@
 import React from "react";
 import { View, TextInput, StyleSheet, TouchableOpacity, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
 
 const SearchBar = ({
@@ -15,27 +16,28 @@ const SearchBar = ({
   autoFocus = false,
   testID,
 }) => {
+  const { themeColors } = useTheme();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.surface }]}>
       <TouchableOpacity
-        style={styles.iconWrap}
+        style={[styles.iconWrap, { backgroundColor: themeColors.accentLight }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }}
         accessibilityLabel="searchButton"
       >
-        <Ionicons name="search" size={18} color={COLORS.primary} />
+        <Ionicons name="search" size={18} color={themeColors.primary} />
       </TouchableOpacity>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { color: themeColors.textPrimary }]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={COLORS.textTertiary}
+        placeholderTextColor={themeColors.textTertiary}
         returnKeyType="search"
         autoCorrect={false}
         autoFocus={autoFocus}
-        selectionColor={COLORS.primary}
+        selectionColor={themeColors.primary}
         testID={testID}
         accessibilityLabel={testID || "searchInput"}
       />
@@ -49,7 +51,7 @@ const SearchBar = ({
           style={styles.clearBtn}
           accessibilityLabel="clearSearchButton"
         >
-          <Ionicons name="close-circle" size={18} color={COLORS.textTertiary} />
+          <Ionicons name="close-circle" size={18} color={themeColors.textTertiary} />
         </TouchableOpacity>
       ) : null}
 
@@ -65,13 +67,13 @@ const SearchBar = ({
             onMicPress();
           }}
           hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-          style={[styles.micBtn, isRecording && styles.micBtnActive]}
+          style={[styles.micBtn, { backgroundColor: isRecording ? "#EF4444" : themeColors.accentLight }]}
           accessibilityLabel="voiceSearchButton"
         >
           <Ionicons
             name={isRecording ? "stop-circle" : "mic"}
             size={18}
-            color={isRecording ? "#fff" : COLORS.primary}
+            color={isRecording ? "#fff" : themeColors.primary}
           />
         </TouchableOpacity>
       )}
@@ -86,7 +88,7 @@ const SearchBar = ({
           style={styles.filterBtn}
           accessibilityLabel="filterSearchButton"
         >
-          <Ionicons name="options-outline" size={20} color={COLORS.textSecondary} />
+          <Ionicons name="options-outline" size={20} color={themeColors.textSecondary} />
         </TouchableOpacity>
       )}
     </View>
@@ -97,7 +99,6 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.md,
     minHeight: 56,
@@ -108,7 +109,6 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.accentLight,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -116,7 +116,6 @@ const styles = StyleSheet.create({
     flex: 1,
     ...FONTS.body,
     fontWeight: "500",
-    color: COLORS.textPrimary,
     paddingVertical: 2,
   },
   clearBtn: {
@@ -126,13 +125,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.accentLight,
     alignItems: "center",
     justifyContent: "center",
     padding: 4,
-  },
-  micBtnActive: {
-    backgroundColor: "#EF4444",
   },
   filterBtn: {
     padding: 4,

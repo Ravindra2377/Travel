@@ -8,7 +8,8 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 
 const SORT_OPTIONS = [
   { id: "relevance", label: "Relevance" },
@@ -26,6 +27,8 @@ const FilterModal = ({
   selectedPlatforms,
   setSelectedPlatforms,
 }) => {
+  const { themeColors, isDark } = useTheme();
+
   const togglePlatform = (platform) => {
     setSelectedPlatforms((prev) => ({
       ...prev,
@@ -47,18 +50,18 @@ const FilterModal = ({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Sort & Filter</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={COLORS.textPrimary} />
+        <View style={[styles.container, { backgroundColor: themeColors.surface, ...SHADOWS.lg }]}>
+          <View style={[styles.header, { backgroundColor: themeColors.cardAlt, borderBottomColor: themeColors.border }]}>
+            <Text style={[styles.title, { color: themeColors.textPrimary }]}>Sort & Filter</Text>
+            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: themeColors.surface, ...SHADOWS.sm }]}>
+              <Ionicons name="close" size={24} color={themeColors.textPrimary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.scrollContent}>
             {/* Sort Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Sort By</Text>
+            <View style={[styles.section, { borderBottomColor: themeColors.border }]}>
+              <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Sort By</Text>
               {SORT_OPTIONS.map((option) => (
                 <TouchableOpacity
                   key={option.id}
@@ -68,24 +71,25 @@ const FilterModal = ({
                   <Text
                     style={[
                       styles.optionText,
-                      sortBy === option.id && styles.optionTextActive,
+                      { color: themeColors.textSecondary },
+                      sortBy === option.id && { color: themeColors.primary, ...FONTS.bodyBold },
                     ]}
                   >
                     {option.label}
                   </Text>
                   {sortBy === option.id && (
-                    <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                    <Ionicons name="checkmark" size={20} color={themeColors.primary} />
                   )}
                 </TouchableOpacity>
               ))}
             </View>
 
             {/* Platform Section */}
-            <View style={styles.section}>
+            <View style={[styles.section, { borderBottomColor: themeColors.border }]}>
               <View style={styles.platformHeader}>
-                <Text style={styles.sectionTitle}>Platforms</Text>
+                <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Platforms</Text>
                 <TouchableOpacity onPress={selectAll}>
-                  <Text style={styles.selectAllText}>Select All</Text>
+                  <Text style={[styles.selectAllText, { color: themeColors.primary }]}>Select All</Text>
                 </TouchableOpacity>
               </View>
               {PLATFORMS.map((platform) => (
@@ -94,11 +98,12 @@ const FilterModal = ({
                   style={styles.optionRow}
                   onPress={() => togglePlatform(platform)}
                 >
-                  <Text style={styles.optionText}>{platform}</Text>
+                  <Text style={[styles.optionText, { color: themeColors.textSecondary }]}>{platform}</Text>
                   <View
                     style={[
                       styles.checkbox,
-                      selectedPlatforms[platform] && styles.checkboxActive,
+                      { borderColor: themeColors.border },
+                      selectedPlatforms[platform] && [styles.checkboxActive, { backgroundColor: themeColors.primary, borderColor: themeColors.primary }],
                     ]}
                   >
                     {selectedPlatforms[platform] && (
@@ -110,8 +115,8 @@ const FilterModal = ({
             </View>
           </ScrollView>
 
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.applyBtn} onPress={onClose}>
+          <View style={[styles.footer, { borderTopColor: themeColors.border }]}>
+            <TouchableOpacity style={[styles.applyBtn, { backgroundColor: themeColors.primary }]} onPress={onClose}>
               <Text style={styles.applyBtnText}>Apply</Text>
             </TouchableOpacity>
           </View>
@@ -129,31 +134,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   container: {
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.xl,
     width: "90%",
     maxHeight: "80%",
     overflow: "hidden",
-    ...SHADOWS.lg,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     padding: SPACING.xl,
-    backgroundColor: COLORS.cardAlt,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
   title: {
     ...FONTS.h2,
     fontSize: 20,
   },
   closeBtn: {
-    backgroundColor: "#FFFFFF",
     padding: 6,
     borderRadius: RADIUS.full,
-    ...SHADOWS.sm,
   },
   scrollContent: {
     paddingHorizontal: SPACING.xl,
@@ -161,15 +160,10 @@ const styles = StyleSheet.create({
   section: {
     paddingVertical: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
   },
   sectionTitle: {
     ...FONTS.h3,
     marginBottom: SPACING.sm,
-    color: COLORS.textSecondary,
-    textTransform: "uppercase",
-    fontSize: 12,
-    letterSpacing: 1,
   },
   platformHeader: {
     flexDirection: "row",
@@ -179,7 +173,6 @@ const styles = StyleSheet.create({
   },
   selectAllText: {
     ...FONTS.captionBold,
-    color: COLORS.primary,
   },
   optionRow: {
     flexDirection: "row",
@@ -190,37 +183,25 @@ const styles = StyleSheet.create({
   optionText: {
     ...FONTS.body,
     fontSize: 16,
-    color: COLORS.textPrimary,
-  },
-  optionTextActive: {
-    fontWeight: "700",
-    color: COLORS.primary,
   },
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 2,
-    borderColor: COLORS.textTertiary,
     alignItems: "center",
     justifyContent: "center",
   },
-  checkboxActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
+  checkboxActive: {},
   footer: {
     padding: SPACING.xl,
     borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-    backgroundColor: "#FFFFFF",
   },
   applyBtn: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.lg,
-    borderRadius: RADIUS.full,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.md,
     alignItems: "center",
-    ...SHADOWS.colored(COLORS.primary),
+    justifyContent: "center",
   },
   applyBtnText: {
     ...FONTS.bodyBold,

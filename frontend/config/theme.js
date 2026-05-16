@@ -5,14 +5,14 @@ import { Platform } from "react-native";
 // Modern vibrant palette · clean surfaces · scalable tokens
 // ─────────────────────────────────────────────────────────────────────────────
 
-const COLORS = {
+export const lightColors = {
   // ── Core backgrounds ──────────────────────────────────────────────
   primary:        "#7C3AED",        // Logo Purple
-  primaryLight:   "#A78BFA",        // Logo Purple Light
+  primaryLight:   "#A78BFA",
   brandPurple:    "#7C3AED",
   brandPurpleLight: "#A78BFA",
   background:     "#F8FAFC",
-  backgroundDark: "#0F172A",
+  backgroundDark: "#0F172A", // Fallback if used statically
   surface:        "#FFFFFF",
   surfaceDark:    "#1E293B",
   card:           "#FFFFFF",
@@ -42,7 +42,7 @@ const COLORS = {
   violet:       "#8B5CF6",          // Logo Violet
   violetLight:  "rgba(139, 92, 246, 0.10)",
 
-  // ── Semantic ──────────────────────────────────────────────────────
+  // ── Semantic (Consistent across themes for safety) ────────────────
   savings:      "#10B981",
   savingsLight: "rgba(16, 185, 129, 0.08)",
   savingsDark:  "#059669",
@@ -71,16 +71,41 @@ const COLORS = {
   textAccent:    "#EC4899",
 
   // ── Gradients ─────────────────────────────────────────────────────
-  gradientHero:     ["#4C1D95", "#7C3AED", "#A855F7"],       // Purple depth
+  gradientHero:     ["#4C1D95", "#7C3AED", "#A855F7"],
   gradientCard:     ["#FFFFFF", "#F8FAFC"],
   gradientCardDark: ["rgba(30,41,59,0.98)", "rgba(15,23,42,0.98)"],
-  gradientAccent:   ["#7C3AED", "#EC4899"],                  // Purple → Pink
+  gradientAccent:   ["#7C3AED", "#EC4899"],
   gradientSavings:  ["#10B981", "#059669"],
   gradientGlass:    ["rgba(255,255,255,0.95)", "rgba(248,250,252,0.90)"],
-  gradientGold:     ["#F97316", "#FB923C"],                  // Orange gradient
-  gradientWarm:     ["#F97316", "#EC4899"],                   // Orange → Pink
-  gradientCool:     ["#06B6D4", "#7C3AED"],                   // Cyan → Purple
+  gradientGold:     ["#F97316", "#FB923C"],
+  gradientWarm:     ["#F97316", "#EC4899"],
+  gradientCool:     ["#06B6D4", "#7C3AED"],
 };
+
+export const darkColors = {
+  ...lightColors,
+  // ── Core backgrounds ──────────────────────────────────────────────
+  background:     "#0F172A",
+  surface:        "#1E293B",
+  card:           "#1E293B",
+  cardAlt:        "#0F172A",
+  border:         "#334155",
+  borderLight:    "#1E293B",
+  divider:        "#334155",
+
+  // ── Text ──────────────────────────────────────────────────────────
+  textPrimary:   "#F8FAFC",
+  textSecondary: "#94A3B8",
+  textTertiary:  "#64748B",
+  textInverse:   "#FFFFFF", // White text on primary buttons for better contrast
+
+  // ── Gradients ─────────────────────────────────────────────────────
+  gradientCard:     ["rgba(30,41,59,0.98)", "rgba(15,23,42,0.98)"],
+  gradientGlass:    ["rgba(15,23,42,0.95)", "rgba(30,41,59,0.90)"],
+};
+
+// Fallback for static usage
+export const COLORS = lightColors;
 
 const SPACING = {
   xs:   4,
@@ -307,4 +332,4 @@ const FONTS = {
   },
 };
 
-export { COLORS, SPACING, RADIUS, SHADOWS, FONTS };
+export { SPACING, RADIUS, SHADOWS, FONTS };

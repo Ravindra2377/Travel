@@ -15,11 +15,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from "../config/theme";
+import { SPACING, RADIUS, SHADOWS, FONTS } from "../config/theme";
+import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
 import GroqService from "../services/GroqService";
 
 const SupportChatScreen = ({ navigation }) => {
+  const { themeColors, isDark } = useTheme();
   const [messages, setMessages] = useState([
     {
       id: "1",
@@ -33,7 +35,6 @@ const SupportChatScreen = ({ navigation }) => {
   ]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  // Conversation history for multi-turn AI context [{role, content}]
   const historyRef = useRef([]);
   const flatListRef = useRef(null);
 
@@ -56,7 +57,6 @@ const SupportChatScreen = ({ navigation }) => {
     setIsTyping(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Build conversation history for Groq (keep last 20 turns)
     const newHistory = [
       ...historyRef.current,
       { role: "user", content: userText },
@@ -79,7 +79,6 @@ const SupportChatScreen = ({ navigation }) => {
       setMessages((prev) => [...prev, aiMessage]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
-      console.log("[SupportChat] Groq error:", e.message);
       setMessages((prev) => [
         ...prev,
         {
@@ -101,20 +100,21 @@ const SupportChatScreen = ({ navigation }) => {
         style={[styles.messageRow, isUser ? styles.userRow : styles.supportRow]}
       >
         {!isUser && (
-          <View style={styles.supportAvatar}>
-            <Ionicons name="headset" size={14} color="#FFF" />
-          </View>
+          <LinearGradient colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]} style={styles.supportAvatar}>
+            <Ionicons name="sparkles" size={12} color="#FFF" />
+          </LinearGradient>
         )}
         <View
           style={[
             styles.bubble,
             isUser ? styles.userBubble : styles.supportBubble,
+            { backgroundColor: isUser ? themeColors.primary : themeColors.surface }
           ]}
         >
           <Text
             style={[
               styles.messageText,
-              isUser ? styles.userText : styles.supportText,
+              { color: isUser ? "#fff" : themeColors.textPrimary }
             ]}
           >
             {item.text}
@@ -122,7 +122,7 @@ const SupportChatScreen = ({ navigation }) => {
           <Text
             style={[
               styles.timeText,
-              isUser ? styles.userTime : styles.supportTime,
+              { color: isUser ? "rgba(255,255,255,0.7)" : themeColors.textTertiary }
             ]}
           >
             {item.time}
@@ -134,16 +134,15 @@ const SupportChatScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <StatusBar barStyle="light-content" />
+      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
 
         {/* Header */}
-        <LinearGradient colors={COLORS.gradientHero} style={styles.header}>
+        <LinearGradient colors={themeColors.gradientHero || ["#7C3AED", "#4C1D95"]} style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.backButton, { backgroundColor: "rgba(255,255,255,0.15)" }]}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back" size={20} color={COLORS.primary} />
+            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={styles.headerInfo}>
             <Text style={styles.headerTitle}>Support Chat</Text>
@@ -160,22 +159,19 @@ const SupportChatScreen = ({ navigation }) => {
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={styles.messageList}
+          showsVerticalScrollIndicator={false}
           onContentSizeChange={() =>
             flatListRef.current?.scrollToEnd({ animated: true })
           }
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
           ListFooterComponent={
             isTyping ? (
               <View style={[styles.messageRow, styles.supportRow]}>
-                <View style={styles.supportAvatar}>
-                  <Ionicons name="sparkles" size={14} color="#FFF" />
-                </View>
-                <View style={[styles.bubble, styles.supportBubble, styles.typingBubble]}>
-                  <ActivityIndicator size="small" color={COLORS.primary} />
-                  <Text style={[styles.messageText, styles.supportText, { marginLeft: 8 }]}>
-                    AI is thinking...
-                  </Text>
+                <LinearGradient colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]} style={styles.supportAvatar}>
+                  <Ionicons name="sparkles" size={12} color="#FFF" />
+                </LinearGradient>
+                <View style={[styles.bubble, styles.supportBubble, styles.typingBubble, { backgroundColor: themeColors.surface }]}>
+                  <ActivityIndicator size="small" color={themeColors.primary} />
                 </View>
               </View>
             ) : null
@@ -185,31 +181,27 @@ const SupportChatScreen = ({ navigation }) => {
         {/* Input */}
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
         >
-          <View style={styles.inputContainer}>
-            <View style={styles.inputWrapper}>
+          <View style={[styles.inputContainer, { backgroundColor: themeColors.surface, borderTopColor: themeColors.border }]}>
+            <View style={[styles.inputWrapper, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
               <TextInput
-                style={styles.input}
-                placeholder="Type your message..."
+                style={[styles.input, { color: themeColors.textPrimary }]}
+                placeholder="Ask me anything..."
+                placeholderTextColor={themeColors.textTertiary}
                 value={inputText}
                 onChangeText={setInputText}
                 multiline
-                maxLength={500}
-                placeholderTextColor={COLORS.textTertiary}
+                maxHeight={100}
               />
               <TouchableOpacity
-                style={styles.sendButton}
+                style={[styles.sendButton, { opacity: inputText.trim().length > 0 ? 1 : 0.5 }]}
                 onPress={sendMessage}
                 disabled={inputText.trim().length === 0}
               >
                 <LinearGradient
-                  colors={
-                    inputText.trim().length > 0
-                      ? [COLORS.primary, COLORS.accent]
-                      : ["#E2E8F0", "#E2E8F0"]
-                  }
-                  style={styles.sendGradient}
+                  colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
+                  style={styles.sendButtonGradient}
                 >
                   <Ionicons name="send" size={18} color="#FFF" />
                 </LinearGradient>
@@ -225,152 +217,130 @@ const SupportChatScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
+    paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.xl,
     paddingBottom: SPACING.lg,
-    paddingHorizontal: SPACING.xl,
     flexDirection: "row",
     alignItems: "center",
-    borderBottomLeftRadius: RADIUS.xl,
-    borderBottomRightRadius: RADIUS.xl,
-    ...SHADOWS.md,
+    gap: 16,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#FFF",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: SPACING.md,
   },
   headerInfo: {
     flex: 1,
   },
   headerTitle: {
-    ...FONTS.h3Dark,
+    ...FONTS.h3,
+    color: "#FFFFFF",
     fontSize: 18,
-    color: "#FFF",
   },
   onlineStatus: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 6,
     marginTop: 2,
   },
   statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: "#10B981",
-    marginRight: 6,
   },
   statusText: {
-    ...FONTS.captionDark,
-    fontSize: 12,
+    ...FONTS.caption,
     color: "rgba(255,255,255,0.8)",
   },
-  listContent: {
+  messageList: {
     padding: SPACING.lg,
-    paddingBottom: SPACING.xl,
+    paddingBottom: 20,
   },
   messageRow: {
     flexDirection: "row",
-    marginBottom: SPACING.lg,
-    alignItems: "flex-end",
+    marginBottom: 16,
+    maxWidth: "85%",
   },
   userRow: {
-    justifyContent: "flex-end",
+    alignSelf: "flex-end",
+    flexDirection: "row-reverse",
   },
   supportRow: {
-    justifyContent: "flex-start",
+    alignSelf: "flex-start",
   },
   supportAvatar: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
+    marginTop: 4,
     marginRight: 8,
-    marginBottom: 4,
   },
   bubble: {
-    maxWidth: "80%",
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: RADIUS.lg,
     ...SHADOWS.sm,
   },
   userBubble: {
-    backgroundColor: COLORS.primary,
     borderBottomRightRadius: 4,
+    marginLeft: 8,
   },
   supportBubble: {
-    backgroundColor: "#FFF",
     borderBottomLeftRadius: 4,
-  },
-  typingBubble: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: SPACING.sm,
   },
   messageText: {
     ...FONTS.body,
     fontSize: 15,
-  },
-  userText: {
-    color: "#FFF",
-  },
-  supportText: {
-    color: COLORS.textPrimary,
+    lineHeight: 20,
   },
   timeText: {
+    ...FONTS.caption,
     fontSize: 10,
     marginTop: 4,
-    alignSelf: "flex-end",
+    textAlign: "right",
   },
-  userTime: {
-    color: "rgba(255,255,255,0.7)",
-  },
-  supportTime: {
-    color: COLORS.textTertiary,
+  typingBubble: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    minWidth: 60,
+    alignItems: "center",
+    justifyContent: "center",
   },
   inputContainer: {
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    backgroundColor: "#FFF",
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingBottom: Platform.OS === "ios" ? 32 : SPACING.md,
+    paddingBottom: Platform.OS === "ios" ? 30 : 15,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.background,
     borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
   },
   input: {
     flex: 1,
-    minHeight: 44,
-    maxHeight: 100,
     paddingVertical: 10,
+    paddingHorizontal: 8,
     ...FONTS.body,
-    color: COLORS.textPrimary,
+    fontSize: 15,
+    minHeight: 44,
   },
   sendButton: {
     marginLeft: 8,
-    marginBottom: 4,
   },
-  sendGradient: {
+  sendButtonGradient: {
     width: 36,
     height: 36,
     borderRadius: 18,
