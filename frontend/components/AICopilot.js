@@ -25,7 +25,7 @@ import * as Haptics from "expo-haptics";
 const { height: SCREEN_H } = Dimensions.get("window");
 
 const WELCOME_MESSAGE =
-  "Hi! I'm Beans, your AI Shopping Copilot 🛒\nAsk me anything — best deals, product comparisons, or grocery tips!";
+  "Hi! I'm BEANS, your AI Shopping Copilot 🛒\nAsk me anything — best deals, product comparisons, or grocery tips!";
 
 const AICopilot = () => {
   const [open, setOpen] = useState(false);

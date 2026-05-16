@@ -23,7 +23,7 @@ const SupportChatScreen = ({ navigation }) => {
   const [messages, setMessages] = useState([
     {
       id: "1",
-      text: "Hi there! 👋 I'm your CompareZ AI assistant, powered by Groq. Ask me anything about finding the best grocery deals!",
+      text: "Hi there! 👋 I'm BEANS, your CompareZ AI assistant. Ask me anything about finding the best grocery deals!",
       sender: "support",
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",

@@ -323,7 +323,14 @@ const HomeScreen = ({ navigation }) => {
           {/* ── AI Basket Optimizer Card ── */}
           <Animated.View style={[{ paddingHorizontal: H_PADDING, marginTop: SPACING.xl }, slideUp(fadeContent)]}>
             <View style={styles.optimizerContainer}>
-              <View style={styles.optimizerHeaderRow}>
+              <TouchableOpacity 
+                style={styles.optimizerHeaderRow}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  navigation.navigate("Likes");
+                }}
+                activeOpacity={0.7}
+              >
                 <Ionicons name="basket" size={24} color={COLORS.primary} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={styles.optimizerTitle}>Smart Basket Optimizer</Text>
@@ -346,7 +353,7 @@ const HomeScreen = ({ navigation }) => {
                     </LinearGradient>
                   </TouchableOpacity>
                 )}
-              </View>
+              </TouchableOpacity>
 
               {wishlist.length < 2 && (
                 <Text style={styles.optimizerHint}>

@@ -64,7 +64,7 @@ const TermsScreen = ({ navigation }) => {
 
         <Text style={styles.sectionTitle}>8. AI-Powered Features</Text>
         <Text style={styles.paragraph}>
-          CompareZ uses Groq AI (powered by Meta's open-source LLaMA models) to provide intelligent features including AI chat support, natural language search, and deal analysis. AI-generated responses are for informational purposes only and do not constitute purchasing advice. Groq processes query data in accordance with their privacy policy at groq.com.
+          CompareZ uses BEANS, our friendly AI shopping assistant, to provide intelligent features including AI chat support, natural language search, and deal analysis. AI-generated responses are for informational purposes only and do not constitute purchasing advice.
         </Text>
 
         <View style={styles.footer}>
