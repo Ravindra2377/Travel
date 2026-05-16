@@ -17,6 +17,29 @@ const SearchBar = ({
   testID,
 }) => {
   const { themeColors } = useTheme();
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    if (isRecording) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isRecording]);
+
   return (
     <View style={[styles.container, { backgroundColor: themeColors.surface }]}>
       <TouchableOpacity
@@ -57,25 +80,27 @@ const SearchBar = ({
 
       {/* Mic button — shown when no text typed */}
       {!value && onMicPress && (
-        <TouchableOpacity
-          onPress={() => {
-            Haptics.impactAsync(
-              isRecording
-                ? Haptics.ImpactFeedbackStyle.Heavy
-                : Haptics.ImpactFeedbackStyle.Medium
-            );
-            onMicPress();
-          }}
-          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-          style={[styles.micBtn, { backgroundColor: isRecording ? "#EF4444" : themeColors.accentLight }]}
-          accessibilityLabel="voiceSearchButton"
-        >
-          <Ionicons
-            name={isRecording ? "stop-circle" : "mic"}
-            size={18}
-            color={isRecording ? "#fff" : themeColors.primary}
-          />
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(
+                isRecording
+                  ? Haptics.ImpactFeedbackStyle.Heavy
+                  : Haptics.ImpactFeedbackStyle.Medium
+              );
+              onMicPress();
+            }}
+            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+            style={[styles.micBtn, { backgroundColor: isRecording ? "#EF4444" : themeColors.accentLight }]}
+            accessibilityLabel="voiceSearchButton"
+          >
+            <Ionicons
+              name={isRecording ? "stop-circle" : "mic"}
+              size={18}
+              color={isRecording ? "#fff" : themeColors.primary}
+            />
+          </TouchableOpacity>
+        </Animated.View>
       )}
 
       {onFilterPress && (

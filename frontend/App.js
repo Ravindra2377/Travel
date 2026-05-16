@@ -7,6 +7,7 @@ import * as NavigationBar from "expo-navigation-bar";
 import { AuthContext, AuthProvider } from "./context/AuthContext";
 import { WishlistProvider } from "./context/WishlistContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
+import { Ionicons } from "@expo/vector-icons";
 import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { BlurView } from "expo-blur";
 import { COLORS, SHADOWS, FONTS } from "./config/theme";
@@ -55,23 +56,27 @@ const MainTabs = () => {
 
 import SplashScreen from "./screens/SplashScreen";
 
+import * as Font from "expo-font";
+
 const AppNav = () => {
   const { isLoading, userToken } = useContext(AuthContext);
   const { themeColors, isDark } = useTheme();
   const [showSplash, setShowSplash] = React.useState(true);
 
+  const [fontsLoaded] = Font.useFonts({
+    ...Ionicons.font,
+  });
+
   React.useEffect(() => {
     if (Platform.OS === "android") {
-      NavigationBar.setPositionAsync("absolute");
-      NavigationBar.setBackgroundColorAsync("#00000000");
       NavigationBar.setButtonStyleAsync(isDark ? "light" : "dark");
     }
   }, [isDark]);
 
-  if (isLoading || showSplash) {
+  if (!fontsLoaded || isLoading || showSplash) {
     return (
       <>
-        <StatusBar style={isDark ? "light" : "dark"} translucent />
+        <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
         <SplashScreen onFinish={() => setShowSplash(false)} />
       </>
     );

@@ -262,10 +262,10 @@ const HomeScreen = ({ navigation }) => {
                   <Ionicons
                     name="wallet-outline"
                     size={16}
-                    color={themeColors.secondary}
+                    color="#10B981"
                     style={{ marginBottom: 4 }}
                   />
-                  <Text style={[styles.statValue, { color: themeColors.secondary }]}>
+                  <Text style={[styles.statValue, { color: "#10B981" }]}>
                     Best
                   </Text>
                   <Text style={styles.statLabel}>Price</Text>
