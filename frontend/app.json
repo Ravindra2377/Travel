@@ -25,9 +25,12 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.panviravindra.comparez",
+      "usesCleartextTraffic": true,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -44,9 +47,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "ec01b9de-1d85-4ca6-a808-0055cf954368"
+        "projectId": "48c7f27e-faae-4b8a-beea-ebb9978b9dde"
       }
     },
-    "owner": "panvi"
+    "owner": "panvi_ravindra"
   }
 }

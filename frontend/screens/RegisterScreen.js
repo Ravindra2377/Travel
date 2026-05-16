@@ -127,15 +127,20 @@ const RegisterScreen = ({ navigation }) => {
 
           <View style={styles.termsRow}>
             <TouchableOpacity 
-              style={styles.checkbox}
+              style={[
+                styles.checkbox, 
+                { borderColor: agreed ? COLORS.textAccent : COLORS.textTertiary, borderWidth: agreed ? 0 : 1.5 }
+              ]}
               onPress={() => setAgreed(!agreed)}
               activeOpacity={0.7}
             >
-              <Ionicons 
-                name={agreed ? "checkbox" : "square-outline"} 
-                size={22} 
-                color={agreed ? COLORS.textAccent : COLORS.textTertiary} 
-              />
+              {agreed && (
+                <Ionicons 
+                  name="checkbox" 
+                  size={22} 
+                  color={COLORS.textAccent} 
+                />
+              )}
             </TouchableOpacity>
             <View style={styles.termsTextWrap}>
               <Text style={styles.termsText}>I agree to the </Text>
@@ -223,7 +228,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xs,
   },
   checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
     marginRight: SPACING.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
   },
   termsTextWrap: {
     flexDirection: "row",
