@@ -317,9 +317,15 @@ const ProductDetailScreen = ({ route, navigation }) => {
       // This is the simplest and most reliable approach.
       const openInApp = async () => {
         try {
-          await Linking.openURL(fallbackWebUrl);
+          const supported = await Linking.canOpenURL(fallbackWebUrl);
+          
+          if (supported) {
+            await Linking.openURL(fallbackWebUrl);
+          } else {
+            console.log(`[ProductDetail] Direct URL not supported: ${fallbackWebUrl}`);
+            throw new Error("Direct URL not supported");
+          }
         } catch (err) {
-          console.error(`[ProductDetail] Failed to open URL:`, err);
           // If direct URL fails, try Android intent as fallback
           if (Platform.OS === "android") {
             const appPackages = {
@@ -329,7 +335,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
               amazon: "com.amazon.mShop.android.shopping",
               flipkart: "com.flipkart.android",
             };
-            const packageName = appPackages[platform];
+            const packageName = appPackages[platform.toLowerCase()];
             if (packageName) {
               const intentUrl = buildAndroidIntentUrl(
                 fallbackWebUrl,
@@ -337,19 +343,23 @@ const ProductDetailScreen = ({ route, navigation }) => {
               );
               if (intentUrl) {
                 try {
-                  await Linking.openURL(intentUrl);
-                  return;
+                  const canOpenIntent = await Linking.canOpenURL(intentUrl);
+                  if (canOpenIntent) {
+                    await Linking.openURL(intentUrl);
+                    return;
+                  }
                 } catch {
                   // Intent also failed
                 }
               }
             }
           }
+          
           // Last resort: in-app browser
           navigation.navigate("InAppBrowser", {
             url: fallbackWebUrl,
-            title: product?.name || p?.name || "",
-            platform: p?.name || "",
+            title: product?.name || platform || "",
+            platform: platform || "",
           });
         }
       };
