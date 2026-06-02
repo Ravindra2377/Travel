@@ -63,9 +63,7 @@ const AppNav = () => {
   const { themeColors, isDark } = useTheme();
   const [showSplash, setShowSplash] = React.useState(true);
 
-  const [fontsLoaded] = Font.useFonts({
-    ...Ionicons.font,
-  });
+  // Fonts for @expo/vector-icons are loaded automatically by babel-preset-expo
 
   // Safety Valve: If initialization takes more than 5 seconds, force hide the splash
   React.useEffect(() => {
@@ -94,8 +92,8 @@ const AppNav = () => {
     );
   }
 
-  // After splash is done, wait for fonts and auth to finish loading
-  if (!fontsLoaded || isLoading) {
+  // After splash is done, wait for auth to finish loading
+  if (isLoading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
         <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
