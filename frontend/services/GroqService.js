@@ -6,7 +6,7 @@
 //   • whisper-large-v3-turbo  → Voice transcription
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GROQ_API_KEY = "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";
+const GROQ_API_KEY = "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";
 const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_AUDIO_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
 
@@ -45,7 +45,6 @@ async function groqFetch(model, messages, maxTokens = 300, jsonMode = false) {
 
 // ─── GroqService Public API ───────────────────────────────────────────────────
 const GroqService = {
-
   // ── 1. Support Chat ────────────────────────────────────────────────────────
   async chat(history) {
     const messages = [
@@ -97,7 +96,10 @@ keyword must be 1-3 words max. Examples:
         role: "system",
         content: `You are a grocery price analyst. Given a product and its prices across platforms, write a 2-sentence deal verdict. Be direct. Use Rs. symbol.`,
       },
-      { role: "user", content: `Product: "${product.name}"\nPrices: ${priceList}` },
+      {
+        role: "user",
+        content: `Product: "${product.name}"\nPrices: ${priceList}`,
+      },
     ];
     return groqFetch(MODELS.smart, messages, 120);
   },

@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect } from "react";
 import { Platform, Alert } from "react-native";
 import axios from "axios";
 import { API_URL } from "../config/api";
+import * as SecureStore from "expo-secure-store";
 
 // Platform-aware token storage
 const tokenStorage = {
@@ -9,7 +10,6 @@ const tokenStorage = {
     if (Platform.OS === "web") {
       return localStorage.getItem(key);
     }
-    const SecureStore = require("expo-secure-store");
     return await SecureStore.getItemAsync(key);
   },
   setItem: async (key, value) => {
@@ -17,7 +17,6 @@ const tokenStorage = {
       localStorage.setItem(key, value);
       return;
     }
-    const SecureStore = require("expo-secure-store");
     await SecureStore.setItemAsync(key, value);
   },
   removeItem: async (key) => {
@@ -25,7 +24,6 @@ const tokenStorage = {
       localStorage.removeItem(key);
       return;
     }
-    const SecureStore = require("expo-secure-store");
     await SecureStore.deleteItemAsync(key);
   },
 };
