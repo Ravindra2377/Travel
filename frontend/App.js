@@ -84,15 +84,23 @@ const AppNav = () => {
     }
   }, [isDark]);
 
-  // Use !! to ensure boolean, and fallback to true for fonts if they take too long
-  const isAppReady = (fontsLoaded || false) && !isLoading && !showSplash;
-
-  if (!isAppReady && showSplash) {
+  // Show splash while it's active
+  if (showSplash) {
     return (
       <>
         <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
         <SplashScreen onFinish={() => setShowSplash(false)} />
       </>
+    );
+  }
+
+  // After splash is done, wait for fonts and auth to finish loading
+  if (!fontsLoaded || isLoading) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
+        <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
+        <ActivityIndicator size="large" color={themeColors.primary || COLORS.primary} />
+      </View>
     );
   }
 
