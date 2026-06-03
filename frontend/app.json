@@ -44,7 +44,13 @@
           "locationWhenInUsePermission": "Allow CompareZ to use your location to find the best delivery prices."
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-font",
+        {
+          "fonts": ["node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf"]
+        }
+      ]
     ],
     "owner": "panvi",
     "extra": {
