@@ -63,11 +63,13 @@ const AppNav = () => {
   const { themeColors, isDark } = useTheme();
   const [showSplash, setShowSplash] = React.useState(true);
 
-  // Load Ionicons asynchronously without blocking the UI
+  // Explicitly require the font to force Metro to bundle it in the APK
   React.useEffect(() => {
     async function prepareFonts() {
       try {
-        await Font.loadAsync(Ionicons.font);
+        await Font.loadAsync({
+          ionicons: require("@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf")
+        });
       } catch (e) {
         console.log("[App] Failed to load fonts:", e);
       }
