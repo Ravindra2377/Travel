@@ -63,8 +63,17 @@ const AppNav = () => {
   const { themeColors, isDark } = useTheme();
   const [showSplash, setShowSplash] = React.useState(true);
 
-  // Fonts are bundled natively via app.json plugins, so we do NOT use Font.useFonts here
-  // to avoid infinite loading loops in the production APK.
+  // Load Ionicons asynchronously without blocking the UI
+  React.useEffect(() => {
+    async function prepareFonts() {
+      try {
+        await Font.loadAsync(Ionicons.font);
+      } catch (e) {
+        console.log("[App] Failed to load fonts:", e);
+      }
+    }
+    prepareFonts();
+  }, []);
 
   // Safety Valve: If initialization takes more than 5 seconds, force hide the splash
   React.useEffect(() => {

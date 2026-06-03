@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon_new.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": false,
     "splash": {
       "backgroundColor": "#fafafa"
     },
@@ -44,13 +45,7 @@
           "locationWhenInUsePermission": "Allow CompareZ to use your location to find the best delivery prices."
         }
       ],
-      "expo-audio",
-      [
-        "expo-font",
-        {
-          "fonts": ["node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf"]
-        }
-      ]
+      "expo-audio"
     ],
     "owner": "panvi",
     "extra": {
