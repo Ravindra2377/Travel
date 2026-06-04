@@ -7,7 +7,7 @@ import * as NavigationBar from "expo-navigation-bar";
 import { AuthContext, AuthProvider } from "./context/AuthContext";
 import { WishlistProvider } from "./context/WishlistContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "./components/Icon";
 import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { BlurView } from "expo-blur";
 import { COLORS, SHADOWS, FONTS } from "./config/theme";
@@ -56,26 +56,13 @@ const MainTabs = () => {
 
 import SplashScreen from "./screens/SplashScreen";
 
-import * as Font from "expo-font";
+
 
 const AppNav = () => {
   const { isLoading, userToken } = useContext(AuthContext);
   const { themeColors, isDark } = useTheme();
   const [showSplash, setShowSplash] = React.useState(true);
 
-  // Explicitly require the font to force Metro to bundle it in the APK
-  React.useEffect(() => {
-    async function prepareFonts() {
-      try {
-        await Font.loadAsync({
-          ionicons: require("@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf")
-        });
-      } catch (e) {
-        console.log("[App] Failed to load fonts:", e);
-      }
-    }
-    prepareFonts();
-  }, []);
 
   // Safety Valve: If initialization takes more than 5 seconds, force hide the splash
   React.useEffect(() => {

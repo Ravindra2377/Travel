@@ -8,7 +8,7 @@ import {
   TouchableOpacity
 } from "react-native";
 import { Image } from "expo-image";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "../components/Icon";
 import GlassCard from "./GlassCard";
 import { SPACING, RADIUS, FONTS, SHADOWS, COLORS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";

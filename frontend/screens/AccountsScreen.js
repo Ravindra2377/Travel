@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "../components/Icon";
 import { LinearGradient } from "expo-linear-gradient";
 import api from "../config/api";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";

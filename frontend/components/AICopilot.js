@@ -15,7 +15,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "../components/Icon";
 import { LinearGradient } from "expo-linear-gradient";
 import { WishlistContext } from "../context/WishlistContext";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";

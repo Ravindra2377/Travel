@@ -12,7 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { BlurView } from "expo-blur";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "../components/Icon";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from "../config/theme";
