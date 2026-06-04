@@ -54,9 +54,7 @@ const DIRECT_PLATFORMS = [
   {
     id: "4",
     name: "Zepto",
-    source: {
-      uri: "https://www.google.com/s2/favicons?sz=256&domain=zeptonow.com",
-    },
+    source: require("../assets/zepto-logo.png"),
     url: "https://www.zepto.com/",
   },
   {
