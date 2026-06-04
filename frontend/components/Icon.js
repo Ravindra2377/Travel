@@ -153,6 +153,28 @@ const ICONS = {
   "speedometer-outline": (c, sw) => <G><Path d="M12 2a10 10 0 00-8.66 15" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /><Path d="M12 2a10 10 0 018.66 15" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /><Line x1="12" y1="12" x2="16" y2="6" stroke={c} strokeWidth={sw + 0.5} strokeLinecap="round" /><Circle cx="12" cy="12" r="2" fill={c} /></G>,
 
   "business-outline": (c, sw) => <G><Rect x="2" y="7" width="20" height="15" rx="1" stroke={c} strokeWidth={sw} fill="none" /><Rect x="6" y="2" width="12" height="5" rx="1" stroke={c} strokeWidth={sw} fill="none" /><Line x1="2" y1="13" x2="22" y2="13" stroke={c} strokeWidth={sw} /><Rect x="9" y="10" width="6" height="6" stroke={c} strokeWidth={sw} fill="none" /></G>,
+
+  // ── Audio ──
+  "mic": (c) => <G><Path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" fill={c} /><Path d="M19 10v2a7 7 0 01-14 0v-2" stroke={c} strokeWidth={1.5} fill="none" strokeLinecap="round" /><Line x1="12" y1="19" x2="12" y2="23" stroke={c} strokeWidth={1.5} strokeLinecap="round" /><Line x1="8" y1="23" x2="16" y2="23" stroke={c} strokeWidth={1.5} strokeLinecap="round" /></G>,
+  "mic-outline": (c, sw) => <G><Path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" stroke={c} strokeWidth={sw} fill="none" /><Path d="M19 10v2a7 7 0 01-14 0v-2" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /><Line x1="12" y1="19" x2="12" y2="23" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="8" y1="23" x2="16" y2="23" stroke={c} strokeWidth={sw} strokeLinecap="round" /></G>,
+  "stop-circle": (c) => <G><Circle cx="12" cy="12" r="10" fill={c} /><Rect x="8" y="8" width="8" height="8" rx="1" fill="#fff" /></G>,
+
+  // ── Eye ──
+  "eye-outline": (c, sw) => <G><Path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" stroke={c} strokeWidth={sw} fill="none" /><Circle cx="12" cy="12" r="3" stroke={c} strokeWidth={sw} fill="none" /></G>,
+  "eye-off-outline": (c, sw) => <G><Path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /><Path d="M14.12 14.12A3 3 0 019.88 9.88" stroke={c} strokeWidth={sw} fill="none" /><Line x1="1" y1="1" x2="23" y2="23" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /></G>,
+
+  // ── Mail ──
+  "mail-outline": (c, sw) => <G><Rect x="2" y="4" width="20" height="16" rx="2" stroke={c} strokeWidth={sw} fill="none" /><Polyline points="22,4 12,13 2,4" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
+  "mail": (c) => <G><Rect x="2" y="4" width="20" height="16" rx="2" fill={c} /><Polyline points="22,4 12,13 2,4" stroke="#fff" strokeWidth={1.5} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
+
+  // ── Lock outline ──
+  "lock-closed-outline": (c, sw) => <G><Rect x="5" y="11" width="14" height="10" rx="2" stroke={c} strokeWidth={sw} fill="none" /><Path d="M8 11V7a4 4 0 018 0v4" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /></G>,
+
+  // ── Shield ──
+  "shield-checkmark-outline": (c, sw) => <G><Path d="M12 2l8 4v5c0 5.25-3.5 9.74-8 11-4.5-1.26-8-5.75-8-11V6z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /><Polyline points="8,12 11,15 16,9" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
+
+  // ── Person add ──
+  "person-add-outline": (c, sw) => <G><Circle cx="10" cy="7" r="4" stroke={c} strokeWidth={sw} fill="none" /><Path d="M2 21v-1c0-3.31 2.69-6 6-6h4c3.31 0 6 2.69 6 6v1" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /><Line x1="20" y1="6" x2="20" y2="12" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="17" y1="9" x2="23" y2="9" stroke={c} strokeWidth={sw} strokeLinecap="round" /></G>,
 };
 
 // Also export as default AND as named export so existing `import { Ionicons }` syntax works
