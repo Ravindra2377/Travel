@@ -94,6 +94,10 @@ func main() {
 	e.GET("/compare", handlers.CompareProducts) // Legacy scraper endpoint
 	e.POST("/tokens", handlers.BulkConnectAccounts) // Redirect to new endpoint
 
+	// AI Proxy Routes (Groq key stays server-side)
+	e.POST("/ai/chat", handlers.AIChat)
+	e.POST("/ai/transcribe", handlers.AITranscribe)
+
 	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {

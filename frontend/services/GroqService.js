@@ -1,14 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// GroqService.js — CompareZ AI Layer v2
+// GroqService.js — CompareZ AI Layer v2 (Secured)
+// All requests proxy through the CompareZ backend. No API key in the app.
 // Models:
 //   • llama-3.1-8b-instant    → Fast tasks (search, chat, copilot)
 //   • llama-3.3-70b-versatile → Reasoning (meal plan, basket optimizer, deals)
 //   • whisper-large-v3-turbo  → Voice transcription
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GROQ_API_KEY = "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";
-const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_AUDIO_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
+import { API_URL } from "../config/api";
+
+const PROXY_CHAT_URL = `${API_URL}/ai/chat`;
+const PROXY_AUDIO_URL = `${API_URL}/ai/transcribe`;
 
 const MODELS = {
   fast: "llama-3.1-8b-instant",
@@ -26,18 +28,17 @@ async function groqFetch(model, messages, maxTokens = 300, jsonMode = false) {
   };
   if (jsonMode) body.response_format = { type: "json_object" };
 
-  const response = await fetch(GROQ_CHAT_URL, {
+  const response = await fetch(PROXY_CHAT_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${GROQ_API_KEY}`,
     },
     body: JSON.stringify(body),
   });
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`Groq API error ${response.status}: ${err}`);
+    throw new Error(`AI proxy error ${response.status}: ${err}`);
   }
   const data = await response.json();
   return data.choices?.[0]?.message?.content || "";
@@ -157,7 +158,7 @@ Return JSON only:
   },
 
   // ── 6. Voice Transcription (Whisper) ──────────────────────────────────────
-  // Transcribe audio file using Groq Whisper.
+  // Transcribe audio file using Groq Whisper via backend proxy.
   // audioUri: local file URI from expo-audio (formerly expo-av)
   async transcribeAudio(audioUri) {
     const formData = new FormData();
@@ -169,9 +170,8 @@ Return JSON only:
     formData.append("model", MODELS.whisper);
     formData.append("language", "en");
 
-    const response = await fetch(GROQ_AUDIO_URL, {
+    const response = await fetch(PROXY_AUDIO_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
       body: formData,
     });
 
