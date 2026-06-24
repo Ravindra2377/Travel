@@ -1,4 +1,4 @@
-import React, { useState, useRef, useContext } from "react";
+import React, { useState, useRef, useContext, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Image,
   ScrollView,
   PanResponder,
+  Keyboard,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "../components/Icon";
@@ -44,6 +45,30 @@ const AICopilot = () => {
   const { wishlist } = useContext(WishlistContext);
   const navigation = useNavigation();
   const { themeColors, isDark } = useTheme();
+
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        setKeyboardVisible(true);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => {
+        setKeyboardVisible(false);
+        setKeyboardHeight(0);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -320,6 +345,7 @@ const AICopilot = () => {
             {
               backgroundColor: themeColors.background,
               transform: [{ translateY: slideAnim }],
+              height: isKeyboardVisible ? SCREEN_H * 0.95 : SCREEN_H * 0.72,
             },
           ]}
         >
@@ -349,11 +375,7 @@ const AICopilot = () => {
           </LinearGradient>
 
           {/* Messages */}
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={0}
-          >
+          <View style={{ flex: 1, paddingBottom: isKeyboardVisible ? keyboardHeight : 0 }}>
             <FlatList
               ref={flatListRef}
               data={messages}
@@ -447,7 +469,7 @@ const AICopilot = () => {
                 </TouchableOpacity>
               </View>
             </View>
-          </KeyboardAvoidingView>
+          </View>
         </Animated.View>
       )}
     </>
@@ -474,7 +496,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: SCREEN_H * 0.72,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     zIndex: 9998,
