@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     paddingTop: SPACING.xl,
     paddingBottom: SPACING.lg,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
     borderBottomWidth: 1,
     ...SHADOWS.sm,
     zIndex: 10,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   scroll: { flex: 1 },
-  scrollContent: { padding: SPACING.lg, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, paddingBottom: 100 },
   inputCard: {
     padding: SPACING.lg,
     borderRadius: RADIUS.xl,

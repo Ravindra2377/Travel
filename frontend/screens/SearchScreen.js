@@ -2494,7 +2494,7 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: SPACING.xl,
     paddingBottom: 18,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
     ...SHADOWS.sm,
@@ -2687,7 +2687,8 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   list: {
-    padding: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
     paddingBottom: 180,
   },
   hiddenWebView: {
@@ -2700,7 +2701,7 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     paddingTop: SPACING.xl,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
   },
   emptyCard: {
     alignItems: "center",

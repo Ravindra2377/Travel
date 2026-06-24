@@ -275,8 +275,8 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
   },
-  list: {
-    padding: SPACING.lg,
+  listContainer: {
+    paddingHorizontal: SPACING.xl,
     paddingBottom: 100,
   },
   card: {

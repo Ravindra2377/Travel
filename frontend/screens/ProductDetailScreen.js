@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     zIndex: 10,
@@ -408,7 +408,8 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.sm,
   },
   section: {
-    padding: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
   },
   sectionTitle: {
     ...FONTS.h3,
@@ -420,7 +421,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
     paddingBottom: Platform.OS === "ios" ? 30 : 20,
     borderTopWidth: 1,
     flexDirection: "row",
