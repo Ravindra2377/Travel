@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Image,
   ScrollView,
+  PanResponder,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "../components/Icon";
@@ -39,9 +40,28 @@ const AICopilot = () => {
   const flatListRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(SCREEN_H)).current;
   const fabScale = useRef(new Animated.Value(1)).current;
+  const pan = useRef(new Animated.ValueXY()).current;
   const { wishlist } = useContext(WishlistContext);
   const navigation = useNavigation();
   const { themeColors, isDark } = useTheme();
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+      },
+      onPanResponderGrant: () => {
+        pan.extractOffset();
+      },
+      onPanResponderMove: Animated.event(
+        [null, { dx: pan.x, dy: pan.y }],
+        { useNativeDriver: false }
+      ),
+      onPanResponderRelease: () => {
+        pan.flattenOffset();
+      }
+    })
+  ).current;
 
   const openCopilot = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -270,7 +290,16 @@ const AICopilot = () => {
       {/* Floating Action Button */}
       {!open && (
         <Animated.View
-          style={[styles.fab, { transform: [{ scale: fabScale }] }]}
+          {...panResponder.panHandlers}
+          style={[
+            styles.fab,
+            {
+              transform: [
+                ...pan.getTranslateTransform(),
+                { scale: fabScale },
+              ],
+            },
+          ]}
         >
           <TouchableOpacity onPress={pressFab} activeOpacity={1}>
             <LinearGradient
