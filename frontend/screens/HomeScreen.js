@@ -95,7 +95,7 @@ const BrowseCard = ({ item, navigation, themeColors }) => (
 );
 
 const HomeScreen = ({ navigation }) => {
-  const { user, logout } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const { wishlist } = useContext(WishlistContext);
   const { themeColors, isDark } = useTheme();
 
@@ -103,15 +103,20 @@ const HomeScreen = ({ navigation }) => {
   const [optimization, setOptimization] = useState(null);
   const [optimizeError, setOptimizeError] = useState("");
   const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [currentCity, setCurrentCity] = useState("");
+  const [currentPincode, setCurrentPincode] = useState("");
 
   const fadeHero = React.useRef(new Animated.Value(0)).current;
   const fadeContent = React.useRef(new Animated.Value(0)).current;
   const floatAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
-    LocationService.init().then(() => {
+    LocationService.init().then((loc) => {
       if (!LocationService.hasLocationSet()) {
         setLocationModalVisible(true);
+      } else if (loc) {
+        setCurrentCity(loc.city || "");
+        setCurrentPincode(loc.pincode || "");
       }
     });
 
@@ -195,12 +200,18 @@ const HomeScreen = ({ navigation }) => {
               {/* Top bar */}
               <View style={styles.heroTop}>
                 <Text style={styles.heroEyebrow}>CompareZ</Text>
-                <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-                  <Ionicons
-                    name="log-out-outline"
-                    size={18}
-                    color="rgba(255,255,255,0.70)"
-                  />
+                <TouchableOpacity 
+                  style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255, 255, 255, 0.15)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100 }} 
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setLocationModalVisible(true);
+                  }}
+                >
+                  <Ionicons name="location" size={14} color="#fff" />
+                  <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600", marginLeft: 4, marginRight: 2 }}>
+                    {currentCity ? `${currentCity} ${currentPincode}` : "Set Location"}
+                  </Text>
+                  <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.8)" />
                 </TouchableOpacity>
               </View>
 
@@ -433,6 +444,10 @@ const HomeScreen = ({ navigation }) => {
       <LocationPickerModal
         visible={locationModalVisible}
         onClose={() => setLocationModalVisible(false)}
+        onSave={({ city, pincode }) => {
+          setCurrentCity(city);
+          setCurrentPincode(pincode);
+        }}
       />
     </SafeAreaView>
   );
