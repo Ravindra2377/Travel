@@ -27,11 +27,15 @@ class LocationService {
       console.warn("[LocationService] Failed to load stored location:", e);
     }
     this._loaded = true;
-    return this._location || DEFAULT_LOCATION;
+    return this._location;
   }
 
   getLocation() {
     return this._location || DEFAULT_LOCATION;
+  }
+
+  hasLocationSet() {
+    return this._location !== null;
   }
 
   async setLocation(location) {

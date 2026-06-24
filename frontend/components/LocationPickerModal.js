@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { BlurView } from "expo-blur";
+import { useTheme } from "../context/ThemeContext";
 import { Ionicons } from "../components/Icon";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
@@ -22,6 +22,7 @@ import * as Haptics from "expo-haptics";
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
 const LocationPickerModal = ({ visible, onClose, onSave }) => {
+  const { themeColors, isDark } = useTheme();
   const [city, setCity] = useState("");
   const [pincode, setPincode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,8 +34,13 @@ const LocationPickerModal = ({ visible, onClose, onSave }) => {
   useEffect(() => {
     if (visible) {
       const loc = LocationService.getLocation();
-      setCity(loc.city || "");
-      setPincode(loc.pincode || "");
+      if (LocationService.hasLocationSet()) {
+        setCity(loc.city || "");
+        setPincode(loc.pincode || "");
+      } else {
+        setCity("");
+        setPincode("");
+      }
       
       Animated.parallel([
         Animated.spring(scaleAnim, {
@@ -126,11 +132,12 @@ const LocationPickerModal = ({ visible, onClose, onSave }) => {
         <Animated.View style={[
           styles.modalContainer,
           {
+            backgroundColor: themeColors.surface,
             opacity: opacityAnim,
             transform: [{ scale: scaleAnim }]
           }
         ]}>
-          <BlurView intensity={90} tint="light" style={styles.blurWrap}>
+          <View style={styles.contentWrap}>
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.iconCircle}>
@@ -142,37 +149,37 @@ const LocationPickerModal = ({ visible, onClose, onSave }) => {
                 </LinearGradient>
               </View>
               <View style={styles.headerText}>
-                <Text style={styles.title}>Delivery Location</Text>
-                <Text style={styles.subtitle}>Set your delivery pincode</Text>
+                <Text style={[styles.title, { color: themeColors.textPrimary }]}>Delivery Location</Text>
+                <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>Set your delivery pincode</Text>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                <Ionicons name="close" size={20} color={COLORS.textTertiary} />
+              <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: themeColors.border }]}>
+                <Ionicons name="close" size={20} color={themeColors.textTertiary} />
               </TouchableOpacity>
             </View>
 
             {/* Content */}
             <View style={styles.content}>
-              <View style={styles.inputGroup}>
-                <Ionicons name="business-outline" size={18} color={COLORS.textTertiary} style={styles.inputIcon} />
+              <View style={[styles.inputGroup, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
+                <Ionicons name="business-outline" size={18} color={themeColors.textTertiary} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: themeColors.textPrimary }]}
                   placeholder="City (e.g. Bengaluru)"
                   value={city}
                   onChangeText={setCity}
-                  placeholderTextColor={COLORS.textTertiary}
+                  placeholderTextColor={themeColors.textTertiary}
                 />
               </View>
 
-              <View style={styles.inputGroup}>
-                <Ionicons name="pin-outline" size={18} color={COLORS.textTertiary} style={styles.inputIcon} />
+              <View style={[styles.inputGroup, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
+                <Ionicons name="pin-outline" size={18} color={themeColors.textTertiary} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: themeColors.textPrimary }]}
                   placeholder="Pincode (e.g. 560001)"
                   value={pincode}
                   onChangeText={setPincode}
                   keyboardType="numeric"
                   maxLength={6}
-                  placeholderTextColor={COLORS.textTertiary}
+                  placeholderTextColor={themeColors.textTertiary}
                 />
               </View>
 
@@ -210,7 +217,7 @@ const LocationPickerModal = ({ visible, onClose, onSave }) => {
                 )}
               </TouchableOpacity>
             </View>
-          </BlurView>
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -232,7 +239,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     ...SHADOWS.lg,
   },
-  blurWrap: {
+  contentWrap: {
     padding: SPACING.xl,
   },
   header: {

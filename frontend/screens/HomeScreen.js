@@ -22,6 +22,8 @@ import * as Haptics from "expo-haptics";
 import { WishlistContext } from "../context/WishlistContext";
 import GroqService from "../services/GroqService";
 import { AppButton, SurfaceCard, ScreenHeader } from "../components/SharedUI";
+import LocationPickerModal from "../components/LocationPickerModal";
+import LocationService from "../services/LocationService";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const H_PADDING = SPACING.xl;
@@ -100,12 +102,19 @@ const HomeScreen = ({ navigation }) => {
   const [optimizing, setOptimizing] = useState(false);
   const [optimization, setOptimization] = useState(null);
   const [optimizeError, setOptimizeError] = useState("");
+  const [locationModalVisible, setLocationModalVisible] = useState(false);
 
   const fadeHero = React.useRef(new Animated.Value(0)).current;
   const fadeContent = React.useRef(new Animated.Value(0)).current;
   const floatAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
+    LocationService.init().then(() => {
+      if (!LocationService.hasLocationSet()) {
+        setLocationModalVisible(true);
+      }
+    });
+
     Animated.stagger(200, [
       Animated.timing(fadeHero, {
         toValue: 1,
@@ -421,6 +430,10 @@ const HomeScreen = ({ navigation }) => {
           <View style={{ height: 120 }} />
         </ScrollView>
       </View>
+      <LocationPickerModal
+        visible={locationModalVisible}
+        onClose={() => setLocationModalVisible(false)}
+      />
     </SafeAreaView>
   );
 };
