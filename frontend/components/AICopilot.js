@@ -41,6 +41,7 @@ const AICopilot = () => {
   const flatListRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(SCREEN_H)).current;
   const fabScale = useRef(new Animated.Value(1)).current;
+  const breathAnim = useRef(new Animated.Value(1)).current;
   const pan = useRef(new Animated.ValueXY()).current;
   const { wishlist } = useContext(WishlistContext);
   const navigation = useNavigation();
@@ -69,6 +70,31 @@ const AICopilot = () => {
       hideSub.remove();
     };
   }, []);
+
+  useEffect(() => {
+    let loop;
+    if (!open) {
+      breathAnim.setValue(1);
+      loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(breathAnim, {
+            toValue: 1.1,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(breathAnim, {
+            toValue: 1,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      loop.start();
+    }
+    return () => {
+      if (loop) loop.stop();
+    };
+  }, [open, breathAnim]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -103,7 +129,7 @@ const AICopilot = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.timing(slideAnim, {
       toValue: SCREEN_H,
-      duration: 280,
+      duration: 120,
       useNativeDriver: true,
     }).start(() => setOpen(false));
   };
@@ -177,6 +203,36 @@ const AICopilot = () => {
     }
   };
 
+  const renderBubbleWrapper = (isUser, children) => {
+    if (isUser) {
+      return (
+        <View
+          style={[
+            styles.bubble,
+            styles.userBubble,
+            { backgroundColor: themeColors.primary },
+          ]}
+        >
+          {children}
+        </View>
+      );
+    }
+    return (
+      <LinearGradient
+        colors={
+          isDark
+            ? ["#1E1B4B", "#312E81", "#3730A3"]
+            : ["#F3E8FF", "#E9D5FF", "#F5F3FF"]
+        }
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.bubble, styles.aiBubble]}
+      >
+        {children}
+      </LinearGradient>
+    );
+  };
+
   const renderMessage = ({ item }) => {
     const isUser = item.role === "user";
     return (
@@ -189,17 +245,8 @@ const AICopilot = () => {
             <Ionicons name="sparkles" size={12} color="#fff" />
           </LinearGradient>
         )}
-        <View
-          style={[
-            styles.bubble,
-            isUser ? styles.userBubble : styles.aiBubble,
-            {
-              backgroundColor: isUser
-                ? themeColors.primary
-                : themeColors.surface,
-            },
-          ]}
-        >
+        {renderBubbleWrapper(isUser, 
+          <>
           {item.text ? (
             <Text
               style={[
@@ -289,25 +336,14 @@ const AICopilot = () => {
               ))}
             </View>
           )}
-        </View>
+        </>
+        )}
       </View>
     );
   };
 
   const pressFab = () => {
-    Animated.sequence([
-      Animated.timing(fabScale, {
-        toValue: 0.85,
-        duration: 90,
-        useNativeDriver: true,
-      }),
-      Animated.spring(fabScale, {
-        toValue: 1,
-        tension: 200,
-        friction: 5,
-        useNativeDriver: true,
-      }),
-    ]).start(() => openCopilot());
+    openCopilot();
   };
 
   return (
@@ -321,19 +357,21 @@ const AICopilot = () => {
             {
               transform: [
                 ...pan.getTranslateTransform(),
-                { scale: fabScale },
+                { scale: breathAnim },
               ],
             },
           ]}
         >
-          <TouchableOpacity onPress={pressFab} activeOpacity={1}>
-            <LinearGradient
-              colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
-              style={styles.fabGradient}
-            >
-              <Ionicons name="sparkles" size={22} color="#fff" />
-            </LinearGradient>
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: fabScale }] }}>
+            <TouchableOpacity onPress={pressFab} activeOpacity={1}>
+              <LinearGradient
+                colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
+                style={styles.fabGradient}
+              >
+                <Ionicons name="sparkles" size={22} color="#fff" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
         </Animated.View>
       )}
 
@@ -397,12 +435,18 @@ const AICopilot = () => {
                     >
                       <Ionicons name="sparkles" size={12} color="#fff" />
                     </LinearGradient>
-                    <View
+                    <LinearGradient
+                      colors={
+                        isDark
+                          ? ["#1E1B4B", "#312E81", "#3730A3"]
+                          : ["#F3E8FF", "#E9D5FF", "#F5F3FF"]
+                      }
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
                       style={[
                         styles.bubble,
                         styles.aiBubble,
                         styles.typingBubble,
-                        { backgroundColor: themeColors.surface },
                       ]}
                     >
                       <ActivityIndicator
@@ -417,7 +461,7 @@ const AICopilot = () => {
                       >
                         Thinking...
                       </Text>
-                    </View>
+                    </LinearGradient>
                   </View>
                 ) : null
               }
