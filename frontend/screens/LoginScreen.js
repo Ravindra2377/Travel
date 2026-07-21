@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "../components/Icon";
 import { AuthContext } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { COLORS, SPACING, RADIUS, FONTS } from "../config/theme";
 import { AppButton, TextField, SurfaceCard } from "../components/SharedUI";
 
@@ -20,28 +21,29 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useContext(AuthContext);
+  const { themeColors } = useTheme();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.paper }]}>
+      <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
 
 
-      <LinearGradient colors={COLORS.gradientHero} style={styles.heroBg} />
+      <LinearGradient colors={[themeColors.paper, themeColors.paperDim]} style={styles.heroBg} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.content}
       >
         <View style={styles.logoSection}>
-          <Text style={styles.eyebrow}>Smart Grocery Assistant</Text>
-          <Text style={styles.logo}>CompareZ</Text>
-          <Text style={styles.tagline}>
+          <Text style={[FONTS.uiBodyMedium, { color: themeColors.inkSoft, marginBottom: SPACING.sm }]}>Smart Grocery Assistant</Text>
+          <Text style={[FONTS.heading, { fontSize: 40, color: themeColors.ink, marginBottom: SPACING.sm }]}>CompareZ</Text>
+          <Text style={[FONTS.uiBody, { color: themeColors.inkSoft, fontSize: 16, lineHeight: 24 }]}>
             Compare prices across platforms and buy smarter every day.
           </Text>
         </View>
 
-        <SurfaceCard style={styles.form}>
-          <Text style={styles.formTitle}>Sign in</Text>
+        <SurfaceCard style={[styles.form, { backgroundColor: themeColors.card }]}>
+          <Text style={[FONTS.heading, { fontSize: 24, color: themeColors.ink, marginBottom: SPACING.xl }]}>Sign in</Text>
 
           <TextField
             icon="mail-outline"
@@ -64,7 +66,7 @@ const LoginScreen = ({ navigation }) => {
                 <Ionicons
                   name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={18}
-                  color={COLORS.textTertiary}
+                  color={themeColors.inkFaint}
                 />
               </TouchableOpacity>
             }
@@ -74,14 +76,14 @@ const LoginScreen = ({ navigation }) => {
             label="Sign In"
             onPress={() => login(email, password)}
             icon="arrow-forward"
-            style={styles.signInBtn}
+            style={[styles.signInBtn, { backgroundColor: themeColors.aubergine }]}
             testID="loginBtn"
           />
 
           <View style={styles.registerRow}>
-            <Text style={styles.registerPrompt}>Don't have an account? </Text>
+            <Text style={[FONTS.uiBody, { color: themeColors.inkSoft }]}>Don't have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate("Register")}>
-              <Text style={styles.registerLink}>Sign Up</Text>
+              <Text style={[FONTS.uiBodyBold, { color: themeColors.aubergine }]}>Sign Up</Text>
             </TouchableOpacity>
           </View>
         </SurfaceCard>

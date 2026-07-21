@@ -11,6 +11,9 @@ import { Ionicons } from "./components/Icon";
 import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { BlurView } from "expo-blur";
 import { COLORS, SHADOWS, FONTS } from "./config/theme";
+import { useFonts } from "expo-font";
+import { Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from "@expo-google-fonts/roboto";
+import { IBMPlexMono_500Medium, IBMPlexMono_600SemiBold } from "@expo-google-fonts/ibm-plex-mono";
 
 // Auth Screens
 import LoginScreen from "./screens/LoginScreen";
@@ -63,6 +66,14 @@ const AppNav = () => {
   const { themeColors, isDark } = useTheme();
   const [showSplash, setShowSplash] = React.useState(true);
 
+  const [fontsLoaded] = useFonts({
+    Roboto: Roboto_400Regular,
+    RobotoMedium: Roboto_500Medium,
+    RobotoBold: Roboto_700Bold,
+    IBMPlexMono: IBMPlexMono_500Medium,
+    IBMPlexMonoBold: IBMPlexMono_600SemiBold,
+  });
+
 
   // Safety Valve: If initialization takes more than 5 seconds, force hide the splash
   React.useEffect(() => {
@@ -78,11 +89,12 @@ const AppNav = () => {
   React.useEffect(() => {
     if (Platform.OS === "android") {
       NavigationBar.setButtonStyleAsync(isDark ? "light" : "dark");
+      NavigationBar.setBackgroundColorAsync(isDark ? "#1A1A24" : "#FAF6EF");
     }
   }, [isDark]);
 
-  // Show splash while it's active
-  if (showSplash) {
+  // Show splash while it's active or fonts are still loading
+  if (showSplash || !fontsLoaded) {
     return (
       <>
         <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
@@ -106,8 +118,8 @@ const AppNav = () => {
     dark: isDark,
     colors: {
       ...DefaultTheme.colors,
-      background: themeColors.background,
-      card: themeColors.surface,
+      background: themeColors.paper,
+      card: themeColors.card,
       text: themeColors.textPrimary,
       border: themeColors.border,
       primary: themeColors.primary,
@@ -117,8 +129,12 @@ const AppNav = () => {
 
   return (
     <NavigationContainer theme={customTheme}>
-      <StatusBar style={isDark ? "light" : "dark"} translucent />
-      <View style={{ flex: 1, backgroundColor: themeColors.background }}>
+      <StatusBar
+        style={isDark ? "light" : "dark"}
+        translucent={Platform.OS === "ios"}
+        backgroundColor={Platform.OS === "android" ? (isDark ? "#1A1A24" : "#FAF6EF") : "transparent"}
+      />
+      <View style={{ flex: 1, backgroundColor: themeColors.paper }}>
         <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
           {userToken !== null ? (
             <>

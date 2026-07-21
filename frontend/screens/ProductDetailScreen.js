@@ -17,7 +17,8 @@ import { Ionicons } from "../components/Icon";
 import { buildPlatformSearchUrl } from "../config/utils";
 import PlatformRow from "../components/PlatformRow";
 import { WishlistContext } from "../context/WishlistContext";
-import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { SPACING, RADIUS, FONTS, SHADOWS, PLATFORM_COLORS } from "../config/theme";
+import ScreenHeader from "../components/ScreenHeader";
 import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
 import GroqService from "../services/GroqService";
@@ -159,37 +160,32 @@ const ProductDetailScreen = ({ route, navigation }) => {
   }, [bestListing, displayTitle, navigation]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-        {/* Header */}
-        <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
-          <TouchableOpacity
-            style={[styles.backButton, { backgroundColor: themeColors.background }]}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color={themeColors.textPrimary} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>
-            Product Details
-          </Text>
-          <TouchableOpacity
-            style={[styles.wishlistButton, { backgroundColor: themeColors.background }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              toggleWishlist(product);
-            }}
-          >
-            <Ionicons
-              name={liked ? "heart" : "heart-outline"}
-              size={24}
-              color={liked ? themeColors.primary : themeColors.textSecondary}
-            />
-          </TouchableOpacity>
-        </View>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.paper }]}>
+      <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
+        <ScreenHeader
+          title="Product Details"
+          showBack={true}
+          onBackPress={() => navigation.goBack()}
+          rightComponent={
+            <TouchableOpacity
+              style={[styles.wishlistButton, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                toggleWishlist(product);
+              }}
+            >
+              <Ionicons
+                name={liked ? "heart" : "heart-outline"}
+                size={24}
+                color={liked ? themeColors.tomato : themeColors.inkSoft}
+              />
+            </TouchableOpacity>
+          }
+        />
 
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Image Section */}
-          <View style={[styles.imageSection, { backgroundColor: themeColors.surface }]}>
+          <View style={[styles.imageSection, { backgroundColor: themeColors.turmericSoft }]}>
             <Image
               source={{ uri: product.image_url }}
               style={styles.productImage}
@@ -211,7 +207,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
               ) : null}
             </View>
 
-            <Text style={[styles.productName, { color: themeColors.textPrimary }]}>{displayTitle}</Text>
+            <Text style={[FONTS.heading, { fontSize: 21, color: themeColors.ink, marginBottom: 8 }]}>{displayTitle}</Text>
 
             <View style={styles.priceRow}>
               <PriceTag price={bestListing.price} size="lg" />
@@ -232,39 +228,34 @@ const ProductDetailScreen = ({ route, navigation }) => {
             )}
 
             {savings > 0 && (
-              <LinearGradient
-                colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.savingsBanner}
-              >
-                <Ionicons name="trending-down" size={18} color="#fff" />
-                <Text style={styles.savingsText}>
+              <View style={[styles.savingsBanner, { backgroundColor: themeColors.corianderSoft }]}>
+                <Ionicons name="trending-down" size={18} color={themeColors.coriander} />
+                <Text style={[FONTS.uiBodyBold, { color: themeColors.coriander, flex: 1, fontSize: 13.5 }]}>
                   Save ₹{savings} compared to the highest price!
                 </Text>
-              </LinearGradient>
+              </View>
             )}
 
             {/* AI Insight */}
-            <View style={[styles.aiInsightCard, { backgroundColor: themeColors.primary + "10", marginTop: SPACING.lg }]}>
+            <View style={[styles.aiInsightCard, { backgroundColor: themeColors.aubergineSoft, marginTop: SPACING.lg }]}>
               <View style={styles.aiInsightHeader}>
-                <Ionicons name="sparkles" size={16} color={themeColors.primary} />
-                <Text style={[styles.aiInsightTitle, { color: themeColors.primary }]}>AI SHOPPING INSIGHT</Text>
+                <Ionicons name="sparkles" size={16} color={themeColors.aubergine} />
+                <Text style={[FONTS.monoBold, { fontSize: 10.5, letterSpacing: 1.5, textTransform: "uppercase", color: themeColors.aubergine }]}>AI Shopping Insight</Text>
               </View>
               {insightLoading ? (
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <ActivityIndicator size="small" color={themeColors.primary} />
-                  <Text style={[styles.aiInsightLoading, { color: themeColors.textSecondary }]}>Analyzing deals...</Text>
+                  <ActivityIndicator size="small" color={themeColors.aubergine} />
+                  <Text style={[FONTS.uiBody, { color: themeColors.inkSoft, marginLeft: 8, fontSize: 13 }]}>Analyzing deals...</Text>
                 </View>
               ) : (
-                <Text style={[styles.aiInsightText, { color: themeColors.textPrimary }]}>{aiInsight}</Text>
+                <Text style={[FONTS.uiBody, { color: themeColors.ink, fontSize: 13, lineHeight: 20 }]}>{aiInsight}</Text>
               )}
             </View>
           </View>
 
           {/* Listings */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Compare All Stores</Text>
+            <Text style={[FONTS.heading, { fontSize: 16.5, color: themeColors.ink, marginBottom: SPACING.sm }]}>Compare all stores</Text>
             {product.listings.map((listing, idx) => (
               <PlatformRow
                 key={`${listing.platform}-${idx}`}
@@ -289,13 +280,13 @@ const ProductDetailScreen = ({ route, navigation }) => {
         </ScrollView>
 
         {/* Floating Action Button */}
-        <View style={[styles.footer, { backgroundColor: themeColors.surface, borderTopColor: themeColors.border }]}>
+        <View style={[styles.footer, { backgroundColor: themeColors.paper, borderTopColor: themeColors.line }]}>
           <AppButton
-            label={`Buy Now at ${bestListing.platform}`}
+            label={`Buy now at ${bestListing.platform} · ₹${bestListing.price}`}
             onPress={handleBuyNow}
-            variant="gradient"
             icon="cart"
-            style={{ flex: 1 }}
+            style={{ flex: 1, backgroundColor: themeColors.ink }}
+            textStyle={{ color: "#fff" }}
           />
         </View>
       </View>

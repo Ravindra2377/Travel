@@ -11,12 +11,12 @@ export const lightColors = {
   primaryLight:   "#A78BFA",
   brandPurple:    "#7C3AED",
   brandPurpleLight: "#A78BFA",
-  background:     "#F8FAFC",
+  background:     "#FAF6EF", // Updated to new paper theme
   backgroundDark: "#0F172A", // Fallback if used statically
   surface:        "#FFFFFF",
   surfaceDark:    "#1E293B",
-  card:           "#FFFFFF",
-  cardAlt:        "#F1F5F9",
+  card:           "#FFFDF9",
+  cardAlt:        "#F5EFE2",
   cardDark:       "#1E293B",
   border:         "#E2E8F0",
   borderDark:     "#334155",
@@ -80,12 +80,30 @@ export const lightColors = {
   gradientGold:     ["#F97316", "#FB923C"],
   gradientWarm:     ["#F97316", "#EC4899"],
   gradientCool:     ["#06B6D4", "#7C3AED"],
+
+  // ── CompareZ Redesign Tokens (Additive) ───────────────────────────
+  paper:          "#FAF6EF",
+  paperDim:       "#F1EAD9",
+  ink:            "#211C2B",
+  inkSoft:        "#6E6579",
+  inkFaint:       "#A79FAE",
+  line:           "#E7DECB",
+  lineStrong:     "#D8CCAE",
+  aubergine:      "#402A5C",
+  aubergineDeep:  "#281A3B",
+  aubergineSoft:  "#EFE9F5",
+  coriander:      "#2E7D53",
+  corianderSoft:  "#E3F1E7",
+  turmeric:       "#C98A1F",
+  turmericSoft:   "#FBEDD3",
+  tomato:         "#C94A32",
+  tomatoSoft:     "#FBE5DF",
 };
 
 export const darkColors = {
   ...lightColors,
   // ── Core backgrounds ──────────────────────────────────────────────
-  background:     "#0F172A",
+  background:     "#1A1A24", // Updated to new dark paper theme
   surface:        "#1E293B",
   card:           "#1E293B",
   cardAlt:        "#0F172A",
@@ -102,6 +120,16 @@ export const darkColors = {
   // ── Gradients ─────────────────────────────────────────────────────
   gradientCard:     ["rgba(30,41,59,0.98)", "rgba(15,23,42,0.98)"],
   gradientGlass:    ["rgba(15,23,42,0.95)", "rgba(30,41,59,0.90)"],
+
+  // ── CompareZ Redesign Tokens (Dark overrides) ─────────────────────
+  paper:          "#1A1A24",
+  paperDim:       "#232330",
+  ink:            "#FAF6EF",
+  inkSoft:        "#A79FAE",
+  inkFaint:       "#6E6579",
+  line:           "#3A3A4D",
+  lineStrong:     "#4E4E63",
+  aubergineSoft:  "#281A3B",
 };
 
 // Fallback for static usage
@@ -186,39 +214,53 @@ const SHADOWS = {
     shadowRadius: 12,
     elevation: 6,
   }),
+  cardSoft: {
+    shadowColor: "#211C2B",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  cardPop: {
+    shadowColor: "#281A3B",
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.35,
+    shadowRadius: 60,
+    elevation: 20,
+  },
 };
 
 const FONTS = {
   h1: {
-    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
+    fontFamily: "RobotoBold",
     fontSize: 32,
     fontWeight: "800",
     color: "#0F172A",
-    letterSpacing: Platform.OS === "ios" ? -0.5 : -1.2,
+    letterSpacing: -0.5,
   },
   h1Dark: {
-    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
+    fontFamily: "RobotoBold",
     fontSize: 32,
     fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: Platform.OS === "ios" ? -0.5 : -1.2,
+    letterSpacing: -0.5,
   },
   h2: {
-    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
+    fontFamily: "RobotoBold",
     fontSize: 24,
     fontWeight: "700",
     color: "#0F172A",
-    letterSpacing: Platform.OS === "ios" ? -0.3 : -0.8,
+    letterSpacing: -0.3,
   },
   h2Dark: {
-    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
+    fontFamily: "RobotoBold",
     fontSize: 24,
     fontWeight: "700",
     color: "#FFFFFF",
-    letterSpacing: Platform.OS === "ios" ? -0.3 : -0.8,
+    letterSpacing: -0.3,
   },
   h3: {
-    fontFamily: Platform.OS === "ios" ? "Avenir-Medium" : "sans-serif-medium",
+    fontFamily: "RobotoMedium",
     fontSize: 16,
     fontWeight: "600",
     color: "#0F172A",
@@ -231,7 +273,7 @@ const FONTS = {
     letterSpacing: -0.2,
   },
   body: {
-    fontFamily: Platform.OS === "ios" ? "AvenirNext-Medium" : "sans-serif-light",
+    fontFamily: "Roboto",
     fontSize: 15,
     fontWeight: "400",
     color: "#475569",
@@ -245,7 +287,7 @@ const FONTS = {
     lineHeight: 20,
   },
   bodyBold: {
-    fontFamily: Platform.OS === "ios" ? "AvenirNext-DemiBold" : "sans-serif-medium",
+    fontFamily: "RobotoBold",
     fontSize: 15,
     fontWeight: "700",
     color: "#0F172A",
@@ -259,7 +301,7 @@ const FONTS = {
     lineHeight: 20,
   },
   caption: {
-    fontFamily: Platform.OS === "ios" ? "AvenirNext-Regular" : "sans-serif",
+    fontFamily: "Roboto",
     fontSize: 12,
     fontWeight: "400",
     color: "#94A3B8",
@@ -272,7 +314,7 @@ const FONTS = {
     lineHeight: 16,
   },
   captionBold: {
-    fontFamily: Platform.OS === "ios" ? "AvenirNext-Medium" : "sans-serif-medium",
+    fontFamily: "RobotoMedium",
     fontSize: 12,
     fontWeight: "600",
     color: "#64748B",
@@ -285,11 +327,11 @@ const FONTS = {
     letterSpacing: 0.2,
   },
   price: {
-    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
+    fontFamily: "RobotoBold",
     fontSize: 30,
     fontWeight: "900",
     color: "#0F172A",
-    letterSpacing: Platform.OS === "ios" ? -0.5 : -1,
+    letterSpacing: -0.5,
   },
   priceDark: {
     fontSize: 28,
@@ -298,7 +340,7 @@ const FONTS = {
     letterSpacing: -0.5,
   },
   priceSmall: {
-    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
+    fontFamily: "RobotoBold",
     fontSize: 18,
     fontWeight: "600",
     color: "#1A1A1A",
@@ -310,11 +352,11 @@ const FONTS = {
     letterSpacing: 1,
   },
   luxury: {
-    fontFamily: Platform.OS === "ios" ? "AvenirNext-Bold" : "sans-serif-medium",
+    fontFamily: "RobotoBold",
     fontSize: 38,
     fontWeight: "900",
     color: "#FFFFFF",
-    letterSpacing: Platform.OS === "ios" ? -0.8 : -1.5,
+    letterSpacing: -0.8,
   },
   luxurySub: {
     fontSize: 16,
@@ -329,6 +371,37 @@ const FONTS = {
     letterSpacing: 2.5,
     textTransform: "uppercase",
     color: "#FFFFFF", // Brighter on gradients
+  },
+  // ── CompareZ Redesign Fonts (Additive) ────────────────────────────
+  heading: {
+    fontFamily: "RobotoBold",
+    fontWeight: "600",
+    color: "#211C2B",
+  },
+  uiBody: {
+    fontFamily: "Roboto",
+    fontWeight: "400",
+    color: "#211C2B",
+  },
+  uiBodyMedium: {
+    fontFamily: "RobotoMedium",
+    fontWeight: "500",
+    color: "#211C2B",
+  },
+  uiBodyBold: {
+    fontFamily: "RobotoBold",
+    fontWeight: "600",
+    color: "#211C2B",
+  },
+  mono: {
+    fontFamily: "IBMPlexMono",
+    fontWeight: "500",
+    color: "#211C2B",
+  },
+  monoBold: {
+    fontFamily: "IBMPlexMonoBold",
+    fontWeight: "600",
+    color: "#211C2B",
   },
 };
 

@@ -210,7 +210,7 @@ const AICopilot = () => {
           style={[
             styles.bubble,
             styles.userBubble,
-            { backgroundColor: themeColors.primary },
+            { backgroundColor: themeColors.ink },
           ]}
         >
           {children}
@@ -218,18 +218,11 @@ const AICopilot = () => {
       );
     }
     return (
-      <LinearGradient
-        colors={
-          isDark
-            ? ["#1E1B4B", "#312E81", "#3730A3"]
-            : ["#F3E8FF", "#E9D5FF", "#F5F3FF"]
-        }
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.bubble, styles.aiBubble]}
+      <View
+        style={[styles.bubble, styles.aiBubble, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
       >
         {children}
-      </LinearGradient>
+      </View>
     );
   };
 
@@ -238,12 +231,11 @@ const AICopilot = () => {
     return (
       <View style={[styles.messageRow, isUser ? styles.userRow : styles.aiRow]}>
         {!isUser && (
-          <LinearGradient
-            colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
-            style={styles.aiAvatar}
+          <View
+            style={[styles.aiAvatar, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
           >
-            <Ionicons name="sparkles" size={12} color="#fff" />
-          </LinearGradient>
+            <Ionicons name="sparkles" size={12} color={themeColors.ink} />
+          </View>
         )}
         {renderBubbleWrapper(isUser, 
           <>
@@ -364,12 +356,9 @@ const AICopilot = () => {
         >
           <Animated.View style={{ transform: [{ scale: fabScale }] }}>
             <TouchableOpacity onPress={pressFab} activeOpacity={1}>
-              <LinearGradient
-                colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
-                style={styles.fabGradient}
-              >
+              <View style={[styles.fabGradient, { backgroundColor: themeColors.ink }]}>
                 <Ionicons name="sparkles" size={22} color="#fff" />
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </Animated.View>
         </Animated.View>
@@ -388,29 +377,23 @@ const AICopilot = () => {
           ]}
         >
           {/* Header */}
-          <LinearGradient
-            colors={themeColors.gradientHero || ["#7C3AED", "#4C1D95"]}
-            style={styles.panelHeader}
-          >
+          <View style={[styles.panelHeader, { backgroundColor: themeColors.paper, borderBottomWidth: 1, borderBottomColor: themeColors.line }]}>
             <View style={styles.panelHeaderLeft}>
-              <LinearGradient
-                colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
-                style={styles.panelAvatar}
-              >
-                <Ionicons name="sparkles" size={16} color="#fff" />
-              </LinearGradient>
+              <View style={[styles.panelAvatar, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}>
+                <Ionicons name="sparkles" size={16} color={themeColors.ink} />
+              </View>
               <View>
-                <Text style={styles.panelTitle}>Beans</Text>
+                <Text style={[styles.panelTitle, { color: themeColors.ink }]}>Beans</Text>
               </View>
             </View>
             <TouchableOpacity onPress={closeCopilot} style={styles.closeBtn}>
               <Ionicons
                 name="chevron-down"
                 size={22}
-                color="rgba(255,255,255,0.8)"
+                color={themeColors.inkSoft}
               />
             </TouchableOpacity>
-          </LinearGradient>
+          </View>
 
           {/* Messages */}
           <View style={{ flex: 1, paddingBottom: isKeyboardVisible ? keyboardHeight : 0 }}>
@@ -427,41 +410,32 @@ const AICopilot = () => {
               ListFooterComponent={
                 isTyping ? (
                   <View style={[styles.messageRow, styles.aiRow]}>
-                    <LinearGradient
-                      colors={
-                        themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]
-                      }
-                      style={styles.aiAvatar}
+                    <View
+                      style={[styles.aiAvatar, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
                     >
-                      <Ionicons name="sparkles" size={12} color="#fff" />
-                    </LinearGradient>
-                    <LinearGradient
-                      colors={
-                        isDark
-                          ? ["#1E1B4B", "#312E81", "#3730A3"]
-                          : ["#F3E8FF", "#E9D5FF", "#F5F3FF"]
-                      }
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
+                      <Ionicons name="sparkles" size={12} color={themeColors.ink} />
+                    </View>
+                    <View
                       style={[
                         styles.bubble,
                         styles.aiBubble,
                         styles.typingBubble,
+                        { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 },
                       ]}
                     >
                       <ActivityIndicator
                         size="small"
-                        color={themeColors.primary}
+                        color={themeColors.inkSoft}
                       />
                       <Text
                         style={[
                           styles.typingText,
-                          { color: themeColors.textSecondary },
+                          { color: themeColors.inkSoft },
                         ]}
                       >
                         Thinking...
                       </Text>
-                    </LinearGradient>
+                    </View>
                   </View>
                 ) : null
               }
@@ -472,8 +446,8 @@ const AICopilot = () => {
               style={[
                 styles.inputContainer,
                 {
-                  backgroundColor: themeColors.surface,
-                  borderTopColor: themeColors.border,
+                  backgroundColor: themeColors.paper,
+                  borderTopColor: themeColors.line,
                 },
               ]}
             >
@@ -481,15 +455,15 @@ const AICopilot = () => {
                 style={[
                   styles.inputWrapper,
                   {
-                    backgroundColor: themeColors.background,
-                    borderColor: themeColors.border,
+                    backgroundColor: themeColors.card,
+                    borderColor: themeColors.line,
                   },
                 ]}
               >
                 <TextInput
-                  style={[styles.input, { color: themeColors.textPrimary }]}
+                  style={[styles.input, { color: themeColors.ink }]}
                   placeholder="Ask me anything..."
-                  placeholderTextColor={themeColors.textTertiary}
+                  placeholderTextColor={themeColors.inkFaint}
                   value={inputText}
                   onChangeText={setInputText}
                   returnKeyType="send"
@@ -500,16 +474,14 @@ const AICopilot = () => {
                   disabled={!inputText.trim()}
                   style={styles.sendBtn}
                 >
-                  <LinearGradient
-                    colors={
-                      inputText.trim()
-                        ? themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]
-                        : [themeColors.border, themeColors.border]
-                    }
-                    style={styles.sendGradient}
+                  <View
+                    style={[
+                      styles.sendGradient,
+                      { backgroundColor: inputText.trim() ? themeColors.ink : themeColors.line },
+                    ]}
                   >
                     <Ionicons name="send" size={16} color="#fff" />
-                  </LinearGradient>
+                  </View>
                 </TouchableOpacity>
               </View>
             </View>

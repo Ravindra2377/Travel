@@ -19,7 +19,7 @@ import api from "../config/api";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
-import { ScreenHeader } from "../components/SharedUI";
+import ScreenHeader from "../components/ScreenHeader";
 
 // Platform configuration with proper login URLs
 const PLATFORMS = [
@@ -214,24 +214,22 @@ export default function AccountsScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.paper }]}>
+      <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
 
-        <View style={{ paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
-            <Ionicons name="arrow-back" size={20} color={themeColors.textPrimary} />
-          </TouchableOpacity>
-          <View style={{ marginTop: SPACING.lg }}>
-            <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Link Accounts</Text>
-            <Text style={[styles.headerSubtitle, { color: themeColors.textSecondary }]}>Login once to enable price comparisons</Text>
-          </View>
-        </View>
+        <ScreenHeader
+          title="Link Accounts"
+          subtitle="Login once to enable price comparisons"
+          showBack={true}
+          onBackPress={() => navigation.goBack()}
+          leftAlign={true}
+        />
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Info Card */}
-          <View style={[styles.infoCard, { backgroundColor: themeColors.accentLight, borderColor: themeColors.primary + "30" }]}>
-            <Ionicons name="information-circle" size={20} color={themeColors.primary} />
-            <Text style={[styles.infoText, { color: themeColors.primary }]}>
+          <View style={[styles.infoCard, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}>
+            <Ionicons name="information-circle" size={20} color={themeColors.inkSoft} />
+            <Text style={[styles.infoText, { color: themeColors.inkSoft }]}>
               Tap "Connect" and log in to each platform. Your credentials stay secure in the app.
             </Text>
           </View>
@@ -241,7 +239,7 @@ export default function AccountsScreen({ navigation }) {
             return (
               <View
                 key={platform.id}
-                style={[styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}
+                style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
               >
                 <View style={styles.cardLeft}>
                   <View
@@ -253,44 +251,32 @@ export default function AccountsScreen({ navigation }) {
                     <Ionicons name={platform.icon} size={24} color={platform.color} />
                   </View>
                   <View style={styles.cardInfo}>
-                    <Text style={[styles.platformName, { color: themeColors.textPrimary }]}>{platform.name}</Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <View style={[styles.statusDot, { backgroundColor: isConnected ? "#10B981" : themeColors.textTertiary }]} />
-                      <Text
-                        style={[
-                          styles.platformStatus,
-                          isConnected ? styles.statusConnected : { color: themeColors.textTertiary },
-                        ]}
-                      >
-                        {isConnected ? "Connected" : "Not connected"}
-                      </Text>
-                    </View>
+                    <Text style={[styles.platformName, { color: themeColors.ink }]}>{platform.name}</Text>
+                    {isConnected ? (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                        <Text style={[styles.statusText, { color: "#10B981" }]}>Connected</Text>
+                      </View>
+                    ) : (
+                      <Text style={[styles.statusText, { color: themeColors.inkSoft }]}>Not linked</Text>
+                    )}
                   </View>
                 </View>
 
                 <View style={styles.cardButtons}>
                   {isConnected ? (
-                    <>
-                      <TouchableOpacity
-                        style={[styles.buttonReconnect, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}
-                        onPress={() => openLogin(platform)}
-                      >
-                        <Ionicons name="refresh" size={18} color={themeColors.textSecondary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.buttonDisconnect, { backgroundColor: themeColors.error + "15" }]}
-                        onPress={() => disconnectAccount(platform.id)}
-                      >
-                        <Ionicons name="trash-outline" size={18} color={themeColors.error} />
-                      </TouchableOpacity>
-                    </>
+                    <TouchableOpacity
+                      style={[styles.buttonDisconnect, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
+                      onPress={() => disconnectAccount(platform.id)}
+                    >
+                      <Text style={[styles.buttonDisconnectText, { color: themeColors.ink }]}>Disconnect</Text>
+                    </TouchableOpacity>
                   ) : (
                     <TouchableOpacity
-                      style={[styles.buttonConnect, { backgroundColor: themeColors.primary }]}
+                      style={[styles.buttonConnect, { backgroundColor: themeColors.ink }]}
                       onPress={() => openLogin(platform)}
                     >
                       <Text style={styles.buttonConnectText}>Connect</Text>
-                      <Ionicons name="arrow-forward" size={16} color="#FFF" />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -305,54 +291,53 @@ export default function AccountsScreen({ navigation }) {
           visible={modalVisible}
           onRequestClose={() => setModalVisible(false)}
         >
-          <SafeAreaView style={[styles.modalContainer, { backgroundColor: themeColors.background }]}>
-            <View style={[styles.modalHeader, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
-              <View style={styles.modalHeaderLeft}>
-                <Text style={[styles.modalTitle, { color: themeColors.textPrimary }]}>Login to {currentPlatform?.name}</Text>
-                <Text style={[styles.modalSubtitle, { color: themeColors.textSecondary }]}>Securely connect your account</Text>
+          <View style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.6)" }]}>
+            <View style={[styles.modalContent, { backgroundColor: themeColors.paper }]}>
+              <View style={[styles.modalHeader, { borderBottomColor: themeColors.line }]}>
+                <Text style={[styles.modalTitle, { color: themeColors.ink }]}>Connect {currentPlatform?.name}</Text>
+                <TouchableOpacity
+                  onPress={() => setModalVisible(false)}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="close" size={24} color={themeColors.ink} />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                onPress={() => setModalVisible(false)}
-                style={[styles.modalCloseButton, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}
-              >
-                <Ionicons name="close" size={24} color={themeColors.textPrimary} />
-              </TouchableOpacity>
-            </View>
 
-            <WebView
-              ref={webViewRef}
-              source={{ uri: currentPlatform?.loginUrl }}
-              style={styles.webview}
-              injectedJavaScript={`
-                (function() {
-                  let hasProcessed = false;
-                  function log(msg) {
-                    try { window.ReactNativeWebView.postMessage(JSON.stringify({type: 'LOG', message: msg})); } catch(e) {}
-                  }
-                  function sendTokens() {
-                    if (hasProcessed) return;
-                    const cookies = document.cookie;
-                    const ls = {...localStorage};
-                    let payload = {};
-                    let isValid = false;
-                    const host = window.location.hostname;
-                    if (host.includes('blinkit') && (ls.auth || ls.authKey)) { payload['auth'] = ls.auth; payload['authKey'] = ls.authKey; payload['cookie'] = cookies; isValid = true; }
-                    else if (host.includes('zepto') && (ls.user || cookies.includes('session_id'))) { payload['user'] = ls.user; payload['cookie'] = cookies; isValid = true; }
-                    else if (host.includes('bigbasket') && (cookies.includes('sessionid') || cookies.includes('_bb_vid'))) { payload['cookie'] = cookies; isValid = true; }
-                    else if (host.includes('amazon') && cookies.includes('session-id')) { payload['cookie'] = cookies; isValid = true; }
-                    else if (host.includes('flipkart') && cookies.includes('T=')) { payload['cookie'] = cookies; isValid = true; }
-                    
-                    if (isValid) {
-                      window.ReactNativeWebView.postMessage(JSON.stringify({type: 'TOKENS', payload: payload}));
-                      hasProcessed = true;
+              <WebView
+                ref={webViewRef}
+                source={{ uri: currentPlatform?.loginUrl }}
+                style={styles.webview}
+                injectedJavaScript={`
+                  (function() {
+                    let hasProcessed = false;
+                    function log(msg) {
+                      try { window.ReactNativeWebView.postMessage(JSON.stringify({type: 'LOG', message: msg})); } catch(e) {}
                     }
-                  }
-                  setInterval(sendTokens, 2000);
-                })();
-              `}
-              onMessage={handleWebViewMessage}
-            />
-          </SafeAreaView>
+                    function sendTokens() {
+                      if (hasProcessed) return;
+                      const cookies = document.cookie;
+                      const ls = {...localStorage};
+                      let payload = {};
+                      let isValid = false;
+                      const host = window.location.hostname;
+                      if (host.includes('blinkit') && (ls.auth || ls.authKey)) { payload['auth'] = ls.auth; payload['authKey'] = ls.authKey; payload['cookie'] = cookies; isValid = true; }
+                      else if (host.includes('zepto') && (ls.user || cookies.includes('session_id'))) { payload['user'] = ls.user; payload['cookie'] = cookies; isValid = true; }
+                      else if (host.includes('bigbasket') && (cookies.includes('sessionid') || cookies.includes('_bb_vid'))) { payload['cookie'] = cookies; isValid = true; }
+                      else if (host.includes('amazon') && cookies.includes('session-id')) { payload['cookie'] = cookies; isValid = true; }
+                      else if (host.includes('flipkart') && cookies.includes('T=')) { payload['cookie'] = cookies; isValid = true; }
+                      
+                      if (isValid) {
+                        window.ReactNativeWebView.postMessage(JSON.stringify({type: 'TOKENS', payload: payload}));
+                        hasProcessed = true;
+                      }
+                    }
+                    setInterval(sendTokens, 2000);
+                  })();
+                `}
+                onMessage={handleWebViewMessage}
+              />
+            </View>
+          </View>
         </Modal>
       </View>
     </SafeAreaView>
@@ -369,35 +354,37 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 40,
     height: 40,
-    borderRadius: 12,
-    justifyContent: "center",
+    borderRadius: 20,
     alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
   },
   headerTitle: {
-    ...FONTS.h1,
+    ...FONTS.heading,
     fontSize: 28,
   },
   headerSubtitle: {
-    ...FONTS.body,
+    ...FONTS.uiBody,
+    fontSize: 14,
     marginTop: 4,
   },
   scrollContent: {
     padding: SPACING.xl,
-    paddingBottom: 40,
+    paddingTop: SPACING.lg,
   },
   infoCard: {
     flexDirection: "row",
     padding: SPACING.lg,
     borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    marginBottom: SPACING.xxl,
+    marginBottom: SPACING.xl,
+    alignItems: "center",
     gap: 12,
   },
   infoText: {
+    ...FONTS.uiBody,
+    fontSize: 13,
     flex: 1,
-    ...FONTS.captionBold,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   card: {
     flexDirection: "row",
@@ -406,42 +393,31 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     borderRadius: RADIUS.xl,
     marginBottom: SPACING.md,
-    ...SHADOWS.sm,
-    borderWidth: 1,
   },
   cardLeft: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 14,
     flex: 1,
   },
   iconContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: RADIUS.lg,
-    justifyContent: "center",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
-    marginRight: SPACING.md,
+    justifyContent: "center",
   },
   cardInfo: {
     flex: 1,
   },
   platformName: {
-    ...FONTS.bodyBold,
+    ...FONTS.uiBodyBold,
     fontSize: 16,
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  platformStatus: {
-    ...FONTS.caption,
-    fontSize: 12,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusConnected: {
-    color: "#10B981",
-    fontWeight: "700",
+  statusText: {
+    ...FONTS.uiBody,
+    fontSize: 13,
   },
   cardButtons: {
     flexDirection: "row",

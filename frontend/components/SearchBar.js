@@ -41,15 +41,15 @@ const SearchBar = ({
   }, [isRecording]);
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.surface }]}>
+    <View style={[styles.container, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}>
       <TouchableOpacity
-        style={[styles.iconWrap, { backgroundColor: themeColors.accentLight }]}
+        style={[styles.iconWrap, { backgroundColor: "transparent" }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }}
         accessibilityLabel="searchButton"
       >
-        <Ionicons name="search" size={18} color={themeColors.primary} />
+        <Ionicons name="search" size={18} color={themeColors.ink} />
       </TouchableOpacity>
       <TextInput
         style={[styles.input, { color: themeColors.textPrimary }]}
@@ -60,7 +60,7 @@ const SearchBar = ({
         returnKeyType="search"
         autoCorrect={false}
         autoFocus={autoFocus}
-        selectionColor={themeColors.primary}
+        selectionColor={themeColors.ink}
         testID={testID}
         accessibilityLabel={testID || "searchInput"}
       />
@@ -91,13 +91,13 @@ const SearchBar = ({
               onMicPress();
             }}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-            style={[styles.micBtn, { backgroundColor: isRecording ? "#EF4444" : themeColors.accentLight }]}
+            style={[styles.micBtn, { backgroundColor: isRecording ? "#EF4444" : themeColors.card, borderColor: themeColors.line, borderWidth: isRecording ? 0 : 1 }]}
             accessibilityLabel="voiceSearchButton"
           >
             <Ionicons
               name={isRecording ? "stop-circle" : "mic"}
               size={18}
-              color={isRecording ? "#fff" : themeColors.primary}
+              color={isRecording ? "#fff" : themeColors.ink}
             />
           </TouchableOpacity>
         </Animated.View>
@@ -126,9 +126,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.md,
-    minHeight: 56,
+    minHeight: 48,
     gap: SPACING.sm,
-    ...SHADOWS.sm,
   },
   iconWrap: {
     width: 34,

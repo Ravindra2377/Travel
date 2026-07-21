@@ -17,6 +17,7 @@ import { Ionicons } from "../components/Icon";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import ScreenHeader from "../components/ScreenHeader";
 import { useTheme } from "../context/ThemeContext";
 import GroqService from "../services/GroqService";
 import * as Haptics from "expo-haptics";
@@ -97,43 +98,34 @@ const MealPlannerScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.paper }]}>
+      <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {/* Header */}
-          <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
-            <TouchableOpacity
-              style={[styles.backBtn, { backgroundColor: themeColors.background }]}
-              onPress={() => navigation.goBack()}
-            >
-            <Ionicons name="arrow-back" size={22} color={themeColors.textPrimary} />
-          </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
-            <Text style={[styles.headerEyebrow, { color: themeColors.primary }]}>AI-Powered</Text>
-            <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Meal Planner</Text>
-            <Text style={[styles.headerSubtitle, { color: themeColors.textSecondary }]}>
-              Tell us what you want to cook — we'll find every ingredient
-            </Text>
-          </View>
-        </View>
+          <ScreenHeader
+            title="Meal Planner"
+            subtitle="Turn any recipe into a smart grocery list."
+            showBack={true}
+            onBackPress={() => navigation.goBack()}
+            leftAlign={true}
+          />
 
         <ScrollView
-          style={[styles.scroll, { backgroundColor: themeColors.background }]}
+          style={[styles.scroll, { backgroundColor: themeColors.paper }]}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           {/* Input Card */}
-          <View style={[styles.inputCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
-            <View style={[styles.inputRow, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
-              <Ionicons name="restaurant-outline" size={20} color={themeColors.primary} style={{ marginRight: 10 }} />
+          <View style={[styles.inputCard, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}>
+            <View style={[styles.inputRow, { backgroundColor: themeColors.paper, borderColor: themeColors.line }]}>
+              <Ionicons name="restaurant-outline" size={20} color={themeColors.aubergine} style={{ marginRight: 10 }} />
               <TextInput
-                style={[styles.input, { color: themeColors.textPrimary }]}
+                style={[styles.input, { color: themeColors.ink }]}
                 placeholder="e.g. Butter chicken for 4 people"
-                placeholderTextColor={themeColors.textTertiary}
+                placeholderTextColor={themeColors.inkFaint}
                 value={mealInput}
                 onChangeText={setMealInput}
                 returnKeyType="done"
@@ -142,7 +134,7 @@ const MealPlannerScreen = () => {
               />
               {mealInput.length > 0 && (
                 <TouchableOpacity onPress={() => { setMealInput(""); setIngredients(null); }}>
-                  <Ionicons name="close-circle" size={20} color={themeColors.textTertiary} />
+                  <Ionicons name="close-circle" size={20} color={themeColors.inkFaint} />
                 </TouchableOpacity>
               )}
             </View>
@@ -154,7 +146,7 @@ const MealPlannerScreen = () => {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={mealInput.trim() ? (themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]) : [themeColors.border, themeColors.border]}
+                colors={mealInput.trim() ? [themeColors.aubergine, themeColors.aubergineDeep] : [themeColors.inkFaint, themeColors.inkFaint]}
                 style={styles.planBtnGradient}
               >
                 {loading ? (
@@ -172,17 +164,26 @@ const MealPlannerScreen = () => {
           {/* Quick suggestions */}
           {!ingredients && !loading && (
             <View style={styles.suggestionsSection}>
-              <Text style={[styles.suggestionsTitle, { color: themeColors.textSecondary }]}>TRY ONE OF THESE</Text>
-              {MEAL_SUGGESTIONS.map((s) => (
+              <Text style={[FONTS.monoBold, { fontSize: 10.5, letterSpacing: 1.5, textTransform: "uppercase", color: themeColors.inkFaint, marginBottom: 12 }]}>Try one of these</Text>
+              {[
+                { label: "Butter chicken for 4 people", accent: themeColors.tomato, soft: themeColors.tomatoSoft },
+                { label: "Dal makhani for 6", accent: themeColors.coriander, soft: themeColors.corianderSoft },
+                { label: "Paneer tikka masala for 2", accent: themeColors.turmeric, soft: themeColors.turmericSoft },
+                { label: "Rajma chawal for a family", accent: themeColors.aubergine, soft: themeColors.aubergineSoft },
+                { label: "Chicken biryani for 5", accent: themeColors.tomato, soft: themeColors.tomatoSoft },
+                { label: "Palak paneer for 3", accent: themeColors.coriander, soft: themeColors.corianderSoft },
+              ].map((item) => (
                 <TouchableOpacity
-                  key={s}
-                  style={[styles.suggestionChip, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}
-                  onPress={() => { setMealInput(s); handlePlan(s); }}
+                  key={item.label}
+                  style={[styles.suggestionChip, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
+                  onPress={() => { setMealInput(item.label); handlePlan(item.label); }}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="flame-outline" size={15} color={themeColors.accent} />
-                  <Text style={[styles.suggestionText, { color: themeColors.textPrimary }]}>{s}</Text>
-                  <Ionicons name="arrow-forward" size={14} color={themeColors.textTertiary} />
+                  <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: item.soft, alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Ionicons name="flame" size={17} color={item.accent} />
+                  </View>
+                  <Text style={[FONTS.uiBodyBold, { flex: 1, fontSize: 14, color: themeColors.ink }]}>{item.label}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={themeColors.inkFaint} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -199,12 +200,12 @@ const MealPlannerScreen = () => {
           {/* Results */}
           {ingredients && (
             <Animated.View style={{ opacity: fadeAnim }}>
-              <View style={[styles.resultsHeader, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+              <View style={[styles.resultsHeader, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}>
                 <View style={styles.dishNameRow}>
-                  <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                  <Text style={[styles.dishName, { color: themeColors.textPrimary }]}>{dish}</Text>
+                  <Ionicons name="checkmark-circle" size={20} color={themeColors.coriander} />
+                  <Text style={[FONTS.heading, { fontSize: 20, flex: 1, color: themeColors.ink }]}>{dish}</Text>
                 </View>
-                <Text style={[styles.ingredientCount, { color: themeColors.textSecondary }]}>
+                <Text style={[FONTS.uiBody, { marginTop: 4, marginLeft: 28, fontSize: 13, color: themeColors.inkSoft }]}>
                   {ingredients.length} ingredients found
                 </Text>
               </View>
@@ -213,20 +214,20 @@ const MealPlannerScreen = () => {
               {ingredients.map((ing, i) => (
                 <TouchableOpacity
                   key={i}
-                  style={[styles.ingredientRow, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}
+                  style={[styles.ingredientRow, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
                   onPress={() => handleSearchIngredient(ing.name)}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.ingredientIndex, { backgroundColor: themeColors.primary + "15" }]}>
-                    <Text style={[styles.ingredientIndexText, { color: themeColors.primary }]}>{i + 1}</Text>
+                  <View style={[styles.ingredientIndex, { backgroundColor: themeColors.aubergineSoft }]}>
+                    <Text style={[FONTS.uiBodyBold, { fontSize: 12, color: themeColors.aubergine }]}>{i + 1}</Text>
                   </View>
                   <View style={styles.ingredientInfo}>
-                    <Text style={[styles.ingredientName, { color: themeColors.textPrimary }]}>{ing.name}</Text>
-                    <Text style={[styles.ingredientQty, { color: themeColors.textSecondary }]}>{ing.quantity}</Text>
+                    <Text style={[FONTS.uiBodyBold, { fontSize: 15, color: themeColors.ink }]}>{ing.name}</Text>
+                    <Text style={[FONTS.uiBody, { marginTop: 1, fontSize: 12, color: themeColors.inkSoft }]}>{ing.quantity}</Text>
                   </View>
-                  <View style={[styles.searchChip, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
-                    <Ionicons name="search" size={13} color={themeColors.primary} />
-                    <Text style={[styles.searchChipText, { color: themeColors.primary }]}>Compare</Text>
+                  <View style={[styles.searchChip, { backgroundColor: themeColors.aubergineSoft, borderColor: themeColors.aubergineSoft }]}>
+                    <Ionicons name="search" size={13} color={themeColors.aubergine} />
+                    <Text style={[FONTS.uiBodyBold, { fontSize: 11, color: themeColors.aubergine }]}>Compare</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -238,17 +239,17 @@ const MealPlannerScreen = () => {
                 activeOpacity={0.85}
               >
                 <LinearGradient
-                  colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
+                  colors={[themeColors.aubergine, themeColors.aubergineDeep]}
                   style={styles.searchAllGradient}
                 >
                   <Ionicons name="cart-outline" size={18} color="#fff" />
-                  <Text style={styles.searchAllText}>
+                  <Text style={[FONTS.uiBodyBold, { color: "#fff", fontSize: 16 }]}>
                     Start with {ingredients[0]?.name}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
 
-              <Text style={[styles.searchAllHint, { color: themeColors.textTertiary }]}>
+              <Text style={[FONTS.uiBody, { textAlign: "center", marginTop: SPACING.md, fontSize: 12, color: themeColors.inkFaint }]}>
                 Tap any ingredient to compare prices across all platforms
               </Text>
             </Animated.View>
@@ -281,6 +282,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: SPACING.md,
     marginTop: 6,
+    borderWidth: 1,
   },
   headerTextContainer: { flex: 1 },
   headerEyebrow: {

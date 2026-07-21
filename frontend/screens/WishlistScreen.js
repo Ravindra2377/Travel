@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { WishlistContext } from "../context/WishlistContext";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
+import ScreenHeader from "../components/ScreenHeader";
 import { useNavigation } from "@react-navigation/native";
 import GroqService from "../services/GroqService";
 import * as Haptics from "expo-haptics";
@@ -61,7 +62,7 @@ const WishlistScreen = () => {
 
     return (
       <TouchableOpacity
-        style={[styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}
+        style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
         activeOpacity={0.7}
         onPress={() => navigation.navigate("ProductDetail", { product: item })}
       >
@@ -71,10 +72,10 @@ const WishlistScreen = () => {
           resizeMode="contain"
         />
         <View style={styles.content}>
-          <Text style={[styles.brand, { color: themeColors.primary }]}>{brand}</Text>
-          <Text style={[styles.name, { color: themeColors.textPrimary }]} numberOfLines={2}>{name}</Text>
+          <Text style={[FONTS.monoBold, { fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: themeColors.aubergine, marginBottom: 2 }]}>{brand}</Text>
+          <Text style={[FONTS.uiBodyBold, { fontSize: 14, color: themeColors.ink, lineHeight: 20 }]} numberOfLines={2}>{name}</Text>
           <View style={styles.footer}>
-            <Text style={[styles.price, { color: themeColors.textPrimary }]}>₹{price}</Text>
+            <Text style={[FONTS.monoBold, { fontSize: 17, color: themeColors.coriander }]}>₹{price}</Text>
             <TouchableOpacity
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -82,7 +83,7 @@ const WishlistScreen = () => {
               }}
               style={styles.removeBtn}
             >
-              <Ionicons name="heart" size={24} color={themeColors.primary} />
+              <Ionicons name="heart" size={24} color={themeColors.tomato} />
             </TouchableOpacity>
           </View>
         </View>
@@ -92,57 +93,52 @@ const WishlistScreen = () => {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <View style={[styles.emptyIconWrap, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
-        <Ionicons name="heart-outline" size={60} color={themeColors.textTertiary} />
+      <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: themeColors.tomatoSoft, alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+        <Ionicons name="heart" size={30} color={themeColors.tomato} />
       </View>
-      <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>Your wishlist is empty</Text>
-      <Text style={[styles.emptySubtitle, { color: themeColors.textSecondary }]}>
-        Save products you like to compare them later.
+      <Text style={[FONTS.heading, { fontSize: 19, color: themeColors.ink, marginBottom: 8 }]}>Nothing saved yet</Text>
+      <Text style={[FONTS.uiBody, { fontSize: 13, color: themeColors.inkSoft, textAlign: "center", lineHeight: 20, marginBottom: 22 }]}>
+        Tap the heart on any product to keep it here and compare later.
       </Text>
       <TouchableOpacity
-        style={[styles.exploreBtn, { backgroundColor: themeColors.primary }]}
+        style={[styles.exploreBtn, { backgroundColor: themeColors.ink }]}
         onPress={() => navigation.navigate("Search")}
       >
-        <Text style={styles.exploreBtnText}>Explore Products</Text>
+        <Text style={[FONTS.uiBodyBold, { color: "#fff", fontSize: 15 }]}>Explore products</Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.paper }]}>
+      <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
 
-        {/* Header */}
-        <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
-          <View>
-            <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Liked Products</Text>
-            <Text style={[styles.headerSubtitle, { color: themeColors.textSecondary }]}>
-              {wishlist.length} {wishlist.length === 1 ? "item" : "items"} saved
-            </Text>
-          </View>
-          {wishlist.length >= 2 && (
-            <TouchableOpacity
-              style={styles.optimizeBtn}
-              onPress={handleOptimize}
-              disabled={optimizing}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={themeColors.gradientAccent || ["#7C3AED", "#A78BFA"]}
-                style={styles.optimizeBtnGradient}
+        <ScreenHeader
+          title="Liked products"
+          subtitle={`${wishlist.length} ${wishlist.length === 1 ? "item" : "items"} saved`}
+          showBack={true}
+          onBackPress={() => navigation.goBack()}
+          leftAlign={true}
+          rightComponent={
+            wishlist.length >= 2 ? (
+              <TouchableOpacity
+                style={[styles.optimizeBtn, { backgroundColor: themeColors.ink, borderRadius: 99, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8 }]}
+                onPress={handleOptimize}
+                disabled={optimizing}
+                activeOpacity={0.85}
               >
                 {optimizing ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <>
                     <Ionicons name="sparkles" size={14} color="#fff" />
-                    <Text style={styles.optimizeBtnText}>Optimize</Text>
+                    <Text style={[FONTS.uiBodyBold, { color: "#fff", fontSize: 13 }]}>Optimize</Text>
                   </>
                 )}
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
-        </View>
+              </TouchableOpacity>
+            ) : null
+          }
+        />
 
         {/* Basket Optimizer result card */}
         {optimizing && (
@@ -162,27 +158,24 @@ const WishlistScreen = () => {
         ) : null}
 
         {optimization && !optimizing && (
-          <View style={[styles.resultCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+          <View style={[styles.resultCard, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}>
             {/* Savings banner */}
             {optimization.savings > 0 ? (
-              <LinearGradient
-                colors={["#10B981", "#059669"]}
-                style={styles.savingsBanner}
-              >
-                <Ionicons name="trending-down" size={20} color="#fff" />
+              <View style={[styles.savingsBanner, { backgroundColor: themeColors.corianderSoft }]}>
+                <Ionicons name="trending-down" size={20} color={themeColors.coriander} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.savingsAmount}>
-                    Save ₹{Math.round(optimization.savings)}
+                  <Text style={[FONTS.monoBold, { fontSize: 18, color: themeColors.coriander }]}>
+                    ₹{Math.round(optimization.savings)}
                   </Text>
-                  <Text style={styles.savingsCompare}>
+                  <Text style={[FONTS.uiBody, { fontSize: 11.5, color: themeColors.coriander }]}>
                     ₹{Math.round(optimization.totalOptimized)} optimized vs ₹{Math.round(optimization.totalSingleBest)} from one platform
                   </Text>
                 </View>
-              </LinearGradient>
+              </View>
             ) : (
-              <View style={[styles.noSavingsBanner, { backgroundColor: themeColors.successLight }]}>
-                <Ionicons name="checkmark-circle" size={18} color="#10B981" />
-                <Text style={[styles.noSavingsText, { color: "#10B981" }]}>Your basket is already optimized!</Text>
+              <View style={[styles.noSavingsBanner, { backgroundColor: themeColors.corianderSoft }]}>
+                <Ionicons name="checkmark-circle" size={18} color={themeColors.coriander} />
+                <Text style={[FONTS.uiBodyBold, { color: themeColors.coriander }]}>Your basket is already optimized!</Text>
               </View>
             )}
 
@@ -228,7 +221,7 @@ const WishlistScreen = () => {
           data={wishlist}
           renderItem={renderProductItem}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={styles.listContainer}
           ListEmptyComponent={renderEmpty}
           showsVerticalScrollIndicator={false}
         />

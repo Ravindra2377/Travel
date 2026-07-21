@@ -27,6 +27,7 @@ import { Ionicons } from "../components/Icon";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import SearchBar from "../components/SearchBar";
+import ScreenHeader from "../components/ScreenHeader";
 import ProductCard from "../components/ProductCard";
 import FilterModal from "../components/FilterModal";
 import { getGlobalMonitor } from "../services/PerformanceMonitor";
@@ -40,14 +41,54 @@ import GroqService from "../services/GroqService";
 import { useAudioRecorder, AudioModule, RecordingPresets } from "expo-audio";
 
 const SUGGESTIONS = [
-  "Eggs",
-  "Milk",
-  "Rice",
-  "Chicken",
-  "Bread",
-  "Atta",
-  "Paneer",
-  "Oil",
+  {
+    name: "Eggs",
+    emoji: "🥚",
+    bg: "rgba(255, 176, 32, 0.15)",
+    color: "#FFB020",
+  },
+  {
+    name: "Milk",
+    emoji: "🥛",
+    bg: "rgba(78, 168, 222, 0.15)",
+    color: "#4EA8DE",
+  },
+  {
+    name: "Rice",
+    emoji: "🍚",
+    bg: "rgba(128, 185, 24, 0.15)",
+    color: "#80B918",
+  },
+  {
+    name: "Chicken",
+    emoji: "🍗",
+    bg: "rgba(224, 122, 95, 0.15)",
+    color: "#E07A5F",
+  },
+  {
+    name: "Bread",
+    emoji: "🍞",
+    bg: "rgba(212, 163, 115, 0.15)",
+    color: "#D4A373",
+  },
+  {
+    name: "Atta",
+    emoji: "🌾",
+    bg: "rgba(233, 196, 106, 0.15)",
+    color: "#E9C46A",
+  },
+  {
+    name: "Paneer",
+    emoji: "🧀",
+    bg: "rgba(244, 162, 97, 0.15)",
+    color: "#F4A261",
+  },
+  {
+    name: "Oil",
+    emoji: "🫙",
+    bg: "rgba(231, 111, 81, 0.15)",
+    color: "#E76F51",
+  },
 ];
 
 const PLATFORMS = ["Blinkit", "Zepto", "BigBasket", "Amazon", "Flipkart"];
@@ -571,11 +612,11 @@ const SearchScreen = ({ navigation, route }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState(""); // "recording" | "transcribing" | ""
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  
+
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [sortBy, setSortBy] = useState("relevance");
   const [selectedPlatforms, setSelectedPlatforms] = useState(
-    PLATFORMS.reduce((acc, p) => ({ ...acc, [p]: true }), {})
+    PLATFORMS.reduce((acc, p) => ({ ...acc, [p]: true }), {}),
   );
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -590,10 +631,10 @@ const SearchScreen = ({ navigation, route }) => {
         setVoiceStatus("Microphone permission denied");
         return;
       }
-      
+
       await audioRecorder.prepareToRecordAsync();
       await audioRecorder.record();
-      
+
       setIsRecording(true);
       setVoiceStatus("recording");
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -961,8 +1002,14 @@ const SearchScreen = ({ navigation, route }) => {
   // ── Sync query from navigation params (e.g. from Meals Planner / AI Copilot) ──
   useEffect(() => {
     const incomingQuery = route?.params?.query;
-    if (incomingQuery && incomingQuery.trim() && incomingQuery.trim() !== query.trim()) {
-      console.log(`[Search] Received new query from navigation params: "${incomingQuery}"`);
+    if (
+      incomingQuery &&
+      incomingQuery.trim() &&
+      incomingQuery.trim() !== query.trim()
+    ) {
+      console.log(
+        `[Search] Received new query from navigation params: "${incomingQuery}"`,
+      );
       setQuery(incomingQuery.trim());
       // Clear the param so navigating back and forth doesn't re-trigger
       navigation.setParams({ query: undefined });
@@ -1220,8 +1267,11 @@ const SearchScreen = ({ navigation, route }) => {
           mrp: normalizedPrice.mrp,
           image_url: product?.image_url || "",
           product_url: product?.product_url || product?.deepLink || "",
-          in_stock: (function() {
-            const val = product?.in_stock !== undefined ? product.in_stock : product?.inStock;
+          in_stock: (function () {
+            const val =
+              product?.in_stock !== undefined
+                ? product.in_stock
+                : product?.inStock;
             if (val === undefined || val === null) return false;
             if (typeof val === "string") {
               return val.toLowerCase() === "true" || val === "1";
@@ -1682,7 +1732,11 @@ const SearchScreen = ({ navigation, route }) => {
 
         // Secondary safety: check for OOS keywords in the name itself
         const nameLower = (product.product_name || "").toLowerCase();
-        if (nameLower.includes("out of stock") || nameLower.includes("sold out") || nameLower.includes("unavailable")) {
+        if (
+          nameLower.includes("out of stock") ||
+          nameLower.includes("sold out") ||
+          nameLower.includes("unavailable")
+        ) {
           return;
         }
 
@@ -1746,8 +1800,8 @@ const SearchScreen = ({ navigation, route }) => {
       );
       const withPhotos = relevant.filter(
         (p) =>
-          typeof p.image_url === 'string' &&
-          p.image_url.trim() !== '' &&
+          typeof p.image_url === "string" &&
+          p.image_url.trim() !== "" &&
           !p.image_url.includes("placeholder") &&
           !p.image_url.includes("blank"),
       ).length;
@@ -1941,11 +1995,12 @@ const SearchScreen = ({ navigation, route }) => {
         });
         // Prefetch in small batches to avoid flooding the network
         const BATCH = 5;
-        const prefetchBatch = (urls) => urls.forEach(url => {
-          if (url && url.startsWith('http')) {
-            Image.prefetch(url).catch(() => {});
-          }
-        });
+        const prefetchBatch = (urls) =>
+          urls.forEach((url) => {
+            if (url && url.startsWith("http")) {
+              Image.prefetch(url).catch(() => {});
+            }
+          });
         for (let i = 0; i < allImageUrls.length; i += BATCH) {
           prefetchBatch(allImageUrls.slice(i, i + BATCH));
         }
@@ -2022,49 +2077,99 @@ const SearchScreen = ({ navigation, route }) => {
     if (!hasSearched) {
       return (
         <View style={styles.emptyState}>
-          <View style={[styles.emptyCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
-            <View style={[styles.emptyIconWrap, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
+          <Text
+            style={[
+              FONTS.heading,
+              { fontSize: 20, color: themeColors.ink, marginBottom: 6 },
+            ]}
+          >
+            Search for a product
+          </Text>
+          <Text
+            style={[
+              FONTS.uiBody,
+              { fontSize: 13, color: themeColors.inkSoft, marginBottom: 26 },
+            ]}
+          >
+            {`Compare prices across ${state.connectedPlatforms.length} connected platforms`}
+          </Text>
+
+          {state.connectedPlatforms.length === 0 && (
+            <View
+              style={[
+                styles.warning,
+                {
+                  backgroundColor: themeColors.errorLight,
+                  borderColor: themeColors.error + "30",
+                },
+              ]}
+            >
               <Ionicons
-                name="search-outline"
-                size={36}
-                color={themeColors.textTertiary}
+                name="warning-outline"
+                size={24}
+                color={themeColors.error}
               />
+              <Text style={[styles.warningText, { color: themeColors.error }]}>
+                No platforms connected. Go to Accounts tab to link your
+                accounts.
+              </Text>
             </View>
-            <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>Search for a product</Text>
-            <Text style={[styles.emptySubtitle, { color: themeColors.textSecondary }]}>
-              Compare prices across {state.connectedPlatforms.length} connected
-              platforms
+          )}
+
+          <View style={styles.suggestions}>
+            <Text
+              style={[
+                FONTS.monoBold,
+                {
+                  fontSize: 10.5,
+                  letterSpacing: 1.5,
+                  textTransform: "uppercase",
+                  color: themeColors.inkFaint,
+                  marginBottom: 12,
+                },
+              ]}
+            >
+              Trending near you
             </Text>
-
-            {state.connectedPlatforms.length === 0 && (
-              <View style={[styles.warning, { backgroundColor: themeColors.errorLight, borderColor: themeColors.error + "30" }]}>
-                <Ionicons
-                  name="warning-outline"
-                  size={24}
-                  color={themeColors.error}
-                />
-                <Text style={[styles.warningText, { color: themeColors.error }]}>
-                  No platforms connected. Go to Accounts tab to link your
-                  accounts.
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.suggestions}>
-              <Text style={[styles.suggestTitle, { color: themeColors.textSecondary }]}>Try searching for:</Text>
-              <View style={styles.chips}>
-                {SUGGESTIONS.map((s) => (
-                  <TouchableOpacity
-                    key={s}
-                    onPress={() => setQuery(s)}
-                    activeOpacity={0.85}
-                    style={[styles.chipButton, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}
-                    testID={`searchSuggestion_${s}`}
+            <View style={styles.chips}>
+              {SUGGESTIONS.map((s) => (
+                <TouchableOpacity
+                  key={s.name}
+                  onPress={() => setQuery(s.name)}
+                  activeOpacity={0.85}
+                  style={[
+                    styles.chipButton,
+                    {
+                      backgroundColor: themeColors.card,
+                      borderColor: themeColors.line,
+                      paddingLeft: SPACING.xs + 2,
+                    },
+                  ]}
+                  testID={`searchSuggestion_${s.name}`}
+                >
+                  <View
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: 13,
+                      backgroundColor: s.bg,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 8,
+                    }}
                   >
-                    <Text style={[styles.chip, { color: themeColors.textSecondary }]}>{s}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                    <Text style={{ fontSize: 13 }}>{s.emoji}</Text>
+                  </View>
+                  <Text
+                    style={[
+                      FONTS.uiBodyBold,
+                      { fontSize: 13, color: themeColors.ink },
+                    ]}
+                  >
+                    {s.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         </View>
@@ -2073,9 +2178,36 @@ const SearchScreen = ({ navigation, route }) => {
     if (results.length === 0) {
       return (
         <View style={styles.emptyState}>
-          <Ionicons name="sad-outline" size={48} color={themeColors.border} />
-          <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>No results found</Text>
-          <Text style={[styles.emptySubtitle, { color: themeColors.textSecondary }]}>Try a different search term</Text>
+          <View
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: themeColors.card,
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 16,
+            }}
+          >
+            <Ionicons
+              name="search-outline"
+              size={28}
+              color={themeColors.inkFaint}
+            />
+          </View>
+          <Text
+            style={[
+              FONTS.heading,
+              { fontSize: 20, color: themeColors.ink, marginBottom: 6 },
+            ]}
+          >
+            No results found
+          </Text>
+          <Text
+            style={[FONTS.uiBody, { fontSize: 13, color: themeColors.inkSoft }]}
+          >
+            Try a different search term
+          </Text>
         </View>
       );
     }
@@ -2098,13 +2230,34 @@ const SearchScreen = ({ navigation, route }) => {
     const progressRatio = Math.min(1, completedCount / totalCount);
 
     return (
-      <View style={[styles.loaderContainer, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+      <View
+        style={[
+          styles.loaderContainer,
+          {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.border,
+          },
+        ]}
+      >
         {/* Title row */}
         <View style={styles.loaderTitleRow}>
-          <ActivityIndicator size="small" color={themeColors.primary} style={{ marginRight: 8 }} />
-          <Text style={[styles.loaderStatusText, { color: themeColors.textPrimary }]}>Scanning Prices</Text>
+          <ActivityIndicator
+            size="small"
+            color={themeColors.primary}
+            style={{ marginRight: 8 }}
+          />
+          <Text
+            style={[
+              styles.loaderStatusText,
+              { color: themeColors.textPrimary },
+            ]}
+          >
+            Scanning Prices
+          </Text>
         </View>
-        <Text style={[styles.loaderDetail, { color: themeColors.textSecondary }]}>
+        <Text
+          style={[styles.loaderDetail, { color: themeColors.textSecondary }]}
+        >
           {completedCount === 0
             ? "Opening platforms..."
             : completedCount < totalCount
@@ -2123,17 +2276,24 @@ const SearchScreen = ({ navigation, route }) => {
             };
             const entry = platformResults[platform];
             const products = entry?.products || [];
-            const count = products.filter(p => p && p.in_stock === true).length;
+            const count = products.filter(
+              (p) => p && p.in_stock === true,
+            ).length;
             return (
               <Animated.View
                 key={platform}
                 style={[
                   styles.platformStatusCard,
-                  { backgroundColor: themeColors.background, borderColor: themeColors.border },
+                  {
+                    backgroundColor: themeColors.background,
+                    borderColor: themeColors.border,
+                  },
                   isDone
                     ? {
                         borderColor: themeColors.primary,
-                        backgroundColor: isDark ? themeColors.primary + "15" : COLORS.accentMuted,
+                        backgroundColor: isDark
+                          ? themeColors.primary + "15"
+                          : COLORS.accentMuted,
                       }
                     : { opacity: pulseAnim },
                 ]}
@@ -2153,7 +2313,12 @@ const SearchScreen = ({ navigation, route }) => {
                 >
                   {meta.label}
                 </Text>
-                <Text style={[styles.platformStatusCount, { color: themeColors.textTertiary }]}>
+                <Text
+                  style={[
+                    styles.platformStatusCount,
+                    { color: themeColors.textTertiary },
+                  ]}
+                >
                   {isDone ? `${count} items` : "Scanning..."}
                 </Text>
               </Animated.View>
@@ -2162,25 +2327,47 @@ const SearchScreen = ({ navigation, route }) => {
         </View>
 
         {/* Progress bar */}
-        <View style={[styles.progressTrack, { backgroundColor: themeColors.background }]}>
+        <View
+          style={[
+            styles.progressTrack,
+            { backgroundColor: themeColors.background },
+          ]}
+        >
           <View
             style={[
               styles.progressFill,
-              { width: `${Math.max(progressRatio * 100, 8)}%`, backgroundColor: themeColors.primary },
+              {
+                width: `${Math.max(progressRatio * 100, 8)}%`,
+                backgroundColor: themeColors.primary,
+              },
             ]}
           />
         </View>
 
         {/* Cycling tip */}
-        <View style={[styles.tipBox, { backgroundColor: isDark ? themeColors.primary + "10" : COLORS.cardAlt, borderColor: themeColors.border }]}>
+        <View
+          style={[
+            styles.tipBox,
+            {
+              backgroundColor: isDark
+                ? themeColors.primary + "10"
+                : COLORS.cardAlt,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
           <Ionicons
             name="bulb"
             size={13}
             color={themeColors.accent}
             style={styles.tipIcon}
           />
-          <Text style={[styles.tipLabel, { color: themeColors.accent }]}>Tip</Text>
-          <Text style={[styles.tipText, { color: themeColors.textSecondary }]}>{SAVING_TIPS[tipIndex]}</Text>
+          <Text style={[styles.tipLabel, { color: themeColors.accent }]}>
+            Tip
+          </Text>
+          <Text style={[styles.tipText, { color: themeColors.textSecondary }]}>
+            {SAVING_TIPS[tipIndex]}
+          </Text>
         </View>
       </View>
     );
@@ -2190,20 +2377,26 @@ const SearchScreen = ({ navigation, route }) => {
     let finalResults = [...results];
 
     // Filter by platforms and update prices
-    finalResults = finalResults.map((product) => {
-      if (!product || !product.listings) return null;
-      const filteredListings = product.listings.filter((listing) => listing && selectedPlatforms[listing.platform]);
-      if (filteredListings.length === 0) return null;
+    finalResults = finalResults
+      .map((product) => {
+        if (!product || !product.listings) return null;
+        const filteredListings = product.listings.filter(
+          (listing) => listing && selectedPlatforms[listing.platform],
+        );
+        if (filteredListings.length === 0) return null;
 
-      const bestListing = filteredListings.reduce((a, b) => (a.price < b.price ? a : b));
-      return {
-        ...product,
-        listings: filteredListings,
-        price: bestListing.price,
-        bestPlatform: bestListing.platform,
-        platformCount: filteredListings.length,
-      };
-    }).filter(Boolean);
+        const bestListing = filteredListings.reduce((a, b) =>
+          a.price < b.price ? a : b,
+        );
+        return {
+          ...product,
+          listings: filteredListings,
+          price: bestListing.price,
+          bestPlatform: bestListing.platform,
+          platformCount: filteredListings.length,
+        };
+      })
+      .filter(Boolean);
 
     // Sort
     if (sortBy === "price_asc") {
@@ -2211,18 +2404,34 @@ const SearchScreen = ({ navigation, route }) => {
     } else if (sortBy === "price_desc") {
       finalResults.sort((a, b) => b.price - a.price);
     }
-    
+
     return finalResults;
   }, [results, selectedPlatforms, sortBy]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-        <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: themeColors.paper }]}
+    >
+      <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: themeColors.paper,
+              borderBottomColor: themeColors.line,
+            },
+          ]}
+        >
           <View style={styles.headerTopRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.headerLabel, { color: themeColors.textSecondary }]}>CompareX</Text>
-              <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Collection</Text>
+              <Text
+                style={[styles.headerLabel, { color: themeColors.inkSoft }]}
+              >
+                CompareX
+              </Text>
+              <Text style={[styles.headerTitle, { color: themeColors.ink }]}>
+                Collection
+              </Text>
             </View>
           </View>
           <SearchBar
@@ -2246,28 +2455,83 @@ const SearchScreen = ({ navigation, route }) => {
 
           {/* Voice status banner */}
           {voiceStatus === "recording" && (
-            <View style={[styles.voiceBanner, { backgroundColor: isDark ? themeColors.primary + "20" : "#FEF2F2" }]}>
+            <View
+              style={[
+                styles.voiceBanner,
+                {
+                  backgroundColor: isDark
+                    ? themeColors.primary + "20"
+                    : "#FEF2F2",
+                },
+              ]}
+            >
               <View style={styles.voiceDot} />
-              <Text style={[styles.voiceBannerText, { color: themeColors.primary }]}>Listening... Tap mic to stop</Text>
+              <Text
+                style={[styles.voiceBannerText, { color: themeColors.primary }]}
+              >
+                Listening... Tap mic to stop
+              </Text>
             </View>
           )}
           {voiceStatus === "transcribing" && (
-            <View style={[styles.voiceBanner, { backgroundColor: isDark ? themeColors.primary + "20" : "#FEF2F2" }]}>
+            <View
+              style={[
+                styles.voiceBanner,
+                {
+                  backgroundColor: isDark
+                    ? themeColors.primary + "20"
+                    : "#FEF2F2",
+                },
+              ]}
+            >
               <Ionicons name="sparkles" size={13} color={themeColors.primary} />
-              <Text style={[styles.voiceBannerText, { color: themeColors.primary }]}>AI is transcribing your voice...</Text>
+              <Text
+                style={[styles.voiceBannerText, { color: themeColors.primary }]}
+              >
+                AI is transcribing your voice...
+              </Text>
             </View>
           )}
 
           {/* AI Query Expansion Banner */}
           {aiExpandedQuery ? (
-            <View style={[styles.aiBanner, { backgroundColor: isDark ? themeColors.primary + "20" : "#EDE9FE" }]}>
-              <Ionicons name="sparkles" size={13} color={isDark ? themeColors.primary : "#7C3AED"} />
-              <Text style={[styles.aiBannerText, { color: isDark ? themeColors.textPrimary : "#7C3AED" }]}>
+            <View
+              style={[
+                styles.aiBanner,
+                {
+                  backgroundColor: isDark
+                    ? themeColors.primary + "20"
+                    : "#EDE9FE",
+                },
+              ]}
+            >
+              <Ionicons
+                name="sparkles"
+                size={13}
+                color={isDark ? themeColors.primary : "#7C3AED"}
+              />
+              <Text
+                style={[
+                  styles.aiBannerText,
+                  { color: isDark ? themeColors.textPrimary : "#7C3AED" },
+                ]}
+              >
                 AI searched for{" "}
-                <Text style={[styles.aiBannerKeyword, { color: isDark ? themeColors.primary : "#7C3AED" }]}>"{aiExpandedQuery}"</Text>
+                <Text
+                  style={[
+                    styles.aiBannerKeyword,
+                    { color: isDark ? themeColors.primary : "#7C3AED" },
+                  ]}
+                >
+                  "{aiExpandedQuery}"
+                </Text>
               </Text>
               <TouchableOpacity onPress={() => setAiExpandedQuery(null)}>
-                <Ionicons name="close" size={14} color={isDark ? themeColors.textSecondary : "#7C3AED"} />
+                <Ionicons
+                  name="close"
+                  size={14}
+                  color={isDark ? themeColors.textSecondary : "#7C3AED"}
+                />
               </TouchableOpacity>
             </View>
           ) : null}
@@ -2492,12 +2756,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: SPACING.xl,
-    paddingBottom: 18,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.md,
     paddingHorizontal: SPACING.xl,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    ...SHADOWS.sm,
     zIndex: 10,
   },
   headerTopRow: {
@@ -2763,16 +3025,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: SPACING.sm,
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
   chipButton: {
+    flexDirection: "row",
     backgroundColor: COLORS.cardAlt,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingRight: SPACING.md,
+    paddingLeft: SPACING.sm,
+    paddingVertical: 6,
     borderRadius: RADIUS.full,
-    minWidth: 84,
     alignItems: "center",
   },
   chip: {

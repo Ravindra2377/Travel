@@ -12,7 +12,7 @@ import { Ionicons } from "../components/Icon";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { SHADOWS, RADIUS, SPACING } from "../config/theme";
+import { SHADOWS, RADIUS, SPACING, FONTS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -32,11 +32,11 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 
   return (
     <View style={[styles.container, { bottom: containerBottom }]}>
-      <View style={[styles.floatingBar, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+      <View style={[styles.floatingBar, { backgroundColor: themeColors.paper, borderColor: themeColors.line, shadowColor: themeColors.ink }]}>
         {/* Glassmorphism Background */}
         <View style={styles.blurContainer}>
           <BlurView
-            intensity={85}
+            intensity={90}
             tint={isDark ? "dark" : "light"}
             style={StyleSheet.absoluteFill}
           />
@@ -102,20 +102,22 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               }
 
               return (
-                <View style={styles.tabItem}>
+                <View style={[
+                  styles.tabItem,
+                  isFocused && { backgroundColor: themeColors.ink, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, height: "auto" }
+                ]}>
                   <Ionicons
                     name={iconName}
-                    size={22}
-                    color={isFocused ? themeColors.primary : themeColors.textTertiary}
+                    size={20}
+                    color={isFocused ? "#fff" : themeColors.inkSoft}
                   />
                   <Text
                     style={[
-                      styles.tabLabel,
-                      { color: themeColors.textTertiary },
-                      isFocused && [styles.activeTabLabel, { color: themeColors.primary }],
+                      FONTS.uiBodyBold,
+                      { fontSize: 10, marginTop: 4, color: isFocused ? "#fff" : themeColors.inkSoft }
                     ]}
                   >
-                    {route.name}
+                    {route.name === "MealPlanner" ? "Planner" : route.name}
                   </Text>
                 </View>
               );

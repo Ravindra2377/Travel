@@ -22,19 +22,22 @@ import * as Haptics from "expo-haptics";
 
 const MENU = [
   {
-    icon: "link-outline",
-    label: "Link Accounts",
-    subtitle: "Connect Blinkit, Zepto, etc.",
+    icon: "link",
+    label: "Linked accounts",
+    subtitle: "Blinkit, Zepto & 3 more",
+    color: "coriander",
   },
   {
-    icon: "help-circle-outline",
-    label: "Help & Support",
+    icon: "help",
+    label: "Help & support",
     subtitle: "FAQ and contact",
+    color: "turmeric",
   },
   {
-    icon: "document-text-outline",
-    label: "Terms & Conditions",
+    icon: "document-text",
+    label: "Terms & conditions",
     subtitle: "Legal and privacy",
+    color: "ink",
   },
 ];
 
@@ -74,52 +77,46 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
 
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Header */}
-          <View style={{ paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl }}>
-            <ScreenHeader title="Profile" />
+          <View style={{ paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl, marginBottom: 18 }}>
+            <Text style={[FONTS.heading, { fontSize: 24, color: themeColors.ink }]}>Profile</Text>
           </View>
 
           {/* User Info */}
           <View style={styles.userSection}>
-            <View style={[styles.avatar, { backgroundColor: themeColors.primary, ...SHADOWS.glowSoft }]}>
-              <Text style={styles.avatarText}>
+            <View style={[styles.avatar, { backgroundColor: themeColors.aubergine }]}>
+              <Text style={[FONTS.heading, { fontSize: 22, color: "#fff" }]}>
                 {(user?.name || user?.email || "U").charAt(0).toUpperCase()}
               </Text>
             </View>
             <View style={styles.userInfo}>
-              <Text style={[styles.userName, { color: themeColors.textPrimary }]}>{user?.name || "User"}</Text>
-              <Text style={[styles.userEmail, { color: themeColors.textSecondary }]}>{user?.email || "No email provided"}</Text>
+              <Text style={[FONTS.uiBodyBold, { fontSize: 16, color: themeColors.ink }]}>{user?.name || "User"}</Text>
+              <Text style={[FONTS.uiBody, { fontSize: 12.5, color: themeColors.inkSoft }]}>{user?.email || "No email provided"}</Text>
             </View>
           </View>
 
           {/* Location Settings */}
           <TouchableOpacity
-            style={[styles.locationSection, { backgroundColor: themeColors.surface, ...SHADOWS.sm }]}
+            style={[styles.menuItem, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setLocationEditing(true);
             }}
             activeOpacity={0.7}
           >
-            <View style={styles.locationHeader}>
-              <View style={[styles.locationIconWrap, { backgroundColor: themeColors.accentLight }]}>
-                <Ionicons name="location" size={18} color={themeColors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.locationTitle, { color: themeColors.textPrimary }]}>Delivery Location</Text>
-                <Text style={[styles.locationSubtitle, { color: themeColors.textSecondary }]}>
-                  {locationCity || "Not set"} • {locationPincode || "—"}
-                </Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={themeColors.textTertiary}
-              />
+            <View style={[styles.locationIconWrap, { backgroundColor: themeColors.tomatoSoft }]}>
+              <Ionicons name="location" size={18} color={themeColors.tomato} />
             </View>
+            <View style={styles.menuInfo}>
+              <Text style={[FONTS.uiBodyBold, { fontSize: 13.5, color: themeColors.ink }]}>Delivery location</Text>
+              <Text style={[FONTS.uiBody, { fontSize: 11.5, color: themeColors.inkSoft, marginTop: 2 }]}>
+                {locationCity || "Not set"} • {locationPincode || "—"}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={themeColors.inkFaint} />
           </TouchableOpacity>
 
           <LocationPickerModal
@@ -134,15 +131,13 @@ const ProfileScreen = () => {
           {/* Settings Section */}
           <View style={styles.menuSection}>
             {/* Theme Toggle */}
-            <View style={[styles.menuItem, { backgroundColor: themeColors.surface, ...SHADOWS.sm }]}>
-              <Ionicons
-                name={isDark ? "moon" : "sunny"}
-                size={20}
-                color={themeColors.primary}
-              />
+            <View style={[styles.menuItem, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}>
+              <View style={[styles.locationIconWrap, { backgroundColor: themeColors.aubergineSoft }]}>
+                <Ionicons name="moon" size={18} color={themeColors.aubergine} />
+              </View>
               <View style={styles.menuInfo}>
-                <Text style={[styles.menuLabel, { color: themeColors.textPrimary }]}>Dark Mode</Text>
-                <Text style={[styles.menuSubtitle, { color: themeColors.textSecondary }]}>Switch app theme</Text>
+                <Text style={[FONTS.uiBodyBold, { fontSize: 13.5, color: themeColors.ink }]}>Dark mode</Text>
+                <Text style={[FONTS.uiBody, { fontSize: 11.5, color: themeColors.inkSoft, marginTop: 2 }]}>Switch app theme</Text>
               </View>
               <Switch
                 value={isDark}
@@ -150,59 +145,56 @@ const ProfileScreen = () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   toggleTheme(val ? "dark" : "light");
                 }}
-                trackColor={{ false: themeColors.border, true: themeColors.primary }}
+                trackColor={{ false: themeColors.line, true: themeColors.ink }}
                 thumbColor={"#FFF"}
               />
             </View>
 
-            {MENU.map((item) => (
-              <TouchableOpacity
-                key={item.label}
-                style={[styles.menuItem, { backgroundColor: themeColors.surface, ...SHADOWS.sm }]}
-                activeOpacity={0.6}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  if (item.label === "Link Accounts") {
-                    navigation.navigate("Accounts");
-                  } else if (item.label === "Help & Support") {
-                    navigation.navigate("SupportChat");
-                  } else if (item.label === "Terms & Conditions") {
-                    navigation.navigate("Terms");
-                  }
-                }}
-              >
-                <Ionicons
-                  name={item.icon}
-                  size={20}
-                  color={themeColors.textSecondary}
-                />
-                <View style={styles.menuInfo}>
-                  <Text style={[styles.menuLabel, { color: themeColors.textPrimary }]}>{item.label}</Text>
-                  <Text style={[styles.menuSubtitle, { color: themeColors.textSecondary }]}>{item.subtitle}</Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={16}
-                  color={themeColors.textTertiary}
-                />
-              </TouchableOpacity>
-            ))}
+            {MENU.map((item) => {
+              const baseColor = themeColors[item.color] || themeColors.inkSoft;
+              const bgSoft = themeColors[`${item.color}Soft`] || themeColors.paperDim || "#F2F2F2";
+              return (
+                <TouchableOpacity
+                  key={item.label}
+                  style={[styles.menuItem, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
+                  activeOpacity={0.6}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    if (item.label.includes("accounts")) {
+                      navigation.navigate("Accounts");
+                    } else if (item.label.includes("Help")) {
+                      navigation.navigate("SupportChat");
+                    } else if (item.label.includes("Terms")) {
+                      navigation.navigate("Terms");
+                    }
+                  }}
+                >
+                  <View style={[styles.locationIconWrap, { backgroundColor: bgSoft }]}>
+                    <Ionicons name={item.icon} size={18} color={baseColor} />
+                  </View>
+                  <View style={styles.menuInfo}>
+                    <Text style={[FONTS.uiBodyBold, { fontSize: 13.5, color: themeColors.ink }]}>{item.label}</Text>
+                    <Text style={[FONTS.uiBody, { fontSize: 11.5, color: themeColors.inkSoft, marginTop: 2 }]}>{item.subtitle}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={themeColors.inkFaint} />
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* Logout */}
           <View style={{ marginHorizontal: SPACING.xl }}>
-            <AppButton
-              label="Sign Out"
+            <TouchableOpacity
+              style={{ backgroundColor: themeColors.tomatoSoft, borderRadius: 16, padding: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                 logout();
               }}
-              variant="ghost"
-              icon="log-out-outline"
-              style={{ borderColor: themeColors.error, backgroundColor: themeColors.errorLight }}
-              textStyle={{ color: themeColors.error }}
-              testID="profileLogoutBtn"
-            />
+              activeOpacity={0.7}
+            >
+              <Ionicons name="log-out" size={18} color={themeColors.tomato} />
+              <Text style={[FONTS.uiBodyBold, { color: themeColors.tomato, fontSize: 14 }]}>Sign out</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={{ height: 100 }} />
@@ -280,11 +272,11 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.lg,
-    marginBottom: SPACING.sm,
-    gap: SPACING.lg,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginBottom: 10,
+    gap: 14,
   },
   menuInfo: {
     flex: 1,

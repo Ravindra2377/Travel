@@ -146,7 +146,7 @@ export const AppButton = ({
         disabled={disabled}
         style={[
           styles.button,
-          isPrimary && { backgroundColor: themeColors.primary, ...SHADOWS.glow },
+          isPrimary && { backgroundColor: themeColors.ink },
           !isPrimary && !isGhost && { backgroundColor: themeColors.cardAlt, borderWidth: 1, borderColor: themeColors.border },
           isGhost && { backgroundColor: "transparent", borderWidth: 1, borderColor: themeColors.border },
           disabled && styles.buttonDisabled,
@@ -262,6 +262,255 @@ export const SectionHeader = ({ title, subtitle, actionText, onAction }) => {
         </TouchableOpacity>
       )}
     </View>
+  );
+};
+
+export const Chip = ({ label, icon, active, onPress, style }) => {
+  const { themeColors } = useTheme();
+  const bg = active ? themeColors.aubergine : themeColors.card;
+  const border = active ? themeColors.aubergine : themeColors.lineStrong;
+  const textColor = active ? themeColors.paper : themeColors.inkSoft;
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      style={[
+        {
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: bg,
+          borderColor: border,
+          borderWidth: 1,
+          paddingVertical: 8,
+          paddingHorizontal: 14,
+          borderRadius: 999,
+          gap: 6,
+        },
+        style
+      ]}
+    >
+      {icon && <Ionicons name={icon} size={14} color={textColor} />}
+      <Text style={[FONTS.uiBodyBold, { fontSize: 13, color: textColor }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+};
+
+export const AIInsightBox = ({ text, style }) => {
+  const { themeColors } = useTheme();
+  return (
+    <View style={[{
+      flexDirection: "row",
+      backgroundColor: themeColors.aubergineSoft,
+      padding: SPACING.md,
+      borderRadius: RADIUS.md,
+      gap: SPACING.sm,
+      alignItems: "flex-start",
+    }, style]}>
+      <Ionicons name="sparkles" size={18} color={themeColors.aubergine} style={{ marginTop: 2 }} />
+      <Text style={[FONTS.uiBody, { flex: 1, color: themeColors.aubergineDeep, fontSize: 14, lineHeight: 20 }]}>
+        {text}
+      </Text>
+    </View>
+  );
+};
+
+export const SavingsReceiptCard = ({ amount, itemsTracked, children, style }) => {
+  const { themeColors } = useTheme();
+  return (
+    <View style={[{
+      backgroundColor: themeColors.card,
+      borderRadius: RADIUS.lg,
+      marginTop: SPACING.lg,
+      overflow: "hidden",
+      ...SHADOWS.cardSoft,
+    }, style]}>
+      <View style={{
+        height: 12,
+        width: "100%",
+        overflow: "hidden",
+        position: "relative",
+      }}>
+        <View style={{
+          position: "absolute",
+          top: -10,
+          left: 0,
+          right: 0,
+          height: 20,
+          borderBottomWidth: 4,
+          borderBottomColor: themeColors.paper,
+          borderStyle: "dashed",
+        }} />
+      </View>
+      <View style={{ padding: SPACING.xl, paddingTop: SPACING.md }}>
+        <Text style={[FONTS.uiBodyMedium, { color: themeColors.inkSoft, fontSize: 13, marginBottom: SPACING.xs }]}>
+          Potential savings this week
+        </Text>
+        <Text style={[FONTS.heading, { color: themeColors.coriander, fontSize: 36, marginBottom: SPACING.md }]}>
+          ₹<Text style={[FONTS.monoBold, { fontSize: 36 }]}>{amount}</Text>
+        </Text>
+        {children}
+      </View>
+    </View>
+  );
+};
+
+export const EmptyState = ({ icon, title, message, actionLabel, onAction, style }) => {
+  const { themeColors } = useTheme();
+  return (
+    <View style={[{ alignItems: "center", justifyContent: "center", padding: SPACING.xl }, style]}>
+      <View style={{
+        width: 80, height: 80, borderRadius: 40,
+        backgroundColor: themeColors.paperDim,
+        alignItems: "center", justifyContent: "center",
+        marginBottom: SPACING.lg
+      }}>
+        <Ionicons name={icon} size={32} color={themeColors.inkFaint} />
+      </View>
+      <Text style={[FONTS.heading, { fontSize: 20, color: themeColors.ink, marginBottom: SPACING.sm, textAlign: "center" }]}>
+        {title}
+      </Text>
+      <Text style={[FONTS.uiBody, { fontSize: 15, color: themeColors.inkSoft, textAlign: "center", marginBottom: SPACING.xl, lineHeight: 22 }]}>
+        {message}
+      </Text>
+      {actionLabel && (
+        <AppButton label={actionLabel} onPress={onAction} style={{ minWidth: 160 }} />
+      )}
+    </View>
+  );
+};
+
+export const ChatBubble = ({ message, isUser, time }) => {
+  const { themeColors } = useTheme();
+  return (
+    <View style={{
+      alignSelf: isUser ? "flex-end" : "flex-start",
+      maxWidth: "85%",
+      marginBottom: SPACING.lg,
+    }}>
+      <View style={{
+        backgroundColor: isUser ? themeColors.aubergine : themeColors.card,
+        padding: SPACING.md,
+        borderRadius: RADIUS.lg,
+        borderBottomRightRadius: isUser ? 4 : RADIUS.lg,
+        borderBottomLeftRadius: isUser ? RADIUS.lg : 4,
+        ...(!isUser ? SHADOWS.cardSoft : {}),
+      }}>
+        <Text style={[FONTS.uiBody, { 
+          color: isUser ? themeColors.paper : themeColors.ink,
+          fontSize: 15, lineHeight: 22 
+        }]}>
+          {message}
+        </Text>
+      </View>
+      {time && (
+        <Text style={[FONTS.uiBody, {
+          fontSize: 11,
+          color: themeColors.inkFaint,
+          marginTop: 6,
+          alignSelf: isUser ? "flex-end" : "flex-start",
+          paddingHorizontal: 4
+        }]}>
+          {time}
+        </Text>
+      )}
+    </View>
+  );
+};
+
+export const PriceDisplay = ({ price, originalPrice, saveBadge, size = "md" }) => {
+  const { themeColors } = useTheme();
+  const isLg = size === "lg";
+  return (
+    <View style={{ flexDirection: "row", alignItems: "baseline", flexWrap: "wrap", gap: SPACING.sm }}>
+      <Text style={[FONTS.monoBold, { 
+        fontSize: isLg ? 24 : 18, 
+        color: themeColors.ink,
+        letterSpacing: -0.5
+      }]}>
+        <Text style={{ fontSize: isLg ? 18 : 14, color: themeColors.inkSoft }}>₹</Text>{price}
+      </Text>
+      
+      {originalPrice && (
+        <Text style={[FONTS.mono, { 
+          fontSize: isLg ? 16 : 13, 
+          color: themeColors.inkFaint,
+          textDecorationLine: "line-through" 
+        }]}>
+          ₹{originalPrice}
+        </Text>
+      )}
+      
+      {saveBadge && (
+        <View style={{
+          backgroundColor: themeColors.corianderSoft,
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+          borderRadius: 4,
+          transform: [{ translateY: -2 }]
+        }}>
+          <Text style={[FONTS.uiBodyBold, { fontSize: 11, color: themeColors.coriander }]}>
+            {saveBadge}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+export const StatStrip = ({ stats, style }) => {
+  const { themeColors } = useTheme();
+  return (
+    <View style={[{
+      flexDirection: "row",
+      backgroundColor: themeColors.card,
+      borderRadius: RADIUS.lg,
+      padding: SPACING.md,
+      justifyContent: "space-between",
+      ...SHADOWS.cardSoft,
+    }, style]}>
+      {stats.map((stat, i) => (
+        <View key={i} style={{ flex: 1, alignItems: "center", borderRightWidth: i < stats.length - 1 ? 1 : 0, borderRightColor: themeColors.line }}>
+          <Text style={[FONTS.monoBold, { fontSize: 18, color: themeColors.ink, marginBottom: 2 }]}>{stat.value}</Text>
+          <Text style={[FONTS.uiBody, { fontSize: 11, color: themeColors.inkSoft }]}>{stat.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+};
+
+export const SettingsRow = ({ icon, label, rightElement, onPress, isDestructive, isFirst, isLast }) => {
+  const { themeColors } = useTheme();
+  const textColor = isDestructive ? themeColors.tomato : themeColors.ink;
+  
+  return (
+    <TouchableOpacity
+      activeOpacity={onPress ? 0.7 : 1}
+      onPress={onPress}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: themeColors.card,
+        padding: SPACING.lg,
+        borderTopLeftRadius: isFirst ? RADIUS.lg : 0,
+        borderTopRightRadius: isFirst ? RADIUS.lg : 0,
+        borderBottomLeftRadius: isLast ? RADIUS.lg : 0,
+        borderBottomRightRadius: isLast ? RADIUS.lg : 0,
+        borderBottomWidth: isLast ? 0 : 1,
+        borderBottomColor: themeColors.line,
+      }}
+    >
+      {icon && (
+        <View style={{ width: 32, alignItems: "flex-start" }}>
+          <Ionicons name={icon} size={20} color={textColor} />
+        </View>
+      )}
+      <Text style={[FONTS.uiBodyMedium, { flex: 1, fontSize: 16, color: textColor }]}>
+        {label}
+      </Text>
+      {rightElement || (
+        onPress && !isDestructive && <Ionicons name="chevron-forward" size={20} color={themeColors.inkFaint} />
+      )}
+    </TouchableOpacity>
   );
 };
 

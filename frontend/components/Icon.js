@@ -172,9 +172,19 @@ const ICONS = {
 
   // ── Shield ──
   "shield-checkmark-outline": (c, sw) => <G><Path d="M12 2l8 4v5c0 5.25-3.5 9.74-8 11-4.5-1.26-8-5.75-8-11V6z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /><Polyline points="8,12 11,15 16,9" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
+  "shield": (c, sw) => <G><Path d="M12 2l8 4v5c0 5.25-3.5 9.74-8 11-4.5-1.26-8-5.75-8-11V6z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /></G>,
 
   // ── Person add ──
   "person-add-outline": (c, sw) => <G><Circle cx="10" cy="7" r="4" stroke={c} strokeWidth={sw} fill="none" /><Path d="M2 21v-1c0-3.31 2.69-6 6-6h4c3.31 0 6 2.69 6 6v1" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /><Line x1="20" y1="6" x2="20" y2="12" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="17" y1="9" x2="23" y2="9" stroke={c} strokeWidth={sw} strokeLinecap="round" /></G>,
+  "user-plus": (c, sw) => <G><Circle cx="10" cy="7" r="4" stroke={c} strokeWidth={sw} fill="none" /><Path d="M2 21v-1c0-3.31 2.69-6 6-6h4c3.31 0 6 2.69 6 6v1" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /><Line x1="20" y1="6" x2="20" y2="12" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="17" y1="9" x2="23" y2="9" stroke={c} strokeWidth={sw} strokeLinecap="round" /></G>,
+
+  // ── Additions for CompareZ ──
+  "sliders": (c, sw) => <G><Line x1="4" y1="21" x2="4" y2="14" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="4" y1="10" x2="4" y2="3" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="12" y1="21" x2="12" y2="12" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="12" y1="8" x2="12" y2="3" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="20" y1="21" x2="20" y2="16" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="20" y1="12" x2="20" y2="3" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="1" y1="14" x2="7" y2="14" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="9" y1="8" x2="15" y2="8" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="17" y1="16" x2="23" y2="16" stroke={c} strokeWidth={sw} strokeLinecap="round" /></G>,
+  "egg": (c, sw) => <Path d="M12 22C6 22 4 16 4 11C4 5 8 2 12 2C16 2 20 5 20 11C20 16 18 22 12 22Z" stroke={c} strokeWidth={sw} fill="none" />,
+  "trend": (c, sw) => <G><Polyline points="23 6 13.5 15.5 8.5 10.5 1 18" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /><Polyline points="17 6 23 6 23 12" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
+  "bell": (c, sw) => <G><Path d="M18 8A6 6 0 0 0 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /><Path d="M13.73 21A2 2 0 0 1 10.27 21" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
+  "flame": (c, sw) => <Path d="M12 22c-4 0-7-3-7-7 0-3 2-5 4-7l1-1 1 2c.5-1 1.5-3 1.5-5.5 0-.5.5-1 1-.5C16 5 19 9 19 15c0 4-3 7-7 7z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" />,
+  "link": (c, sw) => <G><Path d="M10 13a4.5 4.5 0 006.36 0l3-3a4.5 4.5 0 00-6.36-6.36l-1 1" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /><Path d="M14 11a4.5 4.5 0 00-6.36 0l-3 3a4.5 4.5 0 006.36 6.36l1-1" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /></G>,
 };
 
 // Also export as default AND as named export so existing `import { Ionicons }` syntax works

@@ -21,7 +21,8 @@ import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
 import { WishlistContext } from "../context/WishlistContext";
 import GroqService from "../services/GroqService";
-import { AppButton, SurfaceCard, ScreenHeader } from "../components/SharedUI";
+import { AppButton, SurfaceCard, SavingsReceiptCard, StatStrip, Chip } from "../components/SharedUI";
+import ScreenHeader from "../components/ScreenHeader";
 import LocationPickerModal from "../components/LocationPickerModal";
 import LocationService from "../services/LocationService";
 
@@ -90,7 +91,7 @@ const BrowseCard = ({ item, navigation, themeColors }) => (
         resizeMode="contain"
       />
     </View>
-    <Text style={[styles.browseName, { color: themeColors.textPrimary }]}>{item.name}</Text>
+    <Text style={[styles.browseName, { color: themeColors.ink }]}>{item.name}</Text>
   </TouchableOpacity>
 );
 
@@ -180,146 +181,104 @@ const HomeScreen = ({ navigation }) => {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.paper }]}>
+      <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
 
+
+        <ScreenHeader 
+          leftAlign={true}
+          backgroundColor={themeColors.paper}
+          centerComponent={
+            <View>
+              <Text style={[FONTS.heading, { fontSize: 22, color: themeColors.ink, letterSpacing: -0.5 }]}>CompareZ</Text>
+              <TouchableOpacity 
+                style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setLocationModalVisible(true);
+                }}
+              >
+                <Ionicons name="location" size={12} color={themeColors.inkSoft} />
+                <Text style={[FONTS.uiBody, { color: themeColors.inkSoft, fontSize: 13, marginLeft: 4, marginRight: 4 }]}>
+                  {currentCity ? `${currentCity} ${currentPincode}` : "Set Location"}
+                </Text>
+                <Ionicons name="chevron-down" size={12} color={themeColors.inkFaint} />
+              </TouchableOpacity>
+            </View>
+          }
+        />
 
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           bounces={false}
         >
-          {/* ── Dark Hero Section (inspired by luxury splash) ── */}
+          {/* ── Hero Section (Paper Theme) ── */}
           <Animated.View style={slideUp(fadeHero)}>
-            <LinearGradient
-              colors={themeColors.gradientHero}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0.3, y: 1 }}
-              style={styles.hero}
-            >
-              {/* Top bar */}
-              <View style={styles.heroTop}>
-                <Text style={styles.heroEyebrow}>CompareZ</Text>
-                <TouchableOpacity 
-                  style={{ flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255, 255, 255, 0.15)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100 }} 
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setLocationModalVisible(true);
-                  }}
-                >
-                  <Ionicons name="location" size={14} color="#fff" />
-                  <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600", marginLeft: 4, marginRight: 2 }}>
-                    {currentCity ? `${currentCity} ${currentPincode}` : "Set Location"}
-                  </Text>
-                  <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.8)" />
-                </TouchableOpacity>
-              </View>
+            <View style={{ paddingBottom: 30 }}>
+
 
               {/* Main headline */}
-              <View style={styles.heroContent}>
-                <Text style={styles.heroGreeting}>
-                  {new Date().getHours() < 12
-                    ? "Good Morning"
-                    : new Date().getHours() < 17
-                    ? "Good Afternoon"
-                    : "Good Evening"}
-                  , {user?.name || user?.email?.split("@")[0] || "Explorer"}!
+              <View style={{ paddingHorizontal: H_PADDING, marginTop: 14 }}>
+                <Text style={[FONTS.monoBold, { color: themeColors.aubergine, fontSize: 10.5, letterSpacing: 1.5, textTransform: "uppercase" }]}>
+                  Good {new Date().getHours() < 12 ? "Morning" : new Date().getHours() < 17 ? "Afternoon" : "Evening"}, {user?.name || user?.email?.split("@")[0] || "Explorer"}
                 </Text>
-                <Text style={styles.heroTitle}>Save on{"\n"}Every Cart</Text>
-                <Text style={styles.heroSubtitle}>
-                  Compare prices across Blinkit, Zepto, BigBasket{"\n"}and more
-                  — all in one search. Powered by AI for smart deal insights.
+                <Text style={[FONTS.heading, { color: themeColors.ink, fontSize: 38, lineHeight: 40, marginVertical: 10 }]}>
+                  Save on{"\n"}every cart.
                 </Text>
-              </View>
-
-              {/* Stats row */}
-              <Animated.View
-                style={[
-                  styles.statsRow,
-                  {
-                    transform: [
-                      {
-                        translateY: floatAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [-4, 4],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <TouchableOpacity
-                  style={styles.statItem}
+                <Text style={[FONTS.uiBody, { color: themeColors.inkSoft, fontSize: 13.5, lineHeight: 21, maxWidth: 270, marginBottom: 20 }]}>
+                  One search checks Blinkit, Zepto, BigBasket & more — Beans finds the best price for you.
+                </Text>
+                <AppButton
+                  label="Start comparing"
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    navigation.navigate("Accounts");
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    navigation.navigate("Search");
                   }}
-                >
-                  <Ionicons
-                    name="apps-outline"
-                    size={16}
-                    color="rgba(255,255,255,0.6)"
-                    style={{ marginBottom: 4 }}
-                  />
-                  <Text style={styles.statValue}>5-in-1</Text>
-                  <Text style={styles.statLabel}>Search</Text>
-                </TouchableOpacity>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Ionicons
-                    name="sync-outline"
-                    size={16}
-                    color="rgba(255,255,255,0.6)"
-                    style={{ marginBottom: 4 }}
-                  />
-                  <Text style={styles.statValue}>Live</Text>
-                  <Text style={styles.statLabel}>Sync</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Ionicons
-                    name="wallet-outline"
-                    size={16}
-                    color="#10B981"
-                    style={{ marginBottom: 4 }}
-                  />
-                  <Text style={[styles.statValue, { color: "#10B981" }]}>
-                    Best
-                  </Text>
-                  <Text style={styles.statLabel}>Price</Text>
-                </View>
-              </Animated.View>
+                  rightIcon="arrow-forward"
+                  style={{ alignSelf: "flex-start", minHeight: 48 }}
+                  textStyle={{ color: "#fff" }}
+                />
+              </View>
+            </View>
 
-              {/* CTA Button */}
-              <AppButton
-                label="Start Comparing"
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  navigation.navigate("Search");
-                }}
-                rightIcon="arrow-forward"
-                variant="ghost"
-                style={{ 
-                  backgroundColor: "#FFFFFF", 
-                  marginTop: SPACING.xl,
-                  borderWidth: 0,
-                  borderRadius: RADIUS.lg,
-                  ...SHADOWS.md
-                }}
-                textStyle={{ color: "#7C3AED" }}
-                testID="homeSearchCta"
+            {/* Savings receipt — signature element */}
+            {/*   <View style={{ paddingHorizontal: H_PADDING, marginTop: 10, zIndex: 3 }}>
+              <SavingsReceiptCard amount="1,240.50">
+                <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginTop: -20 }}>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <View style={{ backgroundColor: themeColors.corianderSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, flexDirection: "row", alignItems: "center" }}>
+                      <Ionicons name="trend" size={12} color={themeColors.coriander} />
+                      <Text style={[FONTS.uiBodyBold, { fontSize: 11, color: themeColors.coriander, marginLeft: 2 }]}>+18%</Text>
+                    </View>
+                    <Text style={[FONTS.uiBody, { fontSize: 11, color: themeColors.inkFaint, marginTop: 6 }]}>vs. last month</Text>
+                  </View>
+                </View>
+              </SavingsReceiptCard>
+            </View> */}
+
+            {/* Stat strip */}
+            <View style={{ paddingHorizontal: H_PADDING, marginTop: SPACING.lg }}>
+              <StatStrip 
+                stats={[
+                  { value: "5-in-1", label: "Search" },
+                  { value: "Live", label: "Price sync" },
+                  { value: "Best", label: "Price, always" }
+                ]} 
               />
-            </LinearGradient>
+            </View>
           </Animated.View>
 
           {/* ── Content Section ── */}
           <Animated.View style={[styles.lightSection, slideUp(fadeContent)]}>
             {/* ── Browse Directly Section ── */}
             <View style={{ paddingHorizontal: H_PADDING }}>
-              <ScreenHeader 
-                title="Browse Directly" 
-                subtitle="Access top platforms directly"
-              />
+              <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: 2 }}>
+                <Text style={[FONTS.heading, { fontSize: 19, color: themeColors.ink }]}>Browse directly</Text>
+                </View>
+              <Text style={[FONTS.uiBody, { fontSize: 12.5, color: themeColors.inkSoft, marginBottom: 14 }]}>
+                Jump straight into a connected platform
+              </Text>
             </View>
 
             <View style={styles.browseGrid}>
@@ -340,7 +299,7 @@ const HomeScreen = ({ navigation }) => {
                 }}
                 activeOpacity={0.7}
               >
-                <Ionicons name="basket" size={24} color={themeColors.primary} />
+                <Ionicons name="basket" size={24} color={themeColors.ink} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={[styles.optimizerTitle, { color: themeColors.textPrimary }]}>Smart Basket Optimizer</Text>
                   <Text style={[styles.optimizerSubtitle, { color: themeColors.textSecondary }]}>
@@ -367,8 +326,8 @@ const HomeScreen = ({ navigation }) => {
 
               {optimizing && (
                 <View style={[styles.optimizerLoadingCard, { backgroundColor: themeColors.violetLight }]}>
-                  <ActivityIndicator color={themeColors.primary} />
-                  <Text style={[styles.optimizerLoadingText, { color: themeColors.primary }]}>
+                  <ActivityIndicator color={themeColors.ink} />
+                  <Text style={[styles.optimizerLoadingText, { color: themeColors.ink }]}>
                     AI calculating cheapest split...
                   </Text>
                 </View>
@@ -556,7 +515,7 @@ const styles = StyleSheet.create({
   },
   browseCardWrapper: {
     width: "33.33%",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: SPACING.lg,
   },
   browseIconWrap: {
@@ -575,6 +534,7 @@ const styles = StyleSheet.create({
     ...FONTS.caption,
     fontSize: 12,
     fontWeight: "600",
+    width: 60,
     textAlign: "center",
   },
   optimizerHeaderRow: {

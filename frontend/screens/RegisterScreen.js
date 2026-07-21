@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "../components/Icon";
 import { LinearGradient } from "expo-linear-gradient";
 import { AuthContext } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { COLORS, SPACING, RADIUS, FONTS } from "../config/theme";
 import { AppButton, SurfaceCard, TextField } from "../components/SharedUI";
 
@@ -23,6 +24,9 @@ const RegisterScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const { register } = useContext(AuthContext);
+  const { themeColors } = useTheme();
+
+  const isValid = name.trim() && email.trim() && password.length >= 8 && password === confirmPassword && agreed;
 
   const handleRegister = () => {
     if (!name.trim()) {
@@ -63,11 +67,11 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.paper }]}>
+      <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
 
 
-      <LinearGradient colors={COLORS.gradientHero} style={styles.heroBg} />
+      <LinearGradient colors={[themeColors.paper, themeColors.paperDim]} style={styles.heroBg} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -78,13 +82,13 @@ const RegisterScreen = ({ navigation }) => {
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.textOnDark} />
+          <Ionicons name="arrow-back" size={24} color={themeColors.ink} />
         </TouchableOpacity>
 
-        <Text style={styles.heading}>Create Account</Text>
-        <Text style={styles.subtitle}>Join CompareZ and start saving</Text>
+        <Text style={[FONTS.heading, { fontSize: 32, color: themeColors.ink, marginBottom: SPACING.xs }]}>Create Account</Text>
+        <Text style={[FONTS.uiBody, { color: themeColors.inkSoft, fontSize: 16, marginBottom: SPACING.xl }]}>Join CompareZ and start saving</Text>
 
-        <SurfaceCard style={styles.formCard}>
+        <SurfaceCard style={[styles.formCard, { backgroundColor: themeColors.card }]}>
           <TextField
             icon="person-outline"
             value={name}
@@ -111,7 +115,7 @@ const RegisterScreen = ({ navigation }) => {
                 <Ionicons
                   name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={18}
-                  color={COLORS.textTertiary}
+                  color={themeColors.inkFaint}
                 />
               </TouchableOpacity>
             }
@@ -129,7 +133,7 @@ const RegisterScreen = ({ navigation }) => {
             <TouchableOpacity 
               style={[
                 styles.checkbox, 
-                { borderColor: agreed ? COLORS.textAccent : COLORS.textTertiary, borderWidth: agreed ? 0 : 1.5 }
+                { borderColor: agreed ? themeColors.aubergine : themeColors.inkFaint, borderWidth: agreed ? 0 : 1.5 }
               ]}
               onPress={() => setAgreed(!agreed)}
               activeOpacity={0.7}
@@ -138,14 +142,14 @@ const RegisterScreen = ({ navigation }) => {
                 <Ionicons 
                   name="checkbox" 
                   size={22} 
-                  color={COLORS.textAccent} 
+                  color={themeColors.aubergine} 
                 />
               )}
             </TouchableOpacity>
             <View style={styles.termsTextWrap}>
-              <Text style={styles.termsText}>I agree to the </Text>
+              <Text style={[FONTS.uiBody, { color: themeColors.inkSoft }]}>I agree to the </Text>
               <TouchableOpacity onPress={() => navigation.navigate("Terms")}>
-                <Text style={styles.termsLink}>Terms & Conditions</Text>
+                <Text style={[FONTS.uiBodyBold, { color: themeColors.aubergine }]}>Terms & Conditions</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -154,14 +158,14 @@ const RegisterScreen = ({ navigation }) => {
             label="Create Account"
             onPress={handleRegister}
             icon="person-add-outline"
-            style={[styles.createBtn, !agreed && { opacity: 0.5 }]}
-            disabled={!agreed}
+            style={[styles.createBtn, { backgroundColor: isValid ? themeColors.aubergine : themeColors.inkFaint }]}
+            disabled={!isValid}
           />
 
           <View style={styles.signInRow}>
-            <Text style={styles.signInPrompt}>Already have an account? </Text>
+            <Text style={[FONTS.uiBody, { color: themeColors.inkSoft }]}>Already have an account? </Text>
             <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={styles.signInLink}>Sign In</Text>
+              <Text style={[FONTS.uiBodyBold, { color: themeColors.aubergine }]}>Sign In</Text>
             </TouchableOpacity>
           </View>
         </SurfaceCard>

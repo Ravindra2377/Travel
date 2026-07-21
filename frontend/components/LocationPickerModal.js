@@ -140,46 +140,41 @@ const LocationPickerModal = ({ visible, onClose, onSave }) => {
           <View style={styles.contentWrap}>
             {/* Header */}
             <View style={styles.header}>
-              <View style={styles.iconCircle}>
-                <LinearGradient
-                  colors={[COLORS.primary, COLORS.accent]}
-                  style={styles.gradientIcon}
-                >
-                  <Ionicons name="location" size={24} color="#FFF" />
-                </LinearGradient>
+              <View style={[styles.iconCircle, { backgroundColor: themeColors.aubergineSoft, alignItems: "center", justifyContent: "center" }]}>
+                <Ionicons name="location" size={24} color={themeColors.aubergine} />
               </View>
               <View style={styles.headerText}>
-                <Text style={[styles.title, { color: themeColors.textPrimary }]}>Delivery Location</Text>
-                <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>Set your delivery pincode</Text>
+                <Text style={[styles.title, { color: themeColors.ink }]}>Delivery Location</Text>
+                <Text style={[styles.subtitle, { color: themeColors.inkSoft }]}>Set your delivery pincode</Text>
               </View>
-              <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: themeColors.border }]}>
-                <Ionicons name="close" size={20} color={themeColors.textTertiary} />
+              <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: themeColors.line }]}>
+                <Ionicons name="close" size={20} color={themeColors.inkSoft} />
               </TouchableOpacity>
             </View>
 
             {/* Content */}
             <View style={styles.content}>
-              <View style={[styles.inputGroup, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
-                <Ionicons name="business-outline" size={18} color={themeColors.textTertiary} style={styles.inputIcon} />
+              <View style={[styles.inputGroup, { backgroundColor: themeColors.paper, borderColor: themeColors.line }]}>
+                <Ionicons name="business-outline" size={18} color={themeColors.inkSoft} style={styles.inputIcon} />
                 <TextInput
-                  style={[styles.input, { color: themeColors.textPrimary }]}
+                  style={[styles.input, { color: themeColors.ink }]}
                   placeholder="City (e.g. Bengaluru)"
                   value={city}
                   onChangeText={setCity}
-                  placeholderTextColor={themeColors.textTertiary}
+                  placeholderTextColor={themeColors.inkFaint}
                 />
               </View>
 
-              <View style={[styles.inputGroup, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
-                <Ionicons name="pin-outline" size={18} color={themeColors.textTertiary} style={styles.inputIcon} />
+              <View style={[styles.inputGroup, { backgroundColor: themeColors.paper, borderColor: themeColors.line }]}>
+                <Ionicons name="pin-outline" size={18} color={themeColors.inkSoft} style={styles.inputIcon} />
                 <TextInput
-                  style={[styles.input, { color: themeColors.textPrimary }]}
+                  style={[styles.input, { color: themeColors.ink }]}
                   placeholder="Pincode (e.g. 560001)"
                   value={pincode}
                   onChangeText={setPincode}
                   keyboardType="numeric"
                   maxLength={6}
-                  placeholderTextColor={themeColors.textTertiary}
+                  placeholderTextColor={themeColors.inkFaint}
                 />
               </View>
 
@@ -189,11 +184,11 @@ const LocationPickerModal = ({ visible, onClose, onSave }) => {
                 disabled={detecting}
               >
                 {detecting ? (
-                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <ActivityIndicator size="small" color={themeColors.aubergine} />
                 ) : (
                   <>
-                    <Ionicons name="navigate-outline" size={18} color={COLORS.primary} />
-                    <Text style={styles.detectText}>Use my current location</Text>
+                    <Ionicons name="navigate-outline" size={18} color={themeColors.aubergine} />
+                    <Text style={[styles.detectText, { color: themeColors.aubergine }]}>Use my current location</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -207,7 +202,7 @@ const LocationPickerModal = ({ visible, onClose, onSave }) => {
                   <ActivityIndicator size="small" color="#FFF" />
                 ) : (
                   <LinearGradient
-                    colors={[COLORS.primary, COLORS.accent]}
+                    colors={[themeColors.aubergine, themeColors.aubergineDeep || themeColors.aubergine]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.saveGradient}
@@ -266,12 +261,10 @@ const styles = StyleSheet.create({
   title: {
     ...FONTS.h3,
     fontSize: 20,
-    color: COLORS.textPrimary,
   },
   subtitle: {
     ...FONTS.caption,
     fontSize: 13,
-    color: COLORS.textSecondary,
     marginTop: 2,
   },
   closeBtn: {
@@ -301,7 +294,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 52,
     ...FONTS.body,
-    color: COLORS.textPrimary,
   },
   detectBtn: {
     flexDirection: "row",
@@ -312,7 +304,6 @@ const styles = StyleSheet.create({
   },
   detectText: {
     ...FONTS.captionBold,
-    color: COLORS.primary,
     fontSize: 14,
   },
   saveBtn: {
