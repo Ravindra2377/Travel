@@ -3,11 +3,10 @@ import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
-import * as NavigationBar from "expo-navigation-bar";
 import { AuthContext, AuthProvider } from "./context/AuthContext";
 import { WishlistProvider } from "./context/WishlistContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
-import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { COLORS } from "./config/theme";
 import { useFonts } from "expo-font";
 import { Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from "@expo-google-fonts/roboto";
@@ -91,18 +90,11 @@ const AppNav = () => {
     }
   }, [fontError]);
 
-  React.useEffect(() => {
-    if (Platform.OS === "android") {
-      NavigationBar.setButtonStyleAsync(isDark ? "light" : "dark");
-      NavigationBar.setBackgroundColorAsync(isDark ? "#1A1A24" : "#FAF6EF");
-    }
-  }, [isDark]);
-
   // Show splash while it's active or fonts are still loading
   if (showSplash || !fontsReady) {
     return (
       <>
-        <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
+        <StatusBar style={isDark ? "light" : "dark"} />
         <SplashScreen onFinish={() => setShowSplash(false)} />
       </>
     );
@@ -112,7 +104,7 @@ const AppNav = () => {
   if (isLoading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
-        <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />
+        <StatusBar style={isDark ? "light" : "dark"} />
         <ActivityIndicator size="large" color={themeColors.primary || COLORS.primary} />
       </View>
     );
@@ -134,11 +126,7 @@ const AppNav = () => {
 
   return (
     <NavigationContainer theme={customTheme}>
-      <StatusBar
-        style={isDark ? "light" : "dark"}
-        translucent={Platform.OS === "ios"}
-        backgroundColor={Platform.OS === "android" ? (isDark ? "#1A1A24" : "#FAF6EF") : "transparent"}
-      />
+      <StatusBar style={isDark ? "light" : "dark"} />
       <View style={{ flex: 1, backgroundColor: themeColors.paper }}>
         <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
           {userToken !== null ? (
