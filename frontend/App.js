@@ -7,10 +7,8 @@ import * as NavigationBar from "expo-navigation-bar";
 import { AuthContext, AuthProvider } from "./context/AuthContext";
 import { WishlistProvider } from "./context/WishlistContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
-import { Ionicons } from "./components/Icon";
 import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
-import { BlurView } from "expo-blur";
-import { COLORS, SHADOWS, FONTS } from "./config/theme";
+import { COLORS } from "./config/theme";
 import { useFonts } from "expo-font";
 import { Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from "@expo-google-fonts/roboto";
 import { IBMPlexMono_500Medium, IBMPlexMono_600SemiBold } from "@expo-google-fonts/ibm-plex-mono";
@@ -65,8 +63,9 @@ const AppNav = () => {
   const { isLoading, userToken } = useContext(AuthContext);
   const { themeColors, isDark } = useTheme();
   const [showSplash, setShowSplash] = React.useState(true);
+  const [fontWaitExpired, setFontWaitExpired] = React.useState(false);
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Roboto: Roboto_400Regular,
     RobotoMedium: Roboto_500Medium,
     RobotoBold: Roboto_700Bold,
@@ -74,17 +73,23 @@ const AppNav = () => {
     IBMPlexMonoBold: IBMPlexMono_600SemiBold,
   });
 
+  const fontsReady = fontsLoaded || Boolean(fontError) || fontWaitExpired;
 
-  // Safety Valve: If initialization takes more than 5 seconds, force hide the splash
+  // Release builds must never be held on the splash by a font-loading failure.
   React.useEffect(() => {
     const safetyTimer = setTimeout(() => {
-      if (showSplash) {
-        console.log("[App] Safety valve triggered: forcing splash hide");
-        setShowSplash(false);
-      }
+      console.warn("[App] Startup timeout reached; continuing with available fonts");
+      setFontWaitExpired(true);
+      setShowSplash(false);
     }, 5000);
     return () => clearTimeout(safetyTimer);
-  }, [showSplash]);
+  }, []);
+
+  React.useEffect(() => {
+    if (fontError) {
+      console.warn("[App] Custom fonts failed to load; using system fallbacks", fontError);
+    }
+  }, [fontError]);
 
   React.useEffect(() => {
     if (Platform.OS === "android") {
@@ -94,7 +99,7 @@ const AppNav = () => {
   }, [isDark]);
 
   // Show splash while it's active or fonts are still loading
-  if (showSplash || !fontsLoaded) {
+  if (showSplash || !fontsReady) {
     return (
       <>
         <StatusBar style={isDark ? "light" : "dark"} translucent backgroundColor="transparent" />

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, TextInput, StyleSheet, TouchableOpacity, Animated } from "react-native";
 import { Ionicons } from "../components/Icon";
-import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { SPACING, RADIUS, FONTS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
 
@@ -18,6 +18,7 @@ const SearchBar = ({
 }) => {
   const { themeColors } = useTheme();
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
+  const [focused, setFocused] = React.useState(false);
 
   React.useEffect(() => {
     if (isRecording) {
@@ -41,7 +42,16 @@ const SearchBar = ({
   }, [isRecording]);
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}>
+    <View style={[
+      styles.container,
+      {
+        backgroundColor: themeColors.card,
+        borderColor: focused ? themeColors.aubergine : themeColors.line,
+        borderWidth: focused ? 1.5 : 1,
+        shadowColor: themeColors.ink,
+        shadowOpacity: focused ? 0.08 : 0.03,
+      },
+    ]}>
       <TouchableOpacity
         style={[styles.iconWrap, { backgroundColor: "transparent" }]}
         onPress={() => {
@@ -63,6 +73,8 @@ const SearchBar = ({
         selectionColor={themeColors.ink}
         testID={testID}
         accessibilityLabel={testID || "searchInput"}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
       />
       {value ? (
         <TouchableOpacity
@@ -128,6 +140,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     minHeight: 48,
     gap: SPACING.sm,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 2,
   },
   iconWrap: {
     width: 34,

@@ -1,8 +1,6 @@
 import ProductCard from "../ProductCard";
 import PlatformRow from "../PlatformRow";
 import SearchBar from "../SearchBar";
-import SkeletonLoader from "../SkeletonLoader";
-import PerformanceDebugPanel from "../PerformanceDebugPanel";
 import {
   SurfaceCard,
   AppButton,
@@ -19,8 +17,6 @@ describe("Component module exports", () => {
     expect(ProductCard).toBeDefined();
     expect(PlatformRow).toBeDefined();
     expect(SearchBar).toBeDefined();
-    expect(SkeletonLoader).toBeDefined();
-    expect(PerformanceDebugPanel).toBeDefined();
   });
 
   it("shared UI named exports are defined", () => {

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Animated,
   Dimensions,
@@ -18,7 +17,6 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "../components/Icon";
-import { LinearGradient } from "expo-linear-gradient";
 import { WishlistContext } from "../context/WishlistContext";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";

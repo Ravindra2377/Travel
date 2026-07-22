@@ -4,26 +4,22 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  StatusBar,
   TouchableOpacity,
   Linking,
-  Alert,
   Platform,
   Image,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "../components/Icon";
-import { buildPlatformSearchUrl } from "../config/utils";
 import PlatformRow from "../components/PlatformRow";
 import { WishlistContext } from "../context/WishlistContext";
-import { SPACING, RADIUS, FONTS, SHADOWS, PLATFORM_COLORS } from "../config/theme";
+import { SPACING, RADIUS, FONTS } from "../config/theme";
 import ScreenHeader from "../components/ScreenHeader";
 import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
 import GroqService from "../services/GroqService";
-import { AppButton, SurfaceCard, Badge, PriceTag, RatingRow } from "../components/SharedUI";
-import { LinearGradient } from "expo-linear-gradient";
+import { AppButton, Badge, PriceTag, RatingRow } from "../components/SharedUI";
 
 const extractQuantity = (text) => {
   const compact = String(text || "")

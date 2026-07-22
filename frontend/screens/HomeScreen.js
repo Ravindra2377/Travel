@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   Animated,
   Dimensions,
   Image,
@@ -16,17 +15,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "../components/Icon";
 import { AuthContext } from "../context/AuthContext";
-import { SPACING, RADIUS, SHADOWS, FONTS } from "../config/theme";
+import { SPACING, RADIUS, FONTS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
 import { WishlistContext } from "../context/WishlistContext";
 import GroqService from "../services/GroqService";
-import { AppButton, SurfaceCard, SavingsReceiptCard, StatStrip, Chip } from "../components/SharedUI";
+import { AppButton, SurfaceCard, StatStrip } from "../components/SharedUI";
 import ScreenHeader from "../components/ScreenHeader";
 import LocationPickerModal from "../components/LocationPickerModal";
 import LocationService from "../services/LocationService";
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
+const { height: SCREEN_H } = Dimensions.get("window");
 const H_PADDING = SPACING.xl;
 
 const DIRECT_PLATFORMS = [

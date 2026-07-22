@@ -4,15 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
-  ActivityIndicator,
-  Platform,
   Share,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { Ionicons } from "../components/Icon";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { COLORS, SPACING, SHADOWS } from "../config/theme";
 import LocationService from "../services/LocationService";
 import * as Haptics from "expo-haptics";
 

@@ -1,27 +1,25 @@
-import { Platform } from "react-native";
-
 // ─────────────────────────────────────────────────────────────────────────────
-// CompareZ — Aurora Design System v2
-// Modern vibrant palette · clean surfaces · scalable tokens
+// CompareZ — Calm Commerce Design System
+// Warm neutral surfaces · focused aubergine accents · consistent contrast
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const lightColors = {
   // ── Core backgrounds ──────────────────────────────────────────────
-  primary:        "#7C3AED",        // Logo Purple
-  primaryLight:   "#A78BFA",
-  brandPurple:    "#7C3AED",
-  brandPurpleLight: "#A78BFA",
-  background:     "#FAF6EF", // Updated to new paper theme
+  primary:        "#4D3568",
+  primaryLight:   "#846AA0",
+  brandPurple:    "#4D3568",
+  brandPurpleLight: "#846AA0",
+  background:     "#F8F6F1",
   backgroundDark: "#0F172A", // Fallback if used statically
   surface:        "#FFFFFF",
   surfaceDark:    "#1E293B",
-  card:           "#FFFDF9",
-  cardAlt:        "#F5EFE2",
+  card:           "#FFFFFF",
+  cardAlt:        "#F2EFE8",
   cardDark:       "#1E293B",
-  border:         "#E2E8F0",
+  border:         "#E5E0D7",
   borderDark:     "#334155",
-  borderLight:    "#F1F5F9",
-  divider:        "#E2E8F0",
+  borderLight:    "#EEEAE3",
+  divider:        "#E5E0D7",
 
   // ── Glassmorphism ─────────────────────────────────────────────────
   glassSurface:     "rgba(255, 255, 255, 0.45)",
@@ -32,20 +30,20 @@ export const lightColors = {
   glassShadow:      "rgba(124, 58, 237, 0.08)",
 
   // ── Accent (Logo Derived) ─────────────────────────────────────────
-  accent:       "#EC4899",          // Logo Pink
-  accentGold:   "#F97316",          // Logo Orange
-  accentLight:  "rgba(236, 72, 153, 0.10)",
-  accentStrong: "#BE185D",
-  accentMuted:  "rgba(236, 72, 153, 0.06)",
-  secondary:    "#06B6D4",          // Logo Cyan
-  secondaryLight: "rgba(6, 182, 212, 0.10)",
-  violet:       "#8B5CF6",          // Logo Violet
-  violetLight:  "rgba(139, 92, 246, 0.10)",
+  accent:       "#4D3568",
+  accentGold:   "#C5852D",
+  accentLight:  "rgba(77, 53, 104, 0.10)",
+  accentStrong: "#352247",
+  accentMuted:  "rgba(77, 53, 104, 0.06)",
+  secondary:    "#287A5A",
+  secondaryLight: "rgba(40, 122, 90, 0.10)",
+  violet:       "#6D527F",
+  violetLight:  "rgba(77, 53, 104, 0.10)",
 
   // ── Semantic (Consistent across themes for safety) ────────────────
-  savings:      "#10B981",
-  savingsLight: "rgba(16, 185, 129, 0.08)",
-  savingsDark:  "#059669",
+  savings:      "#287A5A",
+  savingsLight: "rgba(40, 122, 90, 0.10)",
+  savingsDark:  "#1F6248",
   warning:      "#F59E0B",
   warningLight: "rgba(245, 158, 11, 0.08)",
   error:        "#EF4444",
@@ -61,39 +59,39 @@ export const lightColors = {
   platformFlipkart:  "#2874F0",
 
   // ── Text ──────────────────────────────────────────────────────────
-  textPrimary:   "#0F172A",
-  textSecondary: "#64748B",
-  textTertiary:  "#94A3B8",
+  textPrimary:   "#211C27",
+  textSecondary: "#69616F",
+  textTertiary:  "#9B939F",
   textOnDark:    "#FFFFFF",
   textOnDarkSec: "rgba(255,255,255,0.70)",
   textOnDarkTer: "rgba(255,255,255,0.45)",
   textInverse:   "#FFFFFF",
-  textAccent:    "#EC4899",
+  textAccent:    "#4D3568",
 
   // ── Gradients ─────────────────────────────────────────────────────
-  gradientHero:     ["#4C1D95", "#7C3AED", "#A855F7"],
-  gradientCard:     ["#FFFFFF", "#F8FAFC"],
+  gradientHero:     ["#2E1E3D", "#4D3568", "#6D527F"],
+  gradientCard:     ["#FFFFFF", "#FBFAF7"],
   gradientCardDark: ["rgba(30,41,59,0.98)", "rgba(15,23,42,0.98)"],
-  gradientAccent:   ["#7C3AED", "#EC4899"],
-  gradientSavings:  ["#10B981", "#059669"],
+  gradientAccent:   ["#352247", "#5E4278"],
+  gradientSavings:  ["#287A5A", "#1F6248"],
   gradientGlass:    ["rgba(255,255,255,0.95)", "rgba(248,250,252,0.90)"],
   gradientGold:     ["#F97316", "#FB923C"],
   gradientWarm:     ["#F97316", "#EC4899"],
   gradientCool:     ["#06B6D4", "#7C3AED"],
 
   // ── CompareZ Redesign Tokens (Additive) ───────────────────────────
-  paper:          "#FAF6EF",
-  paperDim:       "#F1EAD9",
+  paper:          "#F8F6F1",
+  paperDim:       "#EFEBE3",
   ink:            "#211C2B",
   inkSoft:        "#6E6579",
   inkFaint:       "#A79FAE",
-  line:           "#E7DECB",
-  lineStrong:     "#D8CCAE",
-  aubergine:      "#402A5C",
-  aubergineDeep:  "#281A3B",
-  aubergineSoft:  "#EFE9F5",
-  coriander:      "#2E7D53",
-  corianderSoft:  "#E3F1E7",
+  line:           "#E5E0D7",
+  lineStrong:     "#D4CCBF",
+  aubergine:      "#4D3568",
+  aubergineDeep:  "#2E1E3D",
+  aubergineSoft:  "#EEE8F2",
+  coriander:      "#287A5A",
+  corianderSoft:  "#E4F1EA",
   turmeric:       "#C98A1F",
   turmericSoft:   "#FBEDD3",
   tomato:         "#C94A32",
@@ -103,18 +101,20 @@ export const lightColors = {
 export const darkColors = {
   ...lightColors,
   // ── Core backgrounds ──────────────────────────────────────────────
-  background:     "#1A1A24", // Updated to new dark paper theme
-  surface:        "#1E293B",
-  card:           "#1E293B",
-  cardAlt:        "#0F172A",
-  border:         "#334155",
-  borderLight:    "#1E293B",
-  divider:        "#334155",
+  primary:        "#C1ADD3",
+  primaryLight:   "#D8C8E5",
+  background:     "#17141B",
+  surface:        "#211D25",
+  card:           "#211D25",
+  cardAlt:        "#2A252E",
+  border:         "#3A343F",
+  borderLight:    "#302A35",
+  divider:        "#3A343F",
 
   // ── Text ──────────────────────────────────────────────────────────
-  textPrimary:   "#F8FAFC",
-  textSecondary: "#94A3B8",
-  textTertiary:  "#64748B",
+  textPrimary:   "#F7F3F8",
+  textSecondary: "#B8AFBB",
+  textTertiary:  "#817985",
   textInverse:   "#FFFFFF", // White text on primary buttons for better contrast
 
   // ── Gradients ─────────────────────────────────────────────────────
@@ -122,14 +122,16 @@ export const darkColors = {
   gradientGlass:    ["rgba(15,23,42,0.95)", "rgba(30,41,59,0.90)"],
 
   // ── CompareZ Redesign Tokens (Dark overrides) ─────────────────────
-  paper:          "#1A1A24",
-  paperDim:       "#232330",
+  paper:          "#17141B",
+  paperDim:       "#201B24",
   ink:            "#FAF6EF",
   inkSoft:        "#A79FAE",
   inkFaint:       "#6E6579",
-  line:           "#3A3A4D",
-  lineStrong:     "#4E4E63",
-  aubergineSoft:  "#281A3B",
+  line:           "#3A343F",
+  lineStrong:     "#504856",
+  aubergine:      "#C1ADD3",
+  aubergineDeep:  "#120E16",
+  aubergineSoft:  "#33283D",
 };
 
 // Fallback for static usage
@@ -159,30 +161,30 @@ const RADIUS = {
 const SHADOWS = {
   none: {},
   sm: {
-    shadowColor: "#64748B",
+    shadowColor: "#211C27",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
   },
   md: {
-    shadowColor: "#64748B",
+    shadowColor: "#211C27",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.07,
     shadowRadius: 12,
     elevation: 5,
   },
   lg: {
-    shadowColor: "#5B5AE6",
+    shadowColor: "#211C27",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.10,
     shadowRadius: 30,
     elevation: 10,
   },
   navbar: {
-    shadowColor: "#5B5AE6",
+    shadowColor: "#211C27",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.12,
     shadowRadius: 30,
     elevation: 8,
   },

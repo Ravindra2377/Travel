@@ -1,23 +1,18 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef } from "react";
 import {
   View,
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Platform,
-  Dimensions,
   Text,
 } from "react-native";
 import { Ionicons } from "../components/Icon";
 import { BlurView } from "expo-blur";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { SHADOWS, RADIUS, SPACING, FONTS } from "../config/theme";
+import { SHADOWS, FONTS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const { width } = Dimensions.get("window");
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { bottom: bottomInset } = useSafeAreaInsets();
@@ -104,17 +99,17 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               return (
                 <View style={[
                   styles.tabItem,
-                  isFocused && { backgroundColor: themeColors.ink, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, height: "auto" }
+                  isFocused && { backgroundColor: themeColors.aubergineSoft, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, height: "auto" }
                 ]}>
                   <Ionicons
                     name={iconName}
                     size={20}
-                    color={isFocused ? "#fff" : themeColors.inkSoft}
+                    color={isFocused ? themeColors.aubergine : themeColors.inkSoft}
                   />
                   <Text
                     style={[
                       FONTS.uiBodyBold,
-                      { fontSize: 10, marginTop: 4, color: isFocused ? "#fff" : themeColors.inkSoft }
+                      { fontSize: 10, marginTop: 4, color: isFocused ? themeColors.aubergine : themeColors.inkSoft }
                     ]}
                   >
                     {route.name === "MealPlanner" ? "Planner" : route.name}
@@ -160,7 +155,7 @@ const styles = StyleSheet.create({
     width: "100%",
     ...SHADOWS.navbar,
     borderWidth: 1,
-    borderTopWidth: 1.5,
+    borderTopWidth: 1,
     overflow: "visible",
   },
   blurContainer: {

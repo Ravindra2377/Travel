@@ -1,4 +1,4 @@
-import React, { useState, useRef, useContext } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -6,15 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  StatusBar,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "../components/Icon";
-import { LinearGradient } from "expo-linear-gradient";
 import api from "../config/api";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";

@@ -5,18 +5,16 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar,
   Alert,
   Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "../components/Icon";
 import { AuthContext } from "../context/AuthContext";
-import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
+import { SPACING, RADIUS, FONTS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
 import LocationService from "../services/LocationService";
 import LocationPickerModal from "../components/LocationPickerModal";
-import { AppButton, SurfaceCard, ScreenHeader } from "../components/SharedUI";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 

@@ -9,9 +9,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { COLORS, FONTS } from "../config/theme";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 const SplashScreen = ({ onFinish }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;

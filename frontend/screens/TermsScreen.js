@@ -1,10 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '../components/Icon';
-import { SPACING, RADIUS, FONTS } from '../config/theme';
+import { SPACING, FONTS } from '../config/theme';
 import { useTheme } from '../context/ThemeContext';
-import * as Haptics from 'expo-haptics';
 import ScreenHeader from '../components/ScreenHeader';
 
 const TermsScreen = ({ navigation }) => {

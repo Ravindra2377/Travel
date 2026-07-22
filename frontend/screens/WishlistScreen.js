@@ -6,13 +6,10 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
-  StatusBar,
   ActivityIndicator,
-  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "../components/Icon";
-import { LinearGradient } from "expo-linear-gradient";
 import { WishlistContext } from "../context/WishlistContext";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";

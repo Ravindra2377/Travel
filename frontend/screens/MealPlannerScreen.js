@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
-  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "../components/Icon";
@@ -21,23 +20,6 @@ import ScreenHeader from "../components/ScreenHeader";
 import { useTheme } from "../context/ThemeContext";
 import GroqService from "../services/GroqService";
 import * as Haptics from "expo-haptics";
-
-const PLATFORM_COLORS = {
-  Blinkit: "#F8CB46",
-  Zepto: "#7C3AED",
-  BigBasket: "#84C225",
-  Amazon: "#FF9900",
-  Flipkart: "#2874F0",
-};
-
-const MEAL_SUGGESTIONS = [
-  "Butter chicken for 4 people",
-  "Dal makhani for 6",
-  "Paneer tikka masala for 2",
-  "Rajma chawal for a family",
-  "Chicken biryani for 5",
-  "Palak paneer for 3",
-];
 
 const MealPlannerScreen = () => {
   const navigation = useNavigation();

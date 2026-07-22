@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -41,7 +41,7 @@ export const SurfaceCard = ({ children, style, onPress, activeOpacity = 0.9 }) =
         onPressOut={onPress ? handlePressOut : undefined}
         style={[
           styles.surfaceCard,
-          { backgroundColor: themeColors.surface, ...SHADOWS.md },
+          { backgroundColor: themeColors.card, borderColor: themeColors.line, ...SHADOWS.sm },
           style,
         ]}
       >
@@ -174,8 +174,17 @@ export const TextField = ({
   onSubmitEditing,
 }) => {
   const { themeColors } = useTheme();
+  const [focused, setFocused] = useState(false);
   return (
-    <View style={[styles.inputWrap, { backgroundColor: themeColors.cardAlt }]}>
+    <View
+      style={[
+        styles.inputWrap,
+        {
+          backgroundColor: focused ? themeColors.card : themeColors.cardAlt,
+          borderColor: focused ? themeColors.aubergine : themeColors.line,
+        },
+      ]}
+    >
       {icon ? (
         <Ionicons name={icon} size={18} color={themeColors.textTertiary} />
       ) : null}
@@ -192,6 +201,8 @@ export const TextField = ({
         testID={testID}
         returnKeyType={returnKeyType}
         onSubmitEditing={onSubmitEditing}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
       />
       {rightAccessory || null}
     </View>
@@ -518,6 +529,7 @@ const styles = StyleSheet.create({
   surfaceCard: {
     borderRadius: RADIUS.xl,
     padding: SPACING.xl,
+    borderWidth: 1,
   },
   screenHeader: {
     flexDirection: "row",
@@ -573,6 +585,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     marginBottom: SPACING.md,
     gap: SPACING.sm,
+    borderWidth: 1,
   },
   input: {
     flex: 1,

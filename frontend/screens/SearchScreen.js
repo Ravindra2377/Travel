@@ -14,26 +14,21 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  StatusBar,
   TouchableOpacity,
   Animated,
   ActivityIndicator,
-  Image as RNImage,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { Ionicons } from "../components/Icon";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "@react-navigation/native";
 import SearchBar from "../components/SearchBar";
-import ScreenHeader from "../components/ScreenHeader";
 import ProductCard from "../components/ProductCard";
 import FilterModal from "../components/FilterModal";
 import { getGlobalMonitor } from "../services/PerformanceMonitor";
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import * as Haptics from "expo-haptics";
-import PlatformScraperService from "../services/PlatformScraperService";
 import PlatformDOMScraperService from "../services/PlatformDOMScraperService";
 import api from "../config/api";
 import { AuthContext } from "../context/AuthContext";

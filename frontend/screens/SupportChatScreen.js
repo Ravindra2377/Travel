@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,10 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Animated,
   ActivityIndicator,
-  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "../components/Icon";
-import { LinearGradient } from "expo-linear-gradient";
 import ScreenHeader from "../components/ScreenHeader";
 import { SPACING, RADIUS, SHADOWS, FONTS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";

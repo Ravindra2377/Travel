@@ -7,7 +7,6 @@ import {
   TextInput,
   Modal,
   Animated,
-  Dimensions,
   ActivityIndicator,
   Alert,
 } from "react-native";
@@ -15,11 +14,9 @@ import { useTheme } from "../context/ThemeContext";
 import { Ionicons } from "../components/Icon";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
-import { COLORS, SPACING, RADIUS, SHADOWS, FONTS } from "../config/theme";
+import { SPACING, RADIUS, SHADOWS, FONTS } from "../config/theme";
 import LocationService from "../services/LocationService";
 import * as Haptics from "expo-haptics";
-
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
 const LocationPickerModal = ({ visible, onClose, onSave }) => {
   const { themeColors, isDark } = useTheme();

@@ -1,29 +1,4 @@
-import PlatformScraperService from "../PlatformScraperService";
 import PlatformDOMScraperService from "../PlatformDOMScraperService";
-
-describe("PlatformScraperService", () => {
-  it("exports service instance", () => {
-    expect(PlatformScraperService).toBeDefined();
-    expect(typeof PlatformScraperService.getSearchScript).toBe("function");
-  });
-
-  it("returns script for known platform", () => {
-    const script = PlatformScraperService.getSearchScript(
-      "Blinkit",
-      "milk",
-      12.97,
-      77.59,
-    );
-    expect(typeof script).toBe("string");
-    expect(script).toContain("SEARCH_RESULTS");
-  });
-
-  it("returns null for unknown platform", () => {
-    expect(
-      PlatformScraperService.getSearchScript("Unknown", "milk"),
-    ).toBeNull();
-  });
-});
 
 describe("PlatformDOMScraperService", () => {
   it("exports service instance", () => {

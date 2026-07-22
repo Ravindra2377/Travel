@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useContext } from "react";
+import React, { useRef, useState, useContext } from "react";
 import {
   View,
   Text,
@@ -101,7 +101,7 @@ const ProductCard = ({ product, onPress }) => {
           gradientColors={isDark ? themeColors.gradientCard : ["#FFFFFF", "#FFFFFF"]}
           accentColor={accentColor}
           glowColor={accentColor}
-          style={!isDark && { backgroundColor: themeColors.surface, borderWidth: 1, borderColor: themeColors.border, ...SHADOWS.md }}
+          style={!isDark && { backgroundColor: themeColors.card, borderWidth: 1, borderColor: themeColors.line, ...SHADOWS.sm }}
         >
           <View style={styles.content}>
             <View style={[styles.imageContainer, { backgroundColor: themeColors.cardAlt }]}>
