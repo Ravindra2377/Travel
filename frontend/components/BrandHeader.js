@@ -52,28 +52,18 @@ export default function BrandHeader({
         style={{ borderBottomWidth: 0 }}
         centerComponent={
           <View>
-            <View style={{ alignSelf: "flex-start" }}>
-              <Text
-                style={[
-                  editorial ? FONTS.editorialBold : FONTS.heading,
-                  {
-                    fontSize: editorial ? 30 : 22,
-                    color: themeColors.ink,
-                    letterSpacing: editorial ? -1 : -0.5,
-                  },
-                ]}
-              >
-                CompareZ
-              </Text>
-              {editorial ? (
-                <Ionicons
-                  name="brand-leaf"
-                  size={13}
-                  color={themeColors.primary}
-                  style={{ position: "absolute", right: 5, top: -2, transform: [{ rotate: "-12deg" }] }}
-                />
-              ) : null}
-            </View>
+            <Text
+              style={[
+                editorial ? FONTS.editorialBold : FONTS.heading,
+                {
+                  fontSize: editorial ? 30 : 22,
+                  color: themeColors.ink,
+                  letterSpacing: editorial ? -1 : -0.5,
+                },
+              ]}
+            >
+              CompareZ
+            </Text>
             <TouchableOpacity
               style={{
                 flexDirection: "row",
