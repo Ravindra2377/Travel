@@ -23,7 +23,12 @@ import { useTheme } from "../context/ThemeContext";
 import GroqService from "../services/GroqService";
 import * as Haptics from "expo-haptics";
 
-const { height: SCREEN_H } = Dimensions.get("window");
+const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
+const FAB_SIZE = 52;
+const FAB_RIGHT = 20;
+const FAB_BOTTOM = 140;
+const FAB_EDGE_MARGIN = 12;
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const WELCOME_MESSAGE =
   "Hi, I’m Beans. I can help you compare products, find better prices, and plan a grocery basket.";
@@ -47,6 +52,7 @@ const AICopilot = () => {
   const fabScale = useRef(new Animated.Value(1)).current;
   const breathAnim = useRef(new Animated.Value(1)).current;
   const pan = useRef(new Animated.ValueXY()).current;
+  const dragOrigin = useRef({ x: 0, y: 0 });
   const { wishlist } = useContext(WishlistContext);
   const navigation = useNavigation();
   const { themeColors, isDark } = useTheme();
@@ -106,14 +112,22 @@ const AICopilot = () => {
         return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
       },
       onPanResponderGrant: () => {
-        pan.extractOffset();
+        pan.stopAnimation((value) => {
+          dragOrigin.current = value;
+        });
       },
-      onPanResponderMove: Animated.event(
-        [null, { dx: pan.x, dy: pan.y }],
-        { useNativeDriver: false }
-      ),
-      onPanResponderRelease: () => {
-        pan.flattenOffset();
+      onPanResponderMove: (_, gestureState) => {
+        const baseLeft = SCREEN_W - FAB_RIGHT - FAB_SIZE;
+        const baseTop = SCREEN_H - FAB_BOTTOM - FAB_SIZE;
+        const minX = FAB_EDGE_MARGIN - baseLeft;
+        const maxX = SCREEN_W - FAB_EDGE_MARGIN - FAB_SIZE - baseLeft;
+        const minY = FAB_EDGE_MARGIN - baseTop;
+        const maxY = SCREEN_H - FAB_EDGE_MARGIN - FAB_SIZE - baseTop;
+
+        pan.setValue({
+          x: clamp(dragOrigin.current.x + gestureState.dx, minX, maxX),
+          y: clamp(dragOrigin.current.y + gestureState.dy, minY, maxY),
+        });
       }
     })
   ).current;
@@ -513,14 +527,14 @@ const AICopilot = () => {
 const styles = StyleSheet.create({
   fab: {
     position: "absolute",
-    bottom: 140,
-    right: 20,
+    bottom: FAB_BOTTOM,
+    right: FAB_RIGHT,
     zIndex: 9999,
     ...SHADOWS.md,
   },
   fabGradient: {
-    width: 52,
-    height: 52,
+    width: FAB_SIZE,
+    height: FAB_SIZE,
     borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
