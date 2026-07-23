@@ -24,6 +24,7 @@ import { WebView } from "react-native-webview";
 import { Ionicons } from "../components/Icon";
 import { useFocusEffect } from "@react-navigation/native";
 import SearchBar from "../components/SearchBar";
+import BrandHeader from "../components/BrandHeader";
 import ProductCard from "../components/ProductCard";
 import FilterModal from "../components/FilterModal";
 import { getGlobalMonitor } from "../services/PerformanceMonitor";
@@ -994,7 +995,7 @@ const SearchScreen = ({ navigation, route }) => {
     }, [checkConnectedPlatforms]),
   );
 
-  // ── Sync query from navigation params (e.g. from Meals Planner / AI Copilot) ──
+  // ── Sync query from navigation params (e.g. from Meal to Cart / AI Copilot) ──
   useEffect(() => {
     const incomingQuery = route?.params?.query;
     if (
@@ -2408,27 +2409,32 @@ const SearchScreen = ({ navigation, route }) => {
       style={[styles.safeArea, { backgroundColor: themeColors.paper }]}
     >
       <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
+        <BrandHeader />
+        <View style={styles.searchSectionHeading}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={[styles.searchBackButton, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="arrow-back" size={19} color={themeColors.ink} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={[FONTS.heading, styles.searchSectionTitle, { color: themeColors.ink }]}>
+              Search products
+            </Text>
+            <Text style={[FONTS.uiBody, styles.searchSectionSubtitle, { color: themeColors.inkSoft }]}>
+              Compare prices across every connected store.
+            </Text>
+          </View>
+        </View>
         <View
           style={[
             styles.header,
             {
               backgroundColor: themeColors.paper,
-              borderBottomColor: themeColors.line,
             },
           ]}
         >
-          <View style={styles.headerTopRow}>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={[styles.headerLabel, { color: themeColors.inkSoft }]}
-              >
-                CompareX
-              </Text>
-              <Text style={[styles.headerTitle, { color: themeColors.ink }]}>
-                Collection
-              </Text>
-            </View>
-          </View>
           <SearchBar
             value={query}
             onChangeText={(text) => {
@@ -2496,26 +2502,26 @@ const SearchScreen = ({ navigation, route }) => {
                 {
                   backgroundColor: isDark
                     ? themeColors.primary + "20"
-                    : "#EDE9FE",
+                    : themeColors.aubergineSoft,
                 },
               ]}
             >
               <Ionicons
                 name="sparkles"
                 size={13}
-                color={isDark ? themeColors.primary : "#7C3AED"}
+                color={themeColors.primary}
               />
               <Text
                 style={[
                   styles.aiBannerText,
-                  { color: isDark ? themeColors.textPrimary : "#7C3AED" },
+                  { color: isDark ? themeColors.textPrimary : themeColors.primary },
                 ]}
               >
                 AI searched for{" "}
                 <Text
                   style={[
                     styles.aiBannerKeyword,
-                    { color: isDark ? themeColors.primary : "#7C3AED" },
+                    { color: themeColors.primary },
                   ]}
                 >
                   "{aiExpandedQuery}"
@@ -2525,7 +2531,7 @@ const SearchScreen = ({ navigation, route }) => {
                 <Ionicons
                   name="close"
                   size={14}
-                  color={isDark ? themeColors.textSecondary : "#7C3AED"}
+                  color={isDark ? themeColors.textSecondary : themeColors.primary}
                 />
               </TouchableOpacity>
             </View>
@@ -2751,24 +2757,35 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: SPACING.lg,
+    paddingTop: 6,
     paddingBottom: SPACING.md,
     paddingHorizontal: SPACING.xl,
-    borderBottomWidth: 1,
     zIndex: 10,
   },
-  headerTopRow: {
-    marginBottom: SPACING.md,
+  searchSectionHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: 10,
+    paddingBottom: 8,
   },
-  headerLabel: {
-    ...FONTS.eyebrow,
-    fontSize: 10,
-    marginBottom: SPACING.xs,
+  searchBackButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  headerTitle: {
-    ...FONTS.h1,
-    fontSize: 32,
-    lineHeight: 36,
+  searchSectionTitle: {
+    fontSize: 21,
+    lineHeight: 26,
+  },
+  searchSectionSubtitle: {
+    fontSize: 12.5,
+    lineHeight: 17,
+    marginTop: 1,
   },
   visibleWebView: {
     flex: 1,
@@ -2837,7 +2854,7 @@ const styles = StyleSheet.create({
   },
   voiceBannerText: {
     ...FONTS.caption,
-    color: "#7C3AED",
+    color: COLORS.primary,
     fontSize: 12,
     flex: 1,
   },

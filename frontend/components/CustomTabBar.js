@@ -80,13 +80,10 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                   iconName = isFocused ? "home" : "home-outline";
                   break;
                 case "MealPlanner":
-                  iconName = isFocused ? "restaurant" : "restaurant-outline";
+                  iconName = isFocused ? "meal-cart" : "meal-cart-outline";
                   break;
                 case "Deals":
                   iconName = isFocused ? "pricetags" : "pricetags-outline";
-                  break;
-                case "Search":
-                  iconName = isFocused ? "search" : "search-outline";
                   break;
                 case "Likes":
                   iconName = isFocused ? "heart" : "heart-outline";
@@ -112,7 +109,11 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                       { fontSize: 10, marginTop: 4, color: isFocused ? themeColors.aubergine : themeColors.inkSoft }
                     ]}
                   >
-                    {route.name === "MealPlanner" ? "Planner" : route.name}
+                    {route.name === "MealPlanner"
+                      ? "Meal Cart"
+                      : route.name === "Likes"
+                        ? "Wishlist"
+                        : route.name}
                   </Text>
                 </View>
               );

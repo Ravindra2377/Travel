@@ -9,23 +9,23 @@ describe("Theme Configuration", () => {
     });
 
     it("should have semantic color tokens", () => {
-      expect(COLORS.primary).toBe("#5B5AE6");
-      expect(COLORS.accent).toBe("#4F46E5");
-      expect(COLORS.savings).toBe("#10B981");
+      expect(COLORS.primary).toBe("#16845B");
+      expect(COLORS.accent).toBe("#16845B");
+      expect(COLORS.savings).toBe("#059669");
       expect(COLORS.error).toBe("#EF4444");
       expect(COLORS.warning).toBe("#F59E0B");
     });
 
     it("should have background and surface colors", () => {
-      expect(COLORS.background).toBe("#F8FAFC");
+      expect(COLORS.background).toBe("#F7F8F6");
       expect(COLORS.surface).toBe("#FFFFFF");
       expect(COLORS.card).toBe("#FFFFFF");
     });
 
     it("should have text colors", () => {
-      expect(COLORS.textPrimary).toBe("#0F172A");
-      expect(COLORS.textSecondary).toBe("#64748B");
-      expect(COLORS.textTertiary).toBe("#94A3B8");
+      expect(COLORS.textPrimary).toBe("#18201C");
+      expect(COLORS.textSecondary).toBe("#66706A");
+      expect(COLORS.textTertiary).toBe("#929B95");
     });
 
     it("should have gradient arrays", () => {

@@ -270,7 +270,7 @@ export default function AccountsScreen({ navigation }) {
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity
-                      style={[styles.buttonConnect, { backgroundColor: themeColors.ink }]}
+                      style={[styles.buttonConnect, { backgroundColor: themeColors.primary }]}
                       onPress={() => openLogin(platform)}
                     >
                       <Text style={styles.buttonConnectText}>Connect</Text>

@@ -9,10 +9,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTheme } from "../context/ThemeContext";
 
 const { width } = Dimensions.get("window");
 
 const SplashScreen = ({ onFinish }) => {
+  const { themeColors, isDark } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -51,10 +53,14 @@ const SplashScreen = ({ onFinish }) => {
   }, []);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.paper }]}>
       <View style={styles.container}>
         <LinearGradient
-          colors={["#FAF6EF", "#F4EDE3"]}
+          colors={
+            isDark
+              ? [themeColors.paper, themeColors.paperDim]
+              : ["#F7F8F6", "#E3F3EA"]
+          }
           style={styles.background}
         />
 
@@ -74,10 +80,11 @@ const SplashScreen = ({ onFinish }) => {
           />
 
           <View style={styles.loaderContainer}>
-            <View style={styles.loaderBar}>
+            <View style={[styles.loaderBar, { backgroundColor: themeColors.line }]}>
               <Animated.View
                 style={[
                   styles.loaderProgress,
+                  { backgroundColor: themeColors.primary },
                   {
                     width: progressAnim.interpolate({
                       inputRange: [0, 1],
@@ -87,12 +94,16 @@ const SplashScreen = ({ onFinish }) => {
                 ]}
               />
             </View>
-            <Text style={styles.loadingText}>Initializing CompareZ...</Text>
+            <Text style={[styles.loadingText, { color: themeColors.inkSoft }]}>
+              Initializing CompareZ...
+            </Text>
           </View>
         </Animated.View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Secure · Fast · Smart</Text>
+          <Text style={[styles.footerText, { color: themeColors.inkSoft }]}>
+            Secure · Fast · Smart
+          </Text>
         </View>
       </View>
     </SafeAreaView>
@@ -102,7 +113,6 @@ const SplashScreen = ({ onFinish }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FAF6EF",
   },
   container: {
     flex: 1,
@@ -131,19 +141,16 @@ const styles = StyleSheet.create({
   loaderBar: {
     width: width * 0.5,
     height: 3,
-    backgroundColor: "#E8DDD0",
     borderRadius: 2,
     overflow: "hidden",
   },
   loaderProgress: {
     height: "100%",
-    backgroundColor: "#211C2B",
   },
   loadingText: {
     marginTop: 12,
     fontSize: 12,
-    color: "#7C6E82",
-    fontFamily: "IBMPlexMono",
+    fontFamily: "FrauncesSemiBold",
     letterSpacing: 0.5,
   },
   footer: {
@@ -152,8 +159,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 10,
-    color: "#7C6E82",
-    fontFamily: "IBMPlexMono",
+    fontFamily: "FrauncesMedium",
     letterSpacing: 2,
     textTransform: "uppercase",
   },

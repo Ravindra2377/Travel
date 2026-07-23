@@ -15,6 +15,7 @@ import { SPACING, RADIUS, FONTS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
 import LocationService from "../services/LocationService";
 import LocationPickerModal from "../components/LocationPickerModal";
+import BrandHeader from "../components/BrandHeader";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 
@@ -26,13 +27,13 @@ const MENU = [
     color: "coriander",
   },
   {
-    icon: "help",
+    icon: "help-circle-outline",
     label: "Help & support",
     subtitle: "FAQ and contact",
     color: "turmeric",
   },
   {
-    icon: "document-text",
+    icon: "document-text-outline",
     label: "Terms & conditions",
     subtitle: "Legal and privacy",
     color: "ink",
@@ -76,29 +77,39 @@ const ProfileScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
+        <BrandHeader
+          city={locationCity}
+          pincode={locationPincode}
+          onLocationPress={() => setLocationEditing(true)}
+          editorial
+        />
 
         <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <View style={{ paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl, marginBottom: 18 }}>
-            <Text style={[FONTS.heading, { fontSize: 24, color: themeColors.ink }]}>Profile</Text>
+          {/* Section heading */}
+          <View style={{ paddingHorizontal: SPACING.xl, paddingTop: 14, marginBottom: 16 }}>
+            <Text style={[FONTS.editorialBold, { fontSize: 27, color: themeColors.ink }]}>Your account</Text>
+            <Text style={[FONTS.uiBody, { fontSize: 13, color: themeColors.inkSoft, marginTop: 3 }]}>
+              Your account, preferences, and connected services.
+            </Text>
           </View>
 
-          {/* User Info */}
-          <View style={styles.userSection}>
-            <View style={[styles.avatar, { backgroundColor: themeColors.aubergine }]}>
-              <Text style={[FONTS.heading, { fontSize: 22, color: "#fff" }]}>
+          {/* User identity */}
+          <View style={[styles.identityCard, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}>
+            <View style={[styles.avatar, { backgroundColor: themeColors.primary }]}>
+              <Text style={[FONTS.editorialBold, { fontSize: 22, color: "#fff" }]}>
                 {(user?.name || user?.email || "U").charAt(0).toUpperCase()}
               </Text>
             </View>
             <View style={styles.userInfo}>
-              <Text style={[FONTS.uiBodyBold, { fontSize: 16, color: themeColors.ink }]}>{user?.name || "User"}</Text>
-              <Text style={[FONTS.uiBody, { fontSize: 12.5, color: themeColors.inkSoft }]}>{user?.email || "No email provided"}</Text>
+              <Text style={[styles.identityName, { color: themeColors.ink }]}>{user?.name || "User"}</Text>
+              <Text style={[styles.identityEmail, { color: themeColors.inkSoft }]}>{user?.email || "No email provided"}</Text>
             </View>
           </View>
 
           {/* Location Settings */}
+          <Text style={[styles.groupLabel, { color: themeColors.inkSoft }]}>DELIVERY</Text>
           <TouchableOpacity
-            style={[styles.menuItem, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
+            style={[styles.menuItem, styles.locationCard, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setLocationEditing(true);
@@ -127,12 +138,11 @@ const ProfileScreen = () => {
           />
 
           {/* Settings Section */}
-          <View style={styles.menuSection}>
+          <Text style={[styles.groupLabel, { color: themeColors.inkSoft }]}>SETTINGS & SUPPORT</Text>
+          <View style={[styles.menuSection, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}>
             {/* Theme Toggle */}
-            <View style={[styles.menuItem, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}>
-              <View style={[styles.locationIconWrap, { backgroundColor: themeColors.aubergineSoft }]}>
-                <Ionicons name="moon" size={18} color={themeColors.aubergine} />
-              </View>
+            <View style={[styles.menuItem, { borderBottomColor: themeColors.line, borderBottomWidth: 1 }]}>
+              <Ionicons name="moon" size={18} color={themeColors.aubergine} />
               <View style={styles.menuInfo}>
                 <Text style={[FONTS.uiBodyBold, { fontSize: 13.5, color: themeColors.ink }]}>Dark mode</Text>
                 <Text style={[FONTS.uiBody, { fontSize: 11.5, color: themeColors.inkSoft, marginTop: 2 }]}>Switch app theme</Text>
@@ -148,13 +158,15 @@ const ProfileScreen = () => {
               />
             </View>
 
-            {MENU.map((item) => {
+            {MENU.map((item, index) => {
               const baseColor = themeColors[item.color] || themeColors.inkSoft;
-              const bgSoft = themeColors[`${item.color}Soft`] || themeColors.paperDim || "#F2F2F2";
               return (
                 <TouchableOpacity
                   key={item.label}
-                  style={[styles.menuItem, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
+                  style={[
+                    styles.menuItem,
+                    index < MENU.length - 1 && { borderBottomColor: themeColors.line, borderBottomWidth: 1 },
+                  ]}
                   activeOpacity={0.6}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -167,9 +179,7 @@ const ProfileScreen = () => {
                     }
                   }}
                 >
-                  <View style={[styles.locationIconWrap, { backgroundColor: bgSoft }]}>
-                    <Ionicons name={item.icon} size={18} color={baseColor} />
-                  </View>
+                  <Ionicons name={item.icon} size={18} color={baseColor} />
                   <View style={styles.menuInfo}>
                     <Text style={[FONTS.uiBodyBold, { fontSize: 13.5, color: themeColors.ink }]}>{item.label}</Text>
                     <Text style={[FONTS.uiBody, { fontSize: 11.5, color: themeColors.inkSoft, marginTop: 2 }]}>{item.subtitle}</Text>
@@ -183,14 +193,14 @@ const ProfileScreen = () => {
           {/* Logout */}
           <View style={{ marginHorizontal: SPACING.xl }}>
             <TouchableOpacity
-              style={{ backgroundColor: themeColors.tomatoSoft, borderRadius: 16, padding: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}
+              style={[styles.signOutBtn, { borderColor: themeColors.line }]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                 logout();
               }}
               activeOpacity={0.7}
             >
-              <Ionicons name="log-out" size={18} color={themeColors.tomato} />
+              <Ionicons name="log-out-outline" size={18} color={themeColors.tomato} />
               <Text style={[FONTS.uiBodyBold, { color: themeColors.tomato, fontSize: 14 }]}>Sign out</Text>
             </TouchableOpacity>
           </View>
@@ -216,10 +226,20 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xxl,
     gap: SPACING.lg,
   },
+  identityCard: {
+    marginHorizontal: SPACING.xl,
+    marginBottom: 24,
+    padding: 16,
+    minHeight: 84,
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.lg,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -230,6 +250,17 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     flex: 1,
+    marginLeft: 14,
+  },
+  identityName: {
+    ...FONTS.editorial,
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  identityEmail: {
+    ...FONTS.uiBody,
+    fontSize: 11.5,
+    marginTop: 3,
   },
   userName: {
     ...FONTS.h3,
@@ -241,6 +272,16 @@ const styles = StyleSheet.create({
   menuSection: {
     marginHorizontal: SPACING.xl,
     marginBottom: SPACING.xxl,
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  groupLabel: {
+    ...FONTS.uiBodyBold,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    marginHorizontal: SPACING.xl,
+    marginBottom: 8,
   },
   locationSection: {
     marginHorizontal: SPACING.xl,
@@ -272,9 +313,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 15,
     paddingHorizontal: 16,
-    borderRadius: 16,
-    marginBottom: 10,
+    minHeight: 68,
     gap: 14,
+  },
+  locationCard: {
+    borderRadius: 20,
+    marginHorizontal: SPACING.xl,
+    marginBottom: 22,
   },
   menuInfo: {
     flex: 1,
@@ -285,6 +330,15 @@ const styles = StyleSheet.create({
   },
   menuSubtitle: {
     ...FONTS.caption,
+  },
+  signOutBtn: {
+    minHeight: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
 });
 

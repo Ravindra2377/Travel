@@ -146,7 +146,10 @@ export const AppButton = ({
         disabled={disabled}
         style={[
           styles.button,
-          isPrimary && { backgroundColor: themeColors.ink },
+          isPrimary && {
+            backgroundColor: themeColors.primary,
+            ...SHADOWS.colored(themeColors.primary),
+          },
           !isPrimary && !isGhost && { backgroundColor: themeColors.cardAlt, borderWidth: 1, borderColor: themeColors.border },
           isGhost && { backgroundColor: "transparent", borderWidth: 1, borderColor: themeColors.border },
           disabled && styles.buttonDisabled,

@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import {
   View,
   Text,
@@ -6,27 +6,36 @@ import {
   ScrollView,
   TouchableOpacity,
   Animated,
-  Dimensions,
   Image,
   Linking,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "../components/Icon";
 import { AuthContext } from "../context/AuthContext";
-import { SPACING, RADIUS, FONTS } from "../config/theme";
+import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
 import { WishlistContext } from "../context/WishlistContext";
 import GroqService from "../services/GroqService";
-import { AppButton, SurfaceCard, StatStrip } from "../components/SharedUI";
-import ScreenHeader from "../components/ScreenHeader";
+import { AppButton, SurfaceCard } from "../components/SharedUI";
+import BrandHeader from "../components/BrandHeader";
 import LocationPickerModal from "../components/LocationPickerModal";
 import LocationService from "../services/LocationService";
 
-const { height: SCREEN_H } = Dimensions.get("window");
 const H_PADDING = SPACING.xl;
+
+const QUICK_CATEGORIES = [
+  { name: "Milk", emoji: "🥛", color: "#E8F4FA" },
+  { name: "Vegetables", emoji: "🥬", color: "#E5F4E9" },
+  { name: "Rice", emoji: "🍚", color: "#FFF3D8" },
+  { name: "Snacks", emoji: "🍿", color: "#FCE8DD" },
+  { name: "Chicken", emoji: "🍗", color: "#F9E5E1" },
+  { name: "Fruits", emoji: "🍎", color: "#FBE7E7" },
+];
 
 const DIRECT_PLATFORMS = [
   {
@@ -97,7 +106,8 @@ const BrowseCard = ({ item, navigation, themeColors }) => (
 const HomeScreen = ({ navigation }) => {
   const { user } = useContext(AuthContext);
   const { wishlist } = useContext(WishlistContext);
-  const { themeColors, isDark } = useTheme();
+  const { themeColors } = useTheme();
+  const homePaper = themeColors.paper === "#F7F8F6" ? "#FBFAF6" : themeColors.paper;
 
   const [optimizing, setOptimizing] = useState(false);
   const [optimization, setOptimization] = useState(null);
@@ -105,10 +115,24 @@ const HomeScreen = ({ navigation }) => {
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [currentCity, setCurrentCity] = useState("");
   const [currentPincode, setCurrentPincode] = useState("");
+  const [recentSearches, setRecentSearches] = useState([]);
 
   const fadeHero = React.useRef(new Animated.Value(0)).current;
   const fadeContent = React.useRef(new Animated.Value(0)).current;
-  const floatAnim = React.useRef(new Animated.Value(0)).current;
+
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem("comparex_search_history")
+        .then((stored) => {
+          try {
+            setRecentSearches((JSON.parse(stored) || []).slice(0, 6));
+          } catch {
+            setRecentSearches([]);
+          }
+        })
+        .catch(() => setRecentSearches([]));
+    }, []),
+  );
 
   React.useEffect(() => {
     LocationService.init().then((loc) => {
@@ -132,21 +156,6 @@ const HomeScreen = ({ navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatAnim, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatAnim, {
-          toValue: 0,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
   }, []);
 
   const handleOptimize = async () => {
@@ -180,31 +189,16 @@ const HomeScreen = ({ navigation }) => {
   });
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.paper }]}>
-      <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: homePaper }]}>
+      <View style={[styles.container, { backgroundColor: homePaper }]}>
 
 
-        <ScreenHeader 
-          leftAlign={true}
-          backgroundColor={themeColors.paper}
-          centerComponent={
-            <View>
-              <Text style={[FONTS.heading, { fontSize: 22, color: themeColors.ink, letterSpacing: -0.5 }]}>CompareZ</Text>
-              <TouchableOpacity 
-                style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setLocationModalVisible(true);
-                }}
-              >
-                <Ionicons name="location" size={12} color={themeColors.inkSoft} />
-                <Text style={[FONTS.uiBody, { color: themeColors.inkSoft, fontSize: 13, marginLeft: 4, marginRight: 4 }]}>
-                  {currentCity ? `${currentCity} ${currentPincode}` : "Set Location"}
-                </Text>
-                <Ionicons name="chevron-down" size={12} color={themeColors.inkFaint} />
-              </TouchableOpacity>
-            </View>
-          }
+        <BrandHeader
+          city={currentCity}
+          pincode={currentPincode}
+          onLocationPress={() => setLocationModalVisible(true)}
+          editorial
+          backgroundColor={homePaper}
         />
 
         <ScrollView
@@ -212,74 +206,120 @@ const HomeScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollContent}
           bounces={false}
         >
-          {/* ── Hero Section (Paper Theme) ── */}
+          {/* ── Live dashboard entry ── */}
           <Animated.View style={slideUp(fadeHero)}>
-            <View style={{ paddingBottom: 30 }}>
+            <View style={styles.dashboardTop}>
+              <Text style={[FONTS.editorial, styles.greeting, { color: themeColors.primary }]}>
+                Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, {user?.name || user?.email?.split("@")[0] || "Explorer"}
+              </Text>
+              <Text style={[FONTS.editorialBold, styles.dashboardTitle, { color: themeColors.aubergineDeep }]}>
+                What are you comparing today?
+              </Text>
 
-
-              {/* Main headline */}
-              <View style={{ paddingHorizontal: H_PADDING, marginTop: 14 }}>
-                <Text style={[FONTS.monoBold, { color: themeColors.aubergine, fontSize: 10.5, letterSpacing: 1.5, textTransform: "uppercase" }]}>
-                  Good {new Date().getHours() < 12 ? "Morning" : new Date().getHours() < 17 ? "Afternoon" : "Evening"}, {user?.name || user?.email?.split("@")[0] || "Explorer"}
+              <TouchableOpacity
+                style={[styles.searchLauncher, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
+                onPress={() => navigation.navigate("Search")}
+                activeOpacity={0.88}
+              >
+                <Ionicons name="search" size={22} color={themeColors.ink} />
+                <Text style={[FONTS.uiBody, styles.searchLauncherText, { color: themeColors.inkSoft }]}>
+                  Search milk, rice, snacks...
                 </Text>
-                <Text style={[FONTS.heading, { color: themeColors.ink, fontSize: 38, lineHeight: 40, marginVertical: 10 }]}>
-                  Save on{"\n"}every cart.
-                </Text>
-                <Text style={[FONTS.uiBody, { color: themeColors.inkSoft, fontSize: 13.5, lineHeight: 21, maxWidth: 270, marginBottom: 20 }]}>
-                  One search checks Blinkit, Zepto, BigBasket & more — Beans finds the best price for you.
-                </Text>
-                <AppButton
-                  label="Start comparing"
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    navigation.navigate("Search");
-                  }}
-                  rightIcon="arrow-forward"
-                  style={{ alignSelf: "flex-start", minHeight: 48 }}
-                  textStyle={{ color: "#fff" }}
-                />
-              </View>
+                <View style={[styles.searchAction, { backgroundColor: themeColors.aubergineSoft }]}>
+                  <Ionicons name="options-outline" size={17} color={themeColors.primary} />
+                </View>
+              </TouchableOpacity>
             </View>
 
-            {/* Savings receipt — signature element */}
-            {/*   <View style={{ paddingHorizontal: H_PADDING, marginTop: 10, zIndex: 3 }}>
-              <SavingsReceiptCard amount="1,240.50">
-                <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginTop: -20 }}>
-                  <View style={{ alignItems: "flex-end" }}>
-                    <View style={{ backgroundColor: themeColors.corianderSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, flexDirection: "row", alignItems: "center" }}>
-                      <Ionicons name="trend" size={12} color={themeColors.coriander} />
-                      <Text style={[FONTS.uiBodyBold, { fontSize: 11, color: themeColors.coriander, marginLeft: 2 }]}>+18%</Text>
+            <View style={styles.sectionBlock}>
+              <View style={styles.sectionTitleRow}>
+                <Text style={[FONTS.editorial, styles.sectionTitle, { color: themeColors.ink }]}>Quick compare</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+                {QUICK_CATEGORIES.slice(0, 5).map((item) => (
+                  <TouchableOpacity
+                    key={item.name}
+                    style={styles.categoryItem}
+                    onPress={() => navigation.navigate("Search", { query: item.name })}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.categoryIcon, { backgroundColor: item.color }]}>
+                      <Text style={styles.categoryEmoji}>{item.emoji}</Text>
                     </View>
-                    <Text style={[FONTS.uiBody, { fontSize: 11, color: themeColors.inkFaint, marginTop: 6 }]}>vs. last month</Text>
-                  </View>
-                </View>
-              </SavingsReceiptCard>
-            </View> */}
-
-            {/* Stat strip */}
-            <View style={{ paddingHorizontal: H_PADDING, marginTop: SPACING.lg }}>
-              <StatStrip 
-                stats={[
-                  { value: "5-in-1", label: "Search" },
-                  { value: "Live", label: "Price sync" },
-                  { value: "Best", label: "Price, always" }
-                ]} 
-              />
+                    <Text style={[FONTS.uiBodyMedium, styles.categoryLabel, { color: themeColors.ink }]}>{item.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
           </Animated.View>
 
-          {/* ── Content Section ── */}
-          <Animated.View style={[styles.lightSection, slideUp(fadeContent)]}>
-            {/* ── Browse Directly Section ── */}
-            <View style={{ paddingHorizontal: H_PADDING }}>
-              <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginBottom: 2 }}>
-                <Text style={[FONTS.heading, { fontSize: 19, color: themeColors.ink }]}>Browse directly</Text>
+          {recentSearches.length > 0 ? (
+            <Animated.View style={[styles.sectionBlock, slideUp(fadeContent)]}>
+              <View style={styles.sectionTitleRow}>
+                <View>
+                  <Text style={[FONTS.editorial, styles.sectionTitle, { color: themeColors.ink }]}>Compare again</Text>
                 </View>
-              <Text style={[FONTS.uiBody, { fontSize: 12.5, color: themeColors.inkSoft, marginBottom: 14 }]}>
-                Jump straight into a connected platform
-              </Text>
-            </View>
+                <TouchableOpacity onPress={() => navigation.navigate("Search")}>
+                  <Text style={[FONTS.uiBodyBold, styles.sectionAction, { color: themeColors.primary }]}>See all</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentRow}>
+                {recentSearches.map((query, index) => (
+                  <TouchableOpacity
+                    key={`${query}-${index}`}
+                    style={[styles.recentCard, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
+                    onPress={() => navigation.navigate("Search", { query })}
+                    activeOpacity={0.82}
+                  >
+                    <View style={styles.recentCardTop}>
+                      <View style={[styles.recentClockWrap, { backgroundColor: themeColors.aubergineSoft }]}>
+                        <Ionicons name="time-outline" size={15} color={themeColors.primary} />
+                      </View>
+                      <Text style={[FONTS.uiBodyMedium, styles.recentLabel, { color: themeColors.inkSoft }]}>
+                        Recent search
+                      </Text>
+                    </View>
+                    <Text style={[FONTS.editorial, styles.recentQuery, { color: themeColors.aubergineDeep }]} numberOfLines={1}>
+                      {query}
+                    </Text>
+                    <View style={styles.recentCardBottom}>
+                      <Text style={[FONTS.uiBodyMedium, styles.recentActionText, { color: themeColors.inkSoft }]}>
+                        Compare again
+                      </Text>
+                      <View style={[styles.recentArrow, { backgroundColor: themeColors.primary }]}>
+                        <Ionicons name="arrow-forward" size={14} color="#fff" />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </Animated.View>
+          ) : (
+            <Animated.View style={[styles.sectionBlock, slideUp(fadeContent)]}>
+              <TouchableOpacity
+                style={[styles.firstCompareCard, { backgroundColor: themeColors.headerSurface, borderColor: themeColors.line }]}
+                onPress={() => navigation.navigate("Search")}
+                activeOpacity={0.85}
+              >
+                <View style={[styles.firstCompareIcon, { backgroundColor: themeColors.primary }]}>
+                  <Ionicons name="trending-down" size={20} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[FONTS.uiBodyBold, { fontSize: 15, color: themeColors.ink }]}>Run your first comparison</Text>
+                  <Text style={[FONTS.uiBody, { fontSize: 12, lineHeight: 17, color: themeColors.inkSoft, marginTop: 2 }]}>Your recent products will appear here.</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={themeColors.primary} />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
 
+          <Animated.View style={[styles.sectionBlock, slideUp(fadeContent)]}>
+            <View style={styles.sectionTitleRow}>
+              <View>
+                <Text style={[FONTS.editorial, styles.sectionTitle, { color: themeColors.ink }]}>Shop by platform</Text>
+                <Text style={[FONTS.uiBody, styles.sectionSubtitle, { color: themeColors.inkSoft }]}>Open a connected store directly</Text>
+              </View>
+            </View>
             <View style={styles.browseGrid}>
               {DIRECT_PLATFORMS.map((item) => (
                 <BrowseCard key={item.id} item={item} navigation={navigation} themeColors={themeColors} />
@@ -422,118 +462,186 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
 
-  // ── Hero (Vibrant gradient section) ──
-  hero: {
-    minHeight: SCREEN_H * 0.52,
-    paddingTop: SPACING.xl,
+  dashboardTop: {
     paddingHorizontal: H_PADDING,
-    paddingBottom: SPACING.xxxl,
-    justifyContent: "space-between",
+    paddingTop: 22,
   },
-  heroTop: {
+  greeting: {
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.2,
+  },
+  dashboardTitle: {
+    maxWidth: 310,
+    fontSize: 34,
+    lineHeight: 39,
+    letterSpacing: -1,
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  searchLauncher: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: SPACING.xl,
+    minHeight: 64,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingLeft: 17,
+    paddingRight: 10,
+    ...SHADOWS.md,
   },
-  heroEyebrow: {
-    ...FONTS.eyebrow,
-    fontSize: 10,
-    opacity: 0.8,
-    color: "#fff",
+  searchLauncherText: {
+    flex: 1,
+    fontSize: 14.5,
+    marginLeft: 11,
   },
-  logoutBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: RADIUS.md,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+  searchAction: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
   },
-  heroContent: {
-    marginBottom: SPACING.xxxl,
+  sectionBlock: {
+    marginTop: 28,
   },
-  heroGreeting: {
-    fontFamily: "AvenirNext-Bold",
-    color: "rgba(255, 255, 255, 0.85)",
-    fontSize: 15,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+  sectionTitleRow: {
+    paddingHorizontal: H_PADDING,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
-  heroTitle: {
-    ...FONTS.luxury,
-    fontSize: 34,
-    lineHeight: 40,
-    marginBottom: 16,
-    color: "#fff",
+  sectionTitle: {
+    fontSize: 20,
+    lineHeight: 25,
+    letterSpacing: -0.4,
   },
-  heroSubtitle: {
-    ...FONTS.luxurySub,
-    fontSize: 15,
-    lineHeight: 22,
-    color: "rgba(255, 255, 255, 0.8)",
+  sectionSubtitle: {
+    fontSize: 12.5,
+    marginTop: 2,
   },
-  statsRow: {
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.15)",
-    paddingTop: SPACING.xl,
-    marginBottom: SPACING.xxl,
+  sectionMeta: {
+    fontSize: 11.5,
   },
-  statItem: {
-    flex: 1,
+  sectionAction: {
+    fontSize: 12.5,
+  },
+  categoryRow: {
+    paddingHorizontal: H_PADDING,
+    gap: 12,
+  },
+  categoryItem: {
+    width: 60,
     alignItems: "center",
   },
-  statValue: {
-    ...FONTS.h2Dark,
-    marginBottom: SPACING.xs,
-  },
-  statLabel: {
-    ...FONTS.captionDark,
-    fontSize: 11,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    marginVertical: SPACING.xs,
-  },
-
-  // ── Light Section ──
-  lightSection: {
-    paddingTop: SPACING.xxl,
-  },
-
-  // ── Browse Directly ──
-  browseGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "flex-start",
-    paddingHorizontal: H_PADDING,
-    marginTop: SPACING.sm,
-  },
-  browseCardWrapper: {
-    width: "33.33%",
-    alignItems: "flex-start",
-    marginBottom: SPACING.lg,
-  },
-  browseIconWrap: {
+  categoryIcon: {
     width: 60,
     height: 60,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 7,
+  },
+  categoryEmoji: {
+    fontSize: 29,
+  },
+  categoryLabel: {
+    fontSize: 11,
+    textAlign: "center",
+  },
+  recentRow: {
+    paddingHorizontal: H_PADDING,
+    gap: 12,
+    paddingBottom: 5,
+  },
+  recentCard: {
+    width: 174,
+    minHeight: 126,
+    padding: 14,
+    borderWidth: 1,
+    borderRadius: 20,
+    ...SHADOWS.md,
+  },
+  recentCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  recentClockWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  recentLabel: {
+    marginLeft: 8,
+    fontSize: 10.5,
+  },
+  recentQuery: {
+    fontSize: 20,
+    lineHeight: 25,
+    textTransform: "capitalize",
+    marginTop: 11,
+  },
+  recentCardBottom: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+  },
+  recentActionText: {
+    fontSize: 11,
+  },
+  recentArrow: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  firstCompareCard: {
+    marginHorizontal: H_PADDING,
+    padding: 14,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  firstCompareIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  browseGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: H_PADDING,
+  },
+  browseCardWrapper: {
+    width: "19%",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+  },
+  browseIconWrap: {
+    width: 54,
+    height: 54,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: SPACING.sm,
   },
   browseLogoImg: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 18,
   },
   browseName: {
     ...FONTS.caption,
     fontSize: 12,
     fontWeight: "600",
-    width: 60,
+    width: 68,
     textAlign: "center",
   },
   optimizerHeaderRow: {

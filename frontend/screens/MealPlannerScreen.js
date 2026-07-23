@@ -16,7 +16,7 @@ import { Ionicons } from "../components/Icon";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
-import ScreenHeader from "../components/ScreenHeader";
+import BrandHeader from "../components/BrandHeader";
 import { useTheme } from "../context/ThemeContext";
 import GroqService from "../services/GroqService";
 import * as Haptics from "expo-haptics";
@@ -63,50 +63,46 @@ const MealPlannerScreen = () => {
 
   const handleSearchIngredient = (ingredientName) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate("MainTabs", {
-      screen: "Search",
-      params: { query: ingredientName },
-    });
+    navigation.navigate("Search", { query: ingredientName });
   };
 
   const handleSearchAll = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     if (ingredients?.length > 0) {
-      navigation.navigate("MainTabs", {
-        screen: "Search",
-        params: { query: ingredients[0].name },
-      });
+      navigation.navigate("Search", { query: ingredients[0].name });
     }
   };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.paper }]}>
       <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
+        <BrandHeader editorial />
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <ScreenHeader
-            title="Meal Planner"
-            subtitle="Turn any recipe into a smart grocery list."
-            showBack={true}
-            onBackPress={() => navigation.goBack()}
-            leftAlign={true}
-          />
-
         <ScrollView
           style={[styles.scroll, { backgroundColor: themeColors.paper }]}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.mealHero}>
+            <Text style={[FONTS.editorialBold, styles.mealHeroTitle, { color: themeColors.aubergineDeep }]}>
+              What’s cooking?
+            </Text>
+            <Text style={[FONTS.uiBody, styles.mealHeroSubtitle, { color: themeColors.inkSoft }]}>
+              Name a meal and we’ll turn it into a cart-ready ingredient list.
+            </Text>
+          </View>
+
           {/* Input Card */}
           <View style={[styles.inputCard, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}>
+            <Text style={[styles.inputLabel, { color: themeColors.ink }]}>Describe your meal</Text>
             <View style={[styles.inputRow, { backgroundColor: themeColors.paper, borderColor: themeColors.line }]}>
-              <Ionicons name="restaurant-outline" size={20} color={themeColors.aubergine} style={{ marginRight: 10 }} />
               <TextInput
                 style={[styles.input, { color: themeColors.ink }]}
-                placeholder="e.g. Butter chicken for 4 people"
+                placeholder="Butter chicken for 4 people"
                 placeholderTextColor={themeColors.inkFaint}
                 value={mealInput}
                 onChangeText={setMealInput}
@@ -135,8 +131,8 @@ const MealPlannerScreen = () => {
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <>
-                    <Ionicons name="sparkles" size={16} color="#fff" />
-                    <Text style={styles.planBtnText}>Generate Ingredient List</Text>
+                    <Text style={styles.planBtnText}>Build my ingredient list</Text>
+                    <Ionicons name="arrow-forward" size={17} color="#fff" />
                   </>
                 )}
               </LinearGradient>
@@ -146,28 +142,45 @@ const MealPlannerScreen = () => {
           {/* Quick suggestions */}
           {!ingredients && !loading && (
             <View style={styles.suggestionsSection}>
-              <Text style={[FONTS.monoBold, { fontSize: 10.5, letterSpacing: 1.5, textTransform: "uppercase", color: themeColors.inkFaint, marginBottom: 12 }]}>Try one of these</Text>
-              {[
-                { label: "Butter chicken for 4 people", accent: themeColors.tomato, soft: themeColors.tomatoSoft },
-                { label: "Dal makhani for 6", accent: themeColors.coriander, soft: themeColors.corianderSoft },
-                { label: "Paneer tikka masala for 2", accent: themeColors.turmeric, soft: themeColors.turmericSoft },
-                { label: "Rajma chawal for a family", accent: themeColors.aubergine, soft: themeColors.aubergineSoft },
-                { label: "Chicken biryani for 5", accent: themeColors.tomato, soft: themeColors.tomatoSoft },
-                { label: "Palak paneer for 3", accent: themeColors.coriander, soft: themeColors.corianderSoft },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.label}
-                  style={[styles.suggestionChip, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
-                  onPress={() => { setMealInput(item.label); handlePlan(item.label); }}
-                  activeOpacity={0.8}
-                >
-                  <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: item.soft, alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Ionicons name="flame" size={17} color={item.accent} />
-                  </View>
-                  <Text style={[FONTS.uiBodyBold, { flex: 1, fontSize: 14, color: themeColors.ink }]}>{item.label}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={themeColors.inkFaint} />
-                </TouchableOpacity>
-              ))}
+              <Text style={[styles.suggestionsTitle, { color: themeColors.ink }]}>Popular meal plans</Text>
+              <Text style={[styles.suggestionsSubtitle, { color: themeColors.inkSoft }]}>Choose a meal to build its cart</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.suggestionsDeck}
+                decelerationRate="fast"
+                snapToInterval={180}
+              >
+                {[
+                  { meal: "Butter chicken", serves: "Serves 4", query: "Butter chicken for 4 people" },
+                  { meal: "Dal makhani", serves: "Serves 6", query: "Dal makhani for 6" },
+                  { meal: "Paneer tikka", serves: "Serves 2", query: "Paneer tikka masala for 2" },
+                  { meal: "Rajma chawal", serves: "Family meal", query: "Rajma chawal for a family" },
+                  { meal: "Chicken biryani", serves: "Serves 5", query: "Chicken biryani for 5" },
+                  { meal: "Palak paneer", serves: "Serves 3", query: "Palak paneer for 3" },
+                ].map((item, index) => (
+                  <TouchableOpacity
+                    key={item.query}
+                    style={[styles.suggestionCard, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
+                    onPress={() => { setMealInput(item.query); handlePlan(item.query); }}
+                    activeOpacity={0.82}
+                  >
+                    <View style={styles.suggestionCardTop}>
+                      <Text style={[styles.suggestionNumber, { color: themeColors.primary }]}>
+                        {String(index + 1).padStart(2, "0")}
+                      </Text>
+                      <Text style={[styles.suggestionType, { color: themeColors.inkFaint }]}>MEAL PLAN</Text>
+                    </View>
+                    <Text style={[styles.suggestionMeal, { color: themeColors.aubergineDeep }]} numberOfLines={2}>{item.meal}</Text>
+                    <View style={styles.suggestionCardBottom}>
+                      <Text style={[styles.suggestionServes, { color: themeColors.inkSoft }]}>{item.serves}</Text>
+                      <View style={[styles.suggestionGo, { backgroundColor: themeColors.aubergineSoft }]}>
+                        <Ionicons name="arrow-forward" size={14} color={themeColors.primary} />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
           )}
 
@@ -283,34 +296,55 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: SPACING.xl, paddingTop: 22, paddingBottom: 100 },
+  mealHero: {
+    marginBottom: 22,
+  },
+  mealHeroTitle: {
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: -0.8,
+  },
+  mealHeroSubtitle: {
+    maxWidth: 315,
+    fontSize: 13.5,
+    lineHeight: 20,
+    marginTop: 6,
+  },
   inputCard: {
-    padding: SPACING.lg,
-    borderRadius: RADIUS.xl,
+    padding: 18,
+    borderRadius: 22,
     borderWidth: 1,
     ...SHADOWS.md,
-    marginBottom: SPACING.xxl,
+    marginBottom: 28,
+  },
+  inputLabel: {
+    ...FONTS.uiBodyBold,
+    fontSize: 12,
+    marginBottom: 9,
   },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: RADIUS.lg,
-    paddingHorizontal: 12,
+    minHeight: 54,
+    borderRadius: 16,
+    paddingHorizontal: 15,
     borderWidth: 1,
     marginBottom: SPACING.lg,
   },
   input: {
     flex: 1,
     paddingVertical: 12,
-    ...FONTS.body,
-    fontSize: 15,
+    ...FONTS.uiBody,
+    fontSize: 14,
   },
   planBtn: {
-    borderRadius: RADIUS.lg,
+    borderRadius: 16,
     overflow: "hidden",
     ...SHADOWS.md,
   },
   planBtnGradient: {
+    minHeight: 54,
     paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
@@ -322,28 +356,71 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   suggestionsSection: {
-    marginTop: SPACING.md,
+    marginTop: 2,
   },
   suggestionsTitle: {
-    ...FONTS.eyebrow,
-    fontSize: 10,
-    marginBottom: SPACING.md,
-    letterSpacing: 1,
+    ...FONTS.editorial,
+    fontSize: 21,
+    lineHeight: 26,
+    letterSpacing: -0.35,
   },
-  suggestionChip: {
+  suggestionsSubtitle: {
+    ...FONTS.uiBody,
+    fontSize: 11.5,
+    marginTop: 2,
+    marginBottom: 13,
+  },
+  suggestionsDeck: {
+    gap: 12,
+    paddingRight: 4,
+    paddingBottom: 6,
+  },
+  suggestionCard: {
+    width: 168,
+    minHeight: 148,
+    padding: 15,
+    borderRadius: 20,
+    borderWidth: 1,
+    ...SHADOWS.sm,
+  },
+  suggestionCardTop: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: RADIUS.lg,
-    marginBottom: SPACING.sm,
-    borderWidth: 1,
-    gap: 12,
+    justifyContent: "space-between",
   },
-  suggestionText: {
-    flex: 1,
-    ...FONTS.body,
-    fontSize: 15,
+  suggestionNumber: {
+    ...FONTS.editorial,
+    fontSize: 16,
+    letterSpacing: 0.3,
+  },
+  suggestionType: {
+    ...FONTS.uiBodyBold,
+    fontSize: 8,
+    letterSpacing: 1,
+  },
+  suggestionMeal: {
+    ...FONTS.editorial,
+    fontSize: 18,
+    lineHeight: 22,
+    marginTop: 18,
+  },
+  suggestionCardBottom: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: "auto",
+    paddingTop: 13,
+  },
+  suggestionServes: {
+    ...FONTS.uiBody,
+    fontSize: 11,
+  },
+  suggestionGo: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
   resultsHeader: {
     padding: SPACING.lg,

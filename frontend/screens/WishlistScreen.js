@@ -13,7 +13,7 @@ import { Ionicons } from "../components/Icon";
 import { WishlistContext } from "../context/WishlistContext";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
-import ScreenHeader from "../components/ScreenHeader";
+import BrandHeader from "../components/BrandHeader";
 import { useNavigation } from "@react-navigation/native";
 import GroqService from "../services/GroqService";
 import * as Haptics from "expo-haptics";
@@ -90,18 +90,16 @@ const WishlistScreen = () => {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: themeColors.tomatoSoft, alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-        <Ionicons name="heart" size={30} color={themeColors.tomato} />
-      </View>
-      <Text style={[FONTS.heading, { fontSize: 19, color: themeColors.ink, marginBottom: 8 }]}>Nothing saved yet</Text>
-      <Text style={[FONTS.uiBody, { fontSize: 13, color: themeColors.inkSoft, textAlign: "center", lineHeight: 20, marginBottom: 22 }]}>
-        Tap the heart on any product to keep it here and compare later.
+      <Text style={[styles.emptyTitle, { color: themeColors.ink }]}>Your wishlist is empty</Text>
+      <Text style={[styles.emptySubtitle, { color: themeColors.inkSoft }]}>
+        Save products you like and return to compare their prices later.
       </Text>
       <TouchableOpacity
-        style={[styles.exploreBtn, { backgroundColor: themeColors.ink }]}
+        style={[styles.exploreBtn, { backgroundColor: themeColors.primary }]}
         onPress={() => navigation.navigate("Search")}
+        activeOpacity={0.85}
       >
-        <Text style={[FONTS.uiBodyBold, { color: "#fff", fontSize: 15 }]}>Explore products</Text>
+        <Text style={[styles.exploreBtnText, { color: "#fff" }]}>Browse products</Text>
       </TouchableOpacity>
     </View>
   );
@@ -109,17 +107,23 @@ const WishlistScreen = () => {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.paper }]}>
       <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
+        <BrandHeader editorial />
 
-        <ScreenHeader
-          title="Liked products"
-          subtitle={`${wishlist.length} ${wishlist.length === 1 ? "item" : "items"} saved`}
-          showBack={true}
-          onBackPress={() => navigation.goBack()}
-          leftAlign={true}
-          rightComponent={
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={[FONTS.heading, { fontSize: 22, color: themeColors.ink }]}>
+              Wishlist
+            </Text>
+            <Text style={[FONTS.uiBody, { fontSize: 13, color: themeColors.inkSoft, marginTop: 3 }]}>
+              {wishlist.length > 0
+                ? `${wishlist.length} ${wishlist.length === 1 ? "item" : "items"} saved`
+                : "Products you save for later"}
+            </Text>
+          </View>
+          {
             wishlist.length >= 2 ? (
               <TouchableOpacity
-                style={[styles.optimizeBtn, { backgroundColor: themeColors.ink, borderRadius: 99, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8 }]}
+                style={[styles.optimizeBtn, { backgroundColor: themeColors.primary, borderRadius: 99, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8 }]}
                 onPress={handleOptimize}
                 disabled={optimizing}
                 activeOpacity={0.85}
@@ -135,7 +139,7 @@ const WishlistScreen = () => {
               </TouchableOpacity>
             ) : null
           }
-        />
+        </View>
 
         {/* Basket Optimizer result card */}
         {optimizing && (
@@ -230,6 +234,14 @@ const WishlistScreen = () => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
+  sectionHeader: {
+    paddingHorizontal: SPACING.xl,
+    paddingTop: 14,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   header: {
     paddingTop: SPACING.xl,
     paddingBottom: SPACING.lg,
@@ -268,6 +280,7 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: SPACING.xl,
     paddingBottom: 100,
+    flexGrow: 1,
   },
   card: {
     flexDirection: "row",
@@ -310,40 +323,38 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 100,
-  },
-  emptyIconWrap: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    marginBottom: SPACING.xl,
+    paddingHorizontal: 28,
+    paddingBottom: 80,
   },
   emptyTitle: {
-    ...FONTS.h2,
-    marginBottom: SPACING.sm,
+    ...FONTS.editorial,
+    fontSize: 22,
+    lineHeight: 27,
+    textAlign: "center",
+    marginBottom: 8,
   },
   emptySubtitle: {
-    ...FONTS.body,
+    ...FONTS.uiBody,
+    fontSize: 12.5,
+    lineHeight: 19,
+    maxWidth: 285,
     textAlign: "center",
-    paddingHorizontal: 40,
-    lineHeight: 22,
   },
   exploreBtn: {
-    marginTop: SPACING.xxl,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.lg,
+    marginTop: 20,
+    minHeight: 48,
+    paddingHorizontal: 24,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
     ...SHADOWS.md,
   },
   exploreBtnText: {
-    ...FONTS.bodyBold,
-    color: "#FFFFFF",
+    ...FONTS.uiBodyBold,
+    fontSize: 14,
   },
   optimizerLoadingCard: {
     margin: SPACING.xl,

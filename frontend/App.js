@@ -9,8 +9,12 @@ import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { COLORS } from "./config/theme";
 import { useFonts } from "expo-font";
-import { Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from "@expo-google-fonts/roboto";
-import { IBMPlexMono_500Medium, IBMPlexMono_600SemiBold } from "@expo-google-fonts/ibm-plex-mono";
+import {
+  Fraunces_400Regular,
+  Fraunces_500Medium,
+  Fraunces_600SemiBold,
+  Fraunces_700Bold,
+} from "@expo-google-fonts/fraunces";
 
 // Auth Screens
 import LoginScreen from "./screens/LoginScreen";
@@ -47,7 +51,6 @@ const MainTabs = () => {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="MealPlanner" component={MealPlannerScreen} />
-      <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Likes" component={WishlistScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
@@ -65,11 +68,10 @@ const AppNav = () => {
   const [fontWaitExpired, setFontWaitExpired] = React.useState(false);
 
   const [fontsLoaded, fontError] = useFonts({
-    Roboto: Roboto_400Regular,
-    RobotoMedium: Roboto_500Medium,
-    RobotoBold: Roboto_700Bold,
-    IBMPlexMono: IBMPlexMono_500Medium,
-    IBMPlexMonoBold: IBMPlexMono_600SemiBold,
+    Fraunces: Fraunces_400Regular,
+    FrauncesMedium: Fraunces_500Medium,
+    FrauncesSemiBold: Fraunces_600SemiBold,
+    FrauncesBold: Fraunces_700Bold,
   });
 
   const fontsReady = fontsLoaded || Boolean(fontError) || fontWaitExpired;
@@ -132,6 +134,11 @@ const AppNav = () => {
           {userToken !== null ? (
             <>
               <Stack.Screen name="MainTabs" component={MainTabs} />
+              <Stack.Screen
+                name="Search"
+                component={SearchScreen}
+                options={{ animation: "slide_from_right" }}
+              />
               <Stack.Screen
                 name="ProductDetail"
                 component={ProductDetailScreen}

@@ -26,7 +26,13 @@ import * as Haptics from "expo-haptics";
 const { height: SCREEN_H } = Dimensions.get("window");
 
 const WELCOME_MESSAGE =
-  "Hi! I'm BEANS, your AI Shopping Copilot 🛒\nAsk me anything — best deals, product comparisons, or grocery tips!";
+  "Hi, I’m Beans. I can help you compare products, find better prices, and plan a grocery basket.";
+
+const STARTER_PROMPTS = [
+  { label: "Find the best price", prompt: "Help me find the best price for a product" },
+  { label: "Compare my wishlist", prompt: "Compare the products in my wishlist" },
+  { label: "Plan a grocery basket", prompt: "Help me plan a grocery basket" },
+];
 
 const AICopilot = () => {
   const [open, setOpen] = useState(false);
@@ -76,7 +82,7 @@ const AICopilot = () => {
       loop = Animated.loop(
         Animated.sequence([
           Animated.timing(breathAnim, {
-            toValue: 1.1,
+            toValue: 1.04,
             duration: 1500,
             useNativeDriver: true,
           }),
@@ -132,9 +138,10 @@ const AICopilot = () => {
     }).start(() => setOpen(false));
   };
 
-  const sendMessage = async () => {
-    if (!inputText.trim()) return;
-    const userText = inputText.trim();
+  const sendMessage = async (prompt) => {
+    const userText =
+      typeof prompt === "string" ? prompt.trim() : inputText.trim();
+    if (!userText) return;
 
     const userMsg = { id: Date.now().toString(), role: "user", text: userText };
     setMessages((prev) => [...prev, userMsg]);
@@ -230,9 +237,9 @@ const AICopilot = () => {
       <View style={[styles.messageRow, isUser ? styles.userRow : styles.aiRow]}>
         {!isUser && (
           <View
-            style={[styles.aiAvatar, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
+            style={[styles.aiAvatar, { backgroundColor: themeColors.aubergineSoft }]}
           >
-            <Ionicons name="sparkles" size={12} color={themeColors.ink} />
+            <Text style={[styles.aiAvatarText, { color: themeColors.primary }]}>B</Text>
           </View>
         )}
         {renderBubbleWrapper(isUser, 
@@ -312,10 +319,7 @@ const AICopilot = () => {
                   activeOpacity={0.8}
                   onPress={() => {
                     closeCopilot();
-                    navigation.navigate("MainTabs", {
-                      screen: "Search",
-                      params: { query: searchQuery },
-                    });
+                    navigation.navigate("Search", { query: searchQuery });
                   }}
                 >
                   <Ionicons name="search" size={12} color="#fff" />
@@ -354,8 +358,8 @@ const AICopilot = () => {
         >
           <Animated.View style={{ transform: [{ scale: fabScale }] }}>
             <TouchableOpacity onPress={pressFab} activeOpacity={1}>
-              <View style={[styles.fabGradient, { backgroundColor: themeColors.ink }]}>
-                <Ionicons name="sparkles" size={22} color="#fff" />
+              <View style={[styles.fabGradient, { backgroundColor: themeColors.primary }]}>
+                <Ionicons name="beans-ai" size={27} color="#fff" />
               </View>
             </TouchableOpacity>
           </Animated.View>
@@ -370,21 +374,19 @@ const AICopilot = () => {
             {
               backgroundColor: themeColors.background,
               transform: [{ translateY: slideAnim }],
-              height: isKeyboardVisible ? SCREEN_H * 0.95 : SCREEN_H * 0.72,
+              height: isKeyboardVisible ? SCREEN_H * 0.95 : SCREEN_H * 0.82,
             },
           ]}
         >
           {/* Header */}
-          <View style={[styles.panelHeader, { backgroundColor: themeColors.paper, borderBottomWidth: 1, borderBottomColor: themeColors.line }]}>
+          <View style={[styles.panelHeader, { backgroundColor: themeColors.paper }]}>
             <View style={styles.panelHeaderLeft}>
-              <View style={[styles.panelAvatar, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}>
-                <Ionicons name="sparkles" size={16} color={themeColors.ink} />
-              </View>
               <View>
                 <Text style={[styles.panelTitle, { color: themeColors.ink }]}>Beans</Text>
+                <Text style={[styles.panelSubtitle, { color: themeColors.inkSoft }]}>Shopping companion</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={closeCopilot} style={styles.closeBtn}>
+            <TouchableOpacity onPress={closeCopilot} style={[styles.closeBtn, { backgroundColor: themeColors.aubergineSoft }]}>
               <Ionicons
                 name="chevron-down"
                 size={22}
@@ -406,12 +408,29 @@ const AICopilot = () => {
                 flatListRef.current?.scrollToEnd({ animated: true })
               }
               ListFooterComponent={
-                isTyping ? (
+                <>
+                  {messages.length === 1 && !isTyping ? (
+                    <View style={styles.starterPrompts}>
+                      <Text style={[styles.starterLabel, { color: themeColors.inkSoft }]}>TRY ASKING</Text>
+                      {STARTER_PROMPTS.map((item) => (
+                        <TouchableOpacity
+                          key={item.label}
+                          style={[styles.starterPrompt, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
+                          onPress={() => sendMessage(item.prompt)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[styles.starterPromptText, { color: themeColors.ink }]}>{item.label}</Text>
+                          <Ionicons name="arrow-forward" size={14} color={themeColors.primary} />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : null}
+                  {isTyping ? (
                   <View style={[styles.messageRow, styles.aiRow]}>
                     <View
-                      style={[styles.aiAvatar, { backgroundColor: themeColors.card, borderColor: themeColors.line, borderWidth: 1 }]}
+                      style={[styles.aiAvatar, { backgroundColor: themeColors.aubergineSoft }]}
                     >
-                      <Ionicons name="sparkles" size={12} color={themeColors.ink} />
+                      <Text style={[styles.aiAvatarText, { color: themeColors.primary }]}>B</Text>
                     </View>
                     <View
                       style={[
@@ -435,7 +454,8 @@ const AICopilot = () => {
                       </Text>
                     </View>
                   </View>
-                ) : null
+                  ) : null}
+                </>
               }
             />
 
@@ -475,7 +495,7 @@ const AICopilot = () => {
                   <View
                     style={[
                       styles.sendGradient,
-                      { backgroundColor: inputText.trim() ? themeColors.ink : themeColors.line },
+                      { backgroundColor: inputText.trim() ? themeColors.primary : themeColors.line },
                     ]}
                   >
                     <Ionicons name="send" size={16} color="#fff" />
@@ -499,9 +519,9 @@ const styles = StyleSheet.create({
     ...SHADOWS.md,
   },
   fabGradient: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -521,25 +541,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.xl,
-    paddingBottom: SPACING.lg,
+    paddingTop: 18,
+    paddingBottom: 14,
   },
   panelHeaderLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  panelAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   panelTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#fff",
+    ...FONTS.editorial,
+    fontSize: 18,
+    lineHeight: 21,
+  },
+  panelSubtitle: {
+    ...FONTS.uiBody,
+    fontSize: 10.5,
+    marginTop: 1,
   },
   closeBtn: {
     width: 36,
@@ -550,7 +568,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   messageList: {
-    padding: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: 18,
     paddingBottom: SPACING.xl,
   },
   messageRow: {
@@ -569,6 +588,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 2,
   },
+  aiAvatarText: {
+    ...FONTS.editorialBold,
+    fontSize: 12,
+  },
   bubble: {
     maxWidth: "78%",
     paddingHorizontal: SPACING.md,
@@ -583,9 +606,9 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
   },
   bubbleText: {
-    ...FONTS.body,
-    fontSize: 14,
-    lineHeight: 20,
+    ...FONTS.uiBody,
+    fontSize: 13,
+    lineHeight: 19,
   },
   typingBubble: {
     flexDirection: "row",
@@ -621,6 +644,30 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
+  },
+  starterPrompts: {
+    marginLeft: 36,
+    marginTop: 4,
+    gap: 8,
+  },
+  starterLabel: {
+    ...FONTS.uiBodyBold,
+    fontSize: 8.5,
+    letterSpacing: 1.1,
+    marginBottom: 2,
+  },
+  starterPrompt: {
+    minHeight: 46,
+    borderRadius: 15,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  starterPromptText: {
+    ...FONTS.uiBodyMedium,
+    fontSize: 12,
   },
   cartCarousel: {
     marginTop: SPACING.sm,

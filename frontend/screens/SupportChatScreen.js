@@ -280,7 +280,7 @@ const SupportChatScreen = ({ navigation }) => {
                 style={[
                   styles.sendButton,
                   {
-                    backgroundColor: themeColors.ink,
+                    backgroundColor: themeColors.primary,
                     opacity: inputText.trim().length > 0 ? 1 : 0.4,
                   },
                 ]}

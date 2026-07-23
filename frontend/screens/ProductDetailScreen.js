@@ -281,7 +281,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
             label={`Buy now at ${bestListing.platform} · ₹${bestListing.price}`}
             onPress={handleBuyNow}
             icon="cart"
-            style={{ flex: 1, backgroundColor: themeColors.ink }}
+            style={{ flex: 1 }}
             textStyle={{ color: "#fff" }}
           />
         </View>
