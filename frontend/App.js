@@ -15,6 +15,12 @@ import {
   Fraunces_600SemiBold,
   Fraunces_700Bold,
 } from "@expo-google-fonts/fraunces";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
 
 // Auth Screens
 import LoginScreen from "./screens/LoginScreen";
@@ -37,6 +43,15 @@ import AICopilot from "./components/AICopilot";
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+const getActiveRouteName = (state) => {
+  if (!state?.routes?.length) return "Home";
+  let route = state.routes[state.index || 0];
+  while (route?.state?.routes?.length) {
+    route = route.state.routes[route.state.index || 0];
+  }
+  return route?.name || "Home";
+};
+
 const MainTabs = () => {
   const { themeColors } = useTheme();
   return (
@@ -51,6 +66,7 @@ const MainTabs = () => {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="MealPlanner" component={MealPlannerScreen} />
+      <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Likes" component={WishlistScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
@@ -66,12 +82,17 @@ const AppNav = () => {
   const { themeColors, isDark } = useTheme();
   const [showSplash, setShowSplash] = React.useState(true);
   const [fontWaitExpired, setFontWaitExpired] = React.useState(false);
+  const [activeRouteName, setActiveRouteName] = React.useState("Home");
 
   const [fontsLoaded, fontError] = useFonts({
     Fraunces: Fraunces_400Regular,
     FrauncesMedium: Fraunces_500Medium,
     FrauncesSemiBold: Fraunces_600SemiBold,
     FrauncesBold: Fraunces_700Bold,
+    Inter: Inter_400Regular,
+    InterMedium: Inter_500Medium,
+    InterSemiBold: Inter_600SemiBold,
+    InterBold: Inter_700Bold,
   });
 
   const fontsReady = fontsLoaded || Boolean(fontError) || fontWaitExpired;
@@ -127,7 +148,10 @@ const AppNav = () => {
   };
 
   return (
-    <NavigationContainer theme={customTheme}>
+    <NavigationContainer
+      theme={customTheme}
+      onStateChange={(state) => setActiveRouteName(getActiveRouteName(state))}
+    >
       <StatusBar style={isDark ? "light" : "dark"} />
       <View style={{ flex: 1, backgroundColor: themeColors.paper }}>
         <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
@@ -188,7 +212,9 @@ const AppNav = () => {
           )}
         </Stack.Navigator>
         {/* AICopilot must be inside NavigationContainer to use useNavigationState */}
-        {userToken !== null && <AICopilot />}
+        {userToken !== null && (
+          <AICopilot activeRouteName={activeRouteName} />
+        )}
       </View>
     </NavigationContainer>
   );

@@ -59,6 +59,7 @@ export const AppButton = ({
   icon,
   rightIcon,
   disabled = false,
+  pill = false,
   style,
   textStyle,
   testID,
@@ -122,13 +123,21 @@ export const AppButton = ({
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           disabled={disabled}
-          style={[styles.buttonContainer, disabled && styles.buttonDisabled]}
+          style={[
+            styles.buttonContainer,
+            pill && styles.pillShape,
+            disabled && styles.buttonDisabled,
+          ]}
           activeOpacity={0.9}
           testID={testID}
         >
           <LinearGradient
             colors={colors || themeColors.gradientAccent}
-            style={[styles.button, styles.buttonGradient]}
+            style={[
+              styles.button,
+              styles.buttonGradient,
+              pill && styles.pillShape,
+            ]}
           >
             {buttonContent}
           </LinearGradient>
@@ -138,7 +147,13 @@ export const AppButton = ({
   }
 
   return (
-    <Animated.View style={[{ transform: [{ scale }] }, style, { borderRadius: RADIUS.lg }]}>
+    <Animated.View
+      style={[
+        { transform: [{ scale }] },
+        style,
+        { borderRadius: pill ? 999 : RADIUS.lg },
+      ]}
+    >
       <TouchableOpacity
         onPress={onPress}
         onPressIn={handlePressIn}
@@ -146,6 +161,7 @@ export const AppButton = ({
         disabled={disabled}
         style={[
           styles.button,
+          pill && styles.pillShape,
           isPrimary && {
             backgroundColor: themeColors.primary,
             ...SHADOWS.colored(themeColors.primary),
@@ -568,6 +584,9 @@ const styles = StyleSheet.create({
   buttonGradient: {
     borderWidth: 0,
   },
+  pillShape: {
+    borderRadius: 999,
+  },
   buttonDisabled: {
     opacity: 0.45,
   },
@@ -585,7 +604,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     minHeight: 56,
     paddingHorizontal: SPACING.lg,
-    borderRadius: RADIUS.md,
+    borderRadius: 999,
     marginBottom: SPACING.md,
     gap: SPACING.sm,
     borderWidth: 1,

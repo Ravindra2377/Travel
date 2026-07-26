@@ -4,6 +4,7 @@ import { Ionicons } from "../components/Icon";
 import { SPACING, RADIUS, FONTS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
+import LiquidGlass from "./LiquidGlass";
 
 const SearchBar = ({
   value,
@@ -42,16 +43,20 @@ const SearchBar = ({
   }, [isRecording]);
 
   return (
-    <View style={[
+    <LiquidGlass
+      radius={999}
+      intensity={58}
+      style={[
       styles.container,
       {
-        backgroundColor: themeColors.card,
         borderColor: focused ? themeColors.aubergine : themeColors.line,
         borderWidth: focused ? 1.5 : 1,
         shadowColor: themeColors.ink,
         shadowOpacity: focused ? 0.08 : 0.03,
       },
-    ]}>
+      ]}
+      contentStyle={styles.containerContent}
+    >
       <TouchableOpacity
         style={[styles.iconWrap, { backgroundColor: "transparent" }]}
         onPress={() => {
@@ -128,21 +133,23 @@ const SearchBar = ({
           <Ionicons name="options-outline" size={20} color={themeColors.textSecondary} />
         </TouchableOpacity>
       )}
-    </View>
+    </LiquidGlass>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: RADIUS.lg,
-    paddingHorizontal: SPACING.md,
-    minHeight: 48,
-    gap: SPACING.sm,
+    borderRadius: 999,
+    minHeight: 52,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 12,
     elevation: 2,
+  },
+  containerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.md,
+    gap: SPACING.sm,
   },
   iconWrap: {
     width: 34,

@@ -73,6 +73,7 @@ const LoginScreen = ({ navigation }) => {
 
           <AppButton
             label="Sign In"
+            pill
             onPress={() => login(email, password)}
             icon="arrow-forward"
             style={[styles.signInBtn, { backgroundColor: themeColors.aubergine }]}

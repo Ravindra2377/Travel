@@ -1,32 +1,9 @@
 import React, { createContext, useState, useEffect } from "react";
-import { Platform, Alert } from "react-native";
+import { Alert } from "react-native";
 import axios from "axios";
 import { API_URL } from "../config/api";
-import * as SecureStore from "expo-secure-store";
-
-// Platform-aware token storage
-const tokenStorage = {
-  getItem: async (key) => {
-    if (Platform.OS === "web") {
-      return localStorage.getItem(key);
-    }
-    return await SecureStore.getItemAsync(key);
-  },
-  setItem: async (key, value) => {
-    if (Platform.OS === "web") {
-      localStorage.setItem(key, value);
-      return;
-    }
-    await SecureStore.setItemAsync(key, value);
-  },
-  removeItem: async (key) => {
-    if (Platform.OS === "web") {
-      localStorage.removeItem(key);
-      return;
-    }
-    await SecureStore.deleteItemAsync(key);
-  },
-};
+import { secureStorage } from "../services/secureStorage";
+import { platformTokenStorage } from "../services/platformTokenStorage";
 
 export const AuthContext = createContext();
 
@@ -51,12 +28,12 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post(`${API_URL}/login`, {
         email: normalizedEmail,
         password: normalizedPassword,
-      });
+      }, { timeout: 15000 });
       const { token, user: userData } = response.data;
       setUserToken(token);
       setUser(userData);
-      await tokenStorage.setItem("userToken", token);
-      await tokenStorage.setItem("userData", JSON.stringify(userData));
+      await secureStorage.setItem("userToken", token);
+      await secureStorage.setItem("userData", JSON.stringify(userData));
     } catch (e) {
       console.log("[Auth] Login Error:", {
         status: e?.response?.status,
@@ -101,13 +78,13 @@ export const AuthProvider = ({ children }) => {
         name: normalizedName,
         email: normalizedEmail,
         password: normalizedPassword,
-      });
+      }, { timeout: 15000 });
       console.log(`[Auth] Register Response:`, response.status);
       const { token, user: userData } = response.data;
       setUserToken(token);
       setUser(userData);
-      await tokenStorage.setItem("userToken", token);
-      await tokenStorage.setItem("userData", JSON.stringify(userData));
+      await secureStorage.setItem("userToken", token);
+      await secureStorage.setItem("userData", JSON.stringify(userData));
     } catch (e) {
       console.log("[Auth] Registration Error:", {
         status: e?.response?.status,
@@ -135,18 +112,29 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     setIsLoading(true);
+    if (userToken) {
+      try {
+        await axios.delete(`${API_URL}/accounts`, {
+          headers: { Authorization: `Bearer ${userToken}` },
+          timeout: 10000,
+        });
+      } catch (e) {
+        console.warn("[Auth] Could not revoke linked sessions:", e?.message);
+      }
+    }
     setUserToken(null);
     setUser(null);
-    await tokenStorage.removeItem("userToken");
-    await tokenStorage.removeItem("userData");
+    await secureStorage.removeItem("userToken");
+    await secureStorage.removeItem("userData");
+    await platformTokenStorage.clear();
     setIsLoading(false);
   };
 
   const isLoggedIn = async () => {
     try {
       setIsLoading(true);
-      let token = await tokenStorage.getItem("userToken");
-      let userData = await tokenStorage.getItem("userData");
+      let token = await secureStorage.getItem("userToken");
+      let userData = await secureStorage.getItem("userData");
       setUserToken(token);
       if (userData) {
         setUser(JSON.parse(userData));

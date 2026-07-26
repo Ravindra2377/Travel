@@ -1,4 +1,4 @@
-import React, { useRef, useState, useContext } from "react";
+import React, { useEffect, useRef, useState, useContext } from "react";
 import {
   View,
   Text,
@@ -33,7 +33,13 @@ const formatPrice = (value) => {
   }).format(numeric);
 };
 
-const ProductCard = ({ product, onPress }) => {
+const ProductCard = ({
+  product,
+  onPress,
+  animateBestPrice = false,
+  bestPriceRevealDelay = 0,
+  bestPriceRevealKey = "",
+}) => {
   const { themeColors, isDark } = useTheme();
 
   if (!product) return null;
@@ -51,6 +57,9 @@ const ProductCard = ({ product, onPress }) => {
     imageCandidates = [],
     unitPrice,
     unitLabel,
+    isBestValue = false,
+    isLowestPrice = false,
+    isPrimaryBestValue = false,
   } = product;
 
   const { toggleWishlist, isLiked } = useContext(WishlistContext);
@@ -68,6 +77,100 @@ const ProductCard = ({ product, onPress }) => {
   const hasDiscount = discount > 0;
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const bestPriceOpacity = useRef(
+    new Animated.Value(animateBestPrice ? 0 : 1),
+  ).current;
+  const bestPriceScale = useRef(
+    new Animated.Value(animateBestPrice ? 0.92 : 1),
+  ).current;
+  const unitValueOpacity = useRef(
+    new Animated.Value(animateBestPrice ? 0 : 1),
+  ).current;
+  const unitValueTranslateY = useRef(
+    new Animated.Value(animateBestPrice ? 7 : 0),
+  ).current;
+  const bestValueSweep = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    bestPriceOpacity.stopAnimation();
+    bestPriceScale.stopAnimation();
+    unitValueOpacity.stopAnimation();
+    unitValueTranslateY.stopAnimation();
+    bestValueSweep.stopAnimation();
+
+    if (!animateBestPrice) {
+      bestPriceOpacity.setValue(1);
+      bestPriceScale.setValue(1);
+      unitValueOpacity.setValue(1);
+      unitValueTranslateY.setValue(0);
+      bestValueSweep.setValue(0);
+      return undefined;
+    }
+
+    bestPriceOpacity.setValue(0);
+    bestPriceScale.setValue(0.92);
+    unitValueOpacity.setValue(0);
+    unitValueTranslateY.setValue(7);
+    bestValueSweep.setValue(0);
+
+    const animations = [
+      Animated.timing(bestPriceOpacity, {
+        toValue: 1,
+        duration: 220,
+        delay: bestPriceRevealDelay,
+        useNativeDriver: true,
+      }),
+      Animated.spring(bestPriceScale, {
+        toValue: 1,
+        delay: bestPriceRevealDelay,
+        stiffness: 210,
+        damping: 15,
+        mass: 0.72,
+        useNativeDriver: true,
+      }),
+      Animated.timing(unitValueOpacity, {
+        toValue: 1,
+        duration: 240,
+        delay: bestPriceRevealDelay + 120,
+        useNativeDriver: true,
+      }),
+      Animated.spring(unitValueTranslateY, {
+        toValue: 0,
+        delay: bestPriceRevealDelay + 120,
+        stiffness: 190,
+        damping: 18,
+        mass: 0.72,
+        useNativeDriver: true,
+      }),
+    ];
+
+    if (isPrimaryBestValue) {
+      animations.push(
+        Animated.sequence([
+          Animated.delay(bestPriceRevealDelay + 280),
+          Animated.timing(bestValueSweep, {
+            toValue: 1,
+            duration: 620,
+            useNativeDriver: true,
+          }),
+        ]),
+      );
+    }
+
+    const animation = Animated.parallel(animations);
+    animation.start();
+    return () => animation.stop();
+  }, [
+    animateBestPrice,
+    bestPriceOpacity,
+    bestPriceRevealDelay,
+    bestPriceRevealKey,
+    bestPriceScale,
+    bestValueSweep,
+    isPrimaryBestValue,
+    unitValueOpacity,
+    unitValueTranslateY,
+  ]);
 
   const handlePressIn = () =>
     Animated.spring(scaleAnim, {
@@ -103,6 +206,30 @@ const ProductCard = ({ product, onPress }) => {
           glowColor={accentColor}
           style={!isDark && { backgroundColor: themeColors.card, borderWidth: 1, borderColor: themeColors.line, ...SHADOWS.sm }}
         >
+          {isPrimaryBestValue ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.bestValueSweep,
+                {
+                  backgroundColor: themeColors.primary,
+                  opacity: bestValueSweep.interpolate({
+                    inputRange: [0, 0.12, 0.72, 1],
+                    outputRange: [0, 0.16, 0.16, 0],
+                  }),
+                  transform: [
+                    {
+                      translateX: bestValueSweep.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-110, 430],
+                      }),
+                    },
+                    { rotate: "10deg" },
+                  ],
+                },
+              ]}
+            />
+          ) : null}
           <View style={styles.content}>
             <View style={[styles.imageContainer, { backgroundColor: themeColors.cardAlt }]}>
               {resolvedImageURL && !imageError ? (
@@ -157,19 +284,70 @@ const ProductCard = ({ product, onPress }) => {
               ) : null}
 
               <View style={styles.priceRow}>
-                <View>
-                  <Text style={[styles.priceLabel, { color: themeColors.accent }]}>
-                    BEST PRICE
-                  </Text>
+                <Animated.View
+                  style={{
+                    opacity: bestPriceOpacity,
+                    transform: [{ scale: bestPriceScale }],
+                  }}
+                >
+                  {isBestValue ? (
+                    <Text
+                      style={[
+                        styles.priceLabel,
+                        { color: themeColors.accent },
+                      ]}
+                    >
+                      BEST VALUE
+                    </Text>
+                  ) : null}
                   <Text style={[styles.price, { color: themeColors.textPrimary }]}>
                     ₹{formatPrice(effectivePrice)}
                   </Text>
-                  {unitPrice ? (
-                    <Text style={[styles.unitPriceText, { color: themeColors.textSecondary, ...FONTS.caption }]}>
-                      ₹{formatPrice(unitPrice)} {unitLabel}
+                  <Animated.View
+                    style={{
+                      opacity: unitValueOpacity,
+                      transform: [{ translateY: unitValueTranslateY }],
+                    }}
+                  >
+                    {unitPrice ? (
+                      <Text style={[styles.unitPriceText, { color: themeColors.textSecondary, ...FONTS.caption }]}>
+                        ₹{formatPrice(unitPrice)} {unitLabel}
+                      </Text>
+                    ) : (
+                      <Text
+                        style={[
+                          styles.unitPriceText,
+                          { color: themeColors.textTertiary, ...FONTS.caption },
+                        ]}
+                      >
+                        Unit size unavailable
+                      </Text>
+                    )}
+                  </Animated.View>
+                </Animated.View>
+
+                {isLowestPrice ? (
+                  <View
+                    style={[
+                      styles.lowestPriceChip,
+                      { backgroundColor: themeColors.accentLight },
+                    ]}
+                  >
+                    <Ionicons
+                      name="arrow-down"
+                      size={11}
+                      color={themeColors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.lowestPriceText,
+                        { color: themeColors.primary },
+                      ]}
+                    >
+                      Lowest price
                     </Text>
-                  ) : null}
-                </View>
+                  </View>
+                ) : null}
 
                 {hasOriginal ? (
                   <View style={styles.mrpBlock}>
@@ -271,15 +449,28 @@ const areEqual = (prev, next) => {
     p.bestPlatform === n.bestPlatform &&
     p.unitPrice === n.unitPrice &&
     p.unitLabel === n.unitLabel &&
+    p.isBestValue === n.isBestValue &&
+    p.isLowestPrice === n.isLowestPrice &&
+    p.isPrimaryBestValue === n.isPrimaryBestValue &&
     p.image_url === n.image_url &&
     prevCandidates === nextCandidates &&
-    prev.onPress === next.onPress
+    prev.onPress === next.onPress &&
+    prev.animateBestPrice === next.animateBestPrice &&
+    prev.bestPriceRevealDelay === next.bestPriceRevealDelay &&
+    prev.bestPriceRevealKey === next.bestPriceRevealKey
   );
 };
 
 const styles = StyleSheet.create({
   wrapper: {
     marginBottom: SPACING.md,
+  },
+  bestValueSweep: {
+    position: "absolute",
+    top: -40,
+    bottom: -40,
+    width: 72,
+    zIndex: 20,
   },
   content: {
     flexDirection: "row",
@@ -354,6 +545,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     marginBottom: 2,
+  },
+  lowestPriceChip: {
+    paddingHorizontal: 8,
+    height: 24,
+    borderRadius: RADIUS.full,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginBottom: 2,
+  },
+  lowestPriceText: {
+    ...FONTS.captionBold,
+    fontSize: 11,
   },
   savingsText: {
     ...FONTS.captionBold,

@@ -8,6 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { API_URL } from "../config/api";
+import { secureStorage } from "./secureStorage";
 
 const PROXY_CHAT_URL = `${API_URL}/ai/chat`;
 const PROXY_AUDIO_URL = `${API_URL}/ai/transcribe`;
@@ -20,6 +21,7 @@ const MODELS = {
 
 // ─── Core fetch helper ────────────────────────────────────────────────────────
 async function groqFetch(model, messages, maxTokens = 300, jsonMode = false) {
+  const token = await secureStorage.getItem("userToken");
   const body = {
     model,
     messages,
@@ -32,6 +34,7 @@ async function groqFetch(model, messages, maxTokens = 300, jsonMode = false) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(body),
   });
@@ -161,6 +164,7 @@ Return JSON only:
   // Transcribe audio file using Groq Whisper via backend proxy.
   // audioUri: local file URI from expo-audio (formerly expo-av)
   async transcribeAudio(audioUri) {
+    const token = await secureStorage.getItem("userToken");
     const formData = new FormData();
     formData.append("file", {
       uri: audioUri,
@@ -172,6 +176,7 @@ Return JSON only:
 
     const response = await fetch(PROXY_AUDIO_URL, {
       method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
 
@@ -195,7 +200,14 @@ Return JSON only:
     } else if (screenContext.screen === "Search") {
       contextBlock = `The user is browsing search results for "${screenContext.query || "groceries"}".`;
     } else if (screenContext.screen === "Home") {
-      contextBlock = `The user is on the Home screen.`;
+      const requestedPlatforms = (
+        screenContext.requestedPlatforms || []
+      ).join(", ");
+      contextBlock = `The user is on the Home screen.${
+        requestedPlatforms
+          ? ` They explicitly requested results only from: ${requestedPlatforms}.`
+          : ""
+      }`;
     }
 
     const messages = [
@@ -205,7 +217,9 @@ Return JSON only:
 CompareZ compares prices on Blinkit, Zepto, BigBasket, Amazon, Flipkart. Be very concise (max 3 sentences). Use Rs. Be proactive and insightful based on context.
 CRITICAL RULES:
 1. ONLY append the exact string [SHOW_CART] to your message if the user EXPLICITLY asks to see their cart or wishlist. Do NOT use this flag if you are just comparing their saved items to new items.
-2. If you suggest NEW products for the user to buy, append the flag [SUGGEST_SEARCH: <product name>] for each product. (Example: [SUGGEST_SEARCH: Manjari Yogurt]). This creates a clickable search button in the UI.`,
+2. For every product search or price-comparison request, append [SUGGEST_SEARCH: <product name>] using only the clean product keyword. This opens CompareZ's real live results.
+3. Never invent availability, prices, savings, or a winning platform. Only state price facts when they are present in the supplied screen context. On Home, tell the user you are ready to run the comparison instead.
+4. If the user names specific platforms, acknowledge only those platforms and do not mention results from any other platform.`,
       },
       ...history.slice(-10),
     ];

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -19,6 +20,42 @@ const (
 	groqChatURL  = "https://api.groq.com/openai/v1/chat/completions"
 	groqAudioURL = "https://api.groq.com/openai/v1/audio/transcriptions"
 )
+
+var aiHTTPClient = &http.Client{Timeout: 60 * time.Second}
+
+var allowedChatModels = map[string]bool{
+	"llama-3.1-8b-instant":    true,
+	"llama-3.3-70b-versatile": true,
+}
+
+func validateAIChatRequest(req *AIChatRequest) bool {
+	if !allowedChatModels[req.Model] || len(req.Messages) == 0 || len(req.Messages) > 30 {
+		return false
+	}
+	if req.MaxTokens < 1 || req.MaxTokens > 1000 || req.Temperature < 0 || req.Temperature > 1.5 {
+		return false
+	}
+
+	totalContentSize := 0
+	cleanMessages := make([]map[string]string, 0, len(req.Messages))
+	for _, message := range req.Messages {
+		role := message["role"]
+		content := message["content"]
+		if (role != "system" && role != "user" && role != "assistant") || content == "" || len(content) > 8*1024 {
+			return false
+		}
+		totalContentSize += len(content)
+		if totalContentSize > 32*1024 {
+			return false
+		}
+		cleanMessages = append(cleanMessages, map[string]string{
+			"role":    role,
+			"content": content,
+		})
+	}
+	req.Messages = cleanMessages
+	return true
+}
 
 // ─── Request / Response types ────────────────────────────────────────────────
 
@@ -49,9 +86,9 @@ func AIChat(c echo.Context) error {
 			"error": "Invalid request body",
 		})
 	}
-	if req.Model == "" || len(req.Messages) == 0 {
+	if !validateAIChatRequest(&req) {
 		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "model and messages are required",
+			"error": "Invalid AI request",
 		})
 	}
 
@@ -72,7 +109,7 @@ func AIChat(c echo.Context) error {
 	groqReq.Header.Set("Content-Type", "application/json")
 	groqReq.Header.Set("Authorization", "Bearer "+apiKey)
 
-	resp, err := http.DefaultClient.Do(groqReq)
+	resp, err := aiHTTPClient.Do(groqReq)
 	if err != nil {
 		return c.JSON(http.StatusBadGateway, map[string]string{
 			"error": "Failed to reach AI service",
@@ -117,6 +154,7 @@ func AITranscribe(c echo.Context) error {
 	// Build a new multipart body to forward to Groq.
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
+	fileFound := false
 
 	for {
 		part, err := reader.NextPart()
@@ -131,6 +169,20 @@ func AITranscribe(c echo.Context) error {
 
 		fieldName := part.FormName()
 		if fieldName == "file" {
+			if fileFound || part.FileName() == "" {
+				part.Close()
+				return c.JSON(http.StatusBadRequest, map[string]string{
+					"error": "Exactly one audio file is required",
+				})
+			}
+			contentType := strings.ToLower(part.Header.Get("Content-Type"))
+			if contentType != "" && !strings.HasPrefix(contentType, "audio/") && contentType != "application/octet-stream" {
+				part.Close()
+				return c.JSON(http.StatusBadRequest, map[string]string{
+					"error": "Unsupported audio type",
+				})
+			}
+			fileFound = true
 			// Copy the audio file part.
 			destPart, err := writer.CreateFormFile("file", part.FileName())
 			if err != nil {
@@ -143,9 +195,13 @@ func AITranscribe(c echo.Context) error {
 					"error": "Failed to copy file data",
 				})
 			}
-		} else {
+		} else if fieldName == "language" {
 			// Copy form fields (model, language, etc.).
 			val, _ := io.ReadAll(part)
+			if len(val) > 16 {
+				part.Close()
+				return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid language"})
+			}
 			if err := writer.WriteField(fieldName, string(val)); err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{
 					"error": "Failed to write form field",
@@ -153,6 +209,14 @@ func AITranscribe(c echo.Context) error {
 			}
 		}
 		part.Close()
+	}
+	if !fileFound {
+		writer.Close()
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Audio file is required"})
+	}
+	if err := writer.WriteField("model", "whisper-large-v3-turbo"); err != nil {
+		writer.Close()
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to prepare audio request"})
 	}
 	writer.Close()
 
@@ -166,7 +230,7 @@ func AITranscribe(c echo.Context) error {
 	groqReq.Header.Set("Content-Type", writer.FormDataContentType())
 	groqReq.Header.Set("Authorization", "Bearer "+apiKey)
 
-	resp, err := http.DefaultClient.Do(groqReq)
+	resp, err := aiHTTPClient.Do(groqReq)
 	if err != nil {
 		return c.JSON(http.StatusBadGateway, map[string]string{
 			"error": "Failed to reach AI service",

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -57,7 +58,29 @@ func Connect() {
 
 	Client = localClient
 	DB = Client.Database("comparez") // Use 'comparez' database
+	indexCtx, indexCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer indexCancel()
+	if _, err := DB.Collection("users").Indexes().CreateOne(
+		indexCtx,
+		mongo.IndexModel{
+			Keys:    bson.D{{Key: "email", Value: 1}},
+			Options: options.Index().SetUnique(true).SetName("unique_user_email"),
+		},
+	); err != nil {
+		log.Printf("⚠️  Failed to ensure unique user email index: %v", err)
+	}
+	if _, err := DB.Collection("search_history").Indexes().CreateOne(
+		indexCtx,
+		mongo.IndexModel{
+			Keys: bson.D{
+				{Key: "user_id", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index().SetName("user_search_history"),
+		},
+	); err != nil {
+		log.Printf("⚠️  Failed to ensure search history index: %v", err)
+	}
 
 	fmt.Println("🚀 Connected to MongoDB")
 }
-

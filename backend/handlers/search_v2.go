@@ -6,27 +6,29 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // SearchResult represents a product search result from frontend
 type SearchResult struct {
-	Query       string                      `json:"query"`
-	Timestamp   time.Time                   `json:"timestamp"`
-	ResultCount int                         `json:"result_count"`
+	Query       string                              `json:"query"`
+	Timestamp   time.Time                           `json:"timestamp"`
+	ResultCount int                                 `json:"result_count"`
 	Platforms   map[string][]models.PlatformListing `json:"platforms"`
 }
 
 // CollectSearchResults receives search results from frontend for analytics/caching
 // POST /search/collect
 func CollectSearchResults(c echo.Context) error {
-	log.Printf("📥 Received search collection request from frontend")
 	var req struct {
-		Query     string                               `json:"query"`
-		UserID    string                               `json:"user_id"`
+		Query     string                              `json:"query"`
 		Platforms map[string][]models.PlatformListing `json:"platforms"`
 	}
 
@@ -36,7 +38,8 @@ func CollectSearchResults(c echo.Context) error {
 		})
 	}
 
-	if req.Query == "" {
+	req.Query = strings.TrimSpace(req.Query)
+	if req.Query == "" || len(req.Query) > 200 {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Query is required",
 		})
@@ -48,20 +51,11 @@ func CollectSearchResults(c echo.Context) error {
 		totalResults += len(products)
 	}
 
-	// Log the collected data
-	log.Printf("📊 Collected search results:")
-	log.Printf("   Query: %s", req.Query)
-	log.Printf("   Platforms: %d", len(req.Platforms))
-	log.Printf("   Total Products: %d", totalResults)
-	for platform, products := range req.Platforms {
-		log.Printf("   - %s: %d products", platform, len(products))
-	}
-
 	// Store in database for testing and history
 	if database.DB != nil {
-		var uid primitive.ObjectID
-		if req.UserID != "" {
-			uid, _ = primitive.ObjectIDFromHex(req.UserID)
+		uid, ok := authenticatedUserObjectID(c)
+		if !ok {
+			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required"})
 		}
 
 		history := models.SearchHistory{
@@ -118,18 +112,51 @@ func CollectSearchResults(c echo.Context) error {
 // GetSearchHistory returns recent searches for the user
 // GET /search/history?limit=10
 func GetSearchHistory(c echo.Context) error {
-	// TODO: Implement database query
-	// For now, return empty
+	uid, ok := authenticatedUserObjectID(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required"})
+	}
+	limit := int64(10)
+	if raw := c.QueryParam("limit"); raw != "" {
+		if parsed, err := strconv.ParseInt(raw, 10, 64); err == nil && parsed > 0 && parsed <= 50 {
+			limit = parsed
+		}
+	}
+	if database.DB == nil {
+		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "Database unavailable"})
+	}
+
+	cursor, err := database.DB.Collection("search_history").Find(
+		c.Request().Context(),
+		bson.M{"user_id": uid},
+		options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}}).SetLimit(limit),
+	)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not load search history"})
+	}
+	defer cursor.Close(c.Request().Context())
+
+	searches := make([]models.SearchHistory, 0, limit)
+	for cursor.Next(c.Request().Context()) {
+		var item models.SearchHistory
+		if err := cursor.Decode(&item); err == nil {
+			item.Listings = nil
+			searches = append(searches, item)
+		}
+	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"searches": []interface{}{},
-		"count":    0,
+		"searches": searches,
+		"count":    len(searches),
 	})
 }
 
 // ValidateTokens checks if stored tokens are still valid by testing each platform
 // GET /search/validate
 func ValidateTokens(c echo.Context) error {
-	key := deviceKey(c)
+	key, ok := accountKey(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required"})
+	}
 
 	Store.mu.RLock()
 	deviceTokens, exists := Store.byKey[key]

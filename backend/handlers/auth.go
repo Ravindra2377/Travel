@@ -1,10 +1,9 @@
 package handlers
 
 import (
-	"context"
 	"log"
 	"net/http"
-	"os"
+	"net/mail"
 	"regexp"
 	"strings"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"comparez/database"
 	"comparez/models"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -45,17 +43,19 @@ func Register(c echo.Context) error {
 	}
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-	req.Password = strings.TrimSpace(req.Password)
-
-	log.Printf("👤 Registering user: %s", req.Email)
+	req.Name = strings.TrimSpace(req.Name)
 
 	if req.Email == "" || req.Password == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Email and password are required"})
 	}
+	parsedAddress, err := mail.ParseAddress(req.Email)
+	if err != nil || parsedAddress.Address != req.Email || len(req.Email) > 254 || len(req.Name) > 100 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid account details"})
+	}
 
 	// Password validation
-	if len(req.Password) < 8 || len(req.Password) > 16 {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Password must be between 8 and 16 characters"})
+	if len(req.Password) < 8 || len(req.Password) > 72 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Password must be between 8 and 72 characters"})
 	}
 
 	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(req.Password)
@@ -86,39 +86,27 @@ func Register(c echo.Context) error {
 
 	// Check if exists
 	var existingUser models.User
-	err = collection.FindOne(context.TODO(), bson.M{"email": req.Email}).Decode(&existingUser)
+	err = collection.FindOne(c.Request().Context(), bson.M{"email": req.Email}).Decode(&existingUser)
 	if err == nil {
-		log.Printf("⚠️  Registration failed: Email %s already exists", req.Email)
 		return c.JSON(http.StatusConflict, map[string]string{"error": "Email already registered"})
 	}
 
 	log.Printf("💾 Inserting new user into MongoDB...")
-	_, err = collection.InsertOne(context.TODO(), user)
+	_, err = collection.InsertOne(c.Request().Context(), user)
 	if err != nil {
+		if mongo.IsDuplicateKeyError(err) {
+			return c.JSON(http.StatusConflict, map[string]string{"error": "Email already registered"})
+		}
 		log.Printf("❌ MongoDB insertion failed: %v", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not create user"})
 	}
 
-	log.Printf("🔑 Generating JWT for new user...")
-	// Generate JWT
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
-	claims["id"] = user.ID.Hex()
-	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		log.Printf("⚠️  JWT_SECRET not found in env, using default")
-		secret = "comparez-secret-key-123"
-	}
-
-	t, err := token.SignedString([]byte(secret))
+	t, err := issueToken(user.ID.Hex())
 	if err != nil {
 		log.Printf("❌ JWT signing failed: %v", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not generate token"})
 	}
 
-	log.Printf("✅ Registration successful for %s", req.Email)
 	return c.JSON(http.StatusCreated, map[string]interface{}{
 		"token": t,
 		"user": map[string]interface{}{
@@ -149,7 +137,7 @@ func Login(c echo.Context) error {
 
 	var user models.User
 	collection := database.DB.Collection("users")
-	err := collection.FindOne(context.TODO(), bson.M{"email": req.Email}).Decode(&user)
+	err := collection.FindOne(c.Request().Context(), bson.M{"email": req.Email}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid credentials"})
@@ -161,13 +149,7 @@ func Login(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid credentials"})
 	}
 
-	// Generate JWT
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
-	claims["id"] = user.ID.Hex()
-	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-
-	t, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	t, err := issueToken(user.ID.Hex())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Could not generate token"})
 	}

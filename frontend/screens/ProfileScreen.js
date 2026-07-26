@@ -95,8 +95,16 @@ const ProfileScreen = () => {
 
           {/* User identity */}
           <View style={[styles.identityCard, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}>
-            <View style={[styles.avatar, { backgroundColor: themeColors.primary }]}>
-              <Text style={[FONTS.editorialBold, { fontSize: 22, color: "#fff" }]}>
+            <View
+              style={[
+                styles.avatar,
+                {
+                  backgroundColor: themeColors.aubergineSoft,
+                  borderColor: themeColors.primary,
+                },
+              ]}
+            >
+              <Text style={[FONTS.editorialBold, { fontSize: 19, color: themeColors.primary }]}>
                 {(user?.name || user?.email || "U").charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -139,9 +147,17 @@ const ProfileScreen = () => {
 
           {/* Settings Section */}
           <Text style={[styles.groupLabel, { color: themeColors.inkSoft }]}>SETTINGS & SUPPORT</Text>
-          <View style={[styles.menuSection, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}>
+          <View style={styles.menuSection}>
             {/* Theme Toggle */}
-            <View style={[styles.menuItem, { borderBottomColor: themeColors.line, borderBottomWidth: 1 }]}>
+            <View
+              style={[
+                styles.menuItem,
+                {
+                  backgroundColor: themeColors.card,
+                  borderColor: themeColors.line,
+                },
+              ]}
+            >
               <Ionicons name="moon" size={18} color={themeColors.aubergine} />
               <View style={styles.menuInfo}>
                 <Text style={[FONTS.uiBodyBold, { fontSize: 13.5, color: themeColors.ink }]}>Dark mode</Text>
@@ -165,7 +181,10 @@ const ProfileScreen = () => {
                   key={item.label}
                   style={[
                     styles.menuItem,
-                    index < MENU.length - 1 && { borderBottomColor: themeColors.line, borderBottomWidth: 1 },
+                    {
+                      backgroundColor: themeColors.card,
+                      borderColor: themeColors.line,
+                    },
                   ]}
                   activeOpacity={0.6}
                   onPress={() => {
@@ -229,17 +248,19 @@ const styles = StyleSheet.create({
   identityCard: {
     marginHorizontal: SPACING.xl,
     marginBottom: 24,
-    padding: 16,
-    minHeight: 84,
-    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    minHeight: 76,
+    borderRadius: 999,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -272,9 +293,7 @@ const styles = StyleSheet.create({
   menuSection: {
     marginHorizontal: SPACING.xl,
     marginBottom: SPACING.xxl,
-    borderRadius: 20,
-    borderWidth: 1,
-    overflow: "hidden",
+    gap: 10,
   },
   groupLabel: {
     ...FONTS.uiBodyBold,
@@ -315,9 +334,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     minHeight: 68,
     gap: 14,
+    borderRadius: 999,
+    borderWidth: 1,
   },
   locationCard: {
-    borderRadius: 20,
+    borderRadius: 999,
     marginHorizontal: SPACING.xl,
     marginBottom: 22,
   },
@@ -333,7 +354,7 @@ const styles = StyleSheet.create({
   },
   signOutBtn: {
     minHeight: 52,
-    borderRadius: 16,
+    borderRadius: 999,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",

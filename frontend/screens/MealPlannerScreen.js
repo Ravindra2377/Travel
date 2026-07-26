@@ -1,5 +1,6 @@
-import React, { useState, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import {
+  AccessibilityInfo,
   View,
   Text,
   StyleSheet,
@@ -14,7 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "../components/Icon";
 import { LinearGradient } from "expo-linear-gradient";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import BrandHeader from "../components/BrandHeader";
 import { useTheme } from "../context/ThemeContext";
@@ -29,7 +30,133 @@ const MealPlannerScreen = () => {
   const [ingredients, setIngredients] = useState(null);
   const [dish, setDish] = useState("");
   const [error, setError] = useState("");
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const resultsHeaderAnim = useRef(new Animated.Value(0)).current;
+  const ingredientAnims = useRef([]);
+  const resultsCtaAnim = useRef(new Animated.Value(0)).current;
+  const resultsSequence = useRef(null);
+  const heroEntrance = useRef(new Animated.Value(0)).current;
+  const composerEntrance = useRef(new Animated.Value(0)).current;
+  const suggestionsEntrance = useRef(new Animated.Value(0)).current;
+  const suggestionEntranceAnims = useRef(
+    Array.from({ length: 6 }, () => new Animated.Value(0)),
+  ).current;
+  const suggestionScaleAnims = useRef(
+    Array.from({ length: 6 }, () => new Animated.Value(1)),
+  ).current;
+  const entranceSequence = useRef(null);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled?.().then(setReduceMotion);
+    const subscription = AccessibilityInfo.addEventListener?.(
+      "reduceMotionChanged",
+      setReduceMotion,
+    );
+    return () => subscription?.remove?.();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      entranceSequence.current?.stop?.();
+      heroEntrance.setValue(reduceMotion ? 1 : 0);
+      composerEntrance.setValue(reduceMotion ? 1 : 0);
+      suggestionsEntrance.setValue(reduceMotion ? 1 : 0);
+      suggestionEntranceAnims.forEach((value) =>
+        value.setValue(reduceMotion ? 1 : 0),
+      );
+
+      if (reduceMotion) return undefined;
+
+      const entrance = Animated.parallel([
+        Animated.timing(heroEntrance, {
+          toValue: 1,
+          duration: 260,
+          useNativeDriver: true,
+        }),
+        Animated.timing(composerEntrance, {
+          toValue: 1,
+          duration: 300,
+          delay: 45,
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.timing(suggestionsEntrance, {
+            toValue: 1,
+            duration: 220,
+            delay: 90,
+            useNativeDriver: true,
+          }),
+          Animated.stagger(
+            45,
+            suggestionEntranceAnims.map((value) =>
+              Animated.spring(value, {
+                toValue: 1,
+                stiffness: 185,
+                damping: 19,
+                mass: 0.78,
+                useNativeDriver: true,
+              }),
+            ),
+          ),
+        ]),
+      ]);
+
+      entranceSequence.current = entrance;
+      entrance.start();
+      return () => entrance.stop();
+    }, [
+      composerEntrance,
+      heroEntrance,
+      reduceMotion,
+      suggestionEntranceAnims,
+      suggestionsEntrance,
+    ]),
+  );
+
+  useEffect(() => {
+    if (!ingredients) return undefined;
+
+    resultsSequence.current?.stop?.();
+
+    if (reduceMotion) {
+      resultsHeaderAnim.setValue(1);
+      ingredientAnims.current.forEach((value) => value.setValue(1));
+      resultsCtaAnim.setValue(1);
+      return undefined;
+    }
+
+    const sequence = Animated.sequence([
+      Animated.timing(resultsHeaderAnim, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.stagger(
+        65,
+        ingredientAnims.current.map((value) =>
+          Animated.timing(value, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ),
+      ),
+      Animated.timing(resultsCtaAnim, {
+        toValue: 1,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+    ]);
+
+    resultsSequence.current = sequence;
+    sequence.start();
+    return () => sequence.stop();
+  }, [
+    ingredients,
+    reduceMotion,
+    resultsCtaAnim,
+    resultsHeaderAnim,
+  ]);
 
   const handlePlan = async (text) => {
     const query = (text || mealInput).trim();
@@ -39,18 +166,18 @@ const MealPlannerScreen = () => {
     setLoading(true);
     setIngredients(null);
     setError("");
-    fadeAnim.setValue(0);
+    resultsSequence.current?.stop?.();
+    resultsHeaderAnim.setValue(reduceMotion ? 1 : 0);
+    resultsCtaAnim.setValue(reduceMotion ? 1 : 0);
 
     try {
       const result = await GroqService.parseMealIngredients(query);
+      const nextIngredients = result.ingredients || [];
+      ingredientAnims.current = nextIngredients.map(
+        () => new Animated.Value(reduceMotion ? 1 : 0),
+      );
       setDish(result.dish || query);
-      setIngredients(result.ingredients || []);
-
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }).start();
+      setIngredients(nextIngredients);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
@@ -73,6 +200,17 @@ const MealPlannerScreen = () => {
     }
   };
 
+  const animateSuggestionScale = (index, toValue) => {
+    if (reduceMotion) return;
+    Animated.spring(suggestionScaleAnims[index], {
+      toValue,
+      stiffness: 260,
+      damping: 18,
+      mass: 0.65,
+      useNativeDriver: true,
+    }).start();
+  };
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.paper }]}>
       <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
@@ -87,17 +225,55 @@ const MealPlannerScreen = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.mealHero}>
+          <Animated.View
+            style={[
+              styles.mealHero,
+              {
+                opacity: heroEntrance,
+                transform: [
+                  {
+                    translateY: heroEntrance.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [14, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <Text style={[FONTS.editorialBold, styles.mealHeroTitle, { color: themeColors.aubergineDeep }]}>
               What’s cooking?
             </Text>
             <Text style={[FONTS.uiBody, styles.mealHeroSubtitle, { color: themeColors.inkSoft }]}>
               Name a meal and we’ll turn it into a cart-ready ingredient list.
             </Text>
-          </View>
+          </Animated.View>
 
           {/* Input Card */}
-          <View style={[styles.inputCard, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}>
+          <Animated.View
+            style={[
+              styles.inputCard,
+              {
+                backgroundColor: themeColors.card,
+                borderColor: themeColors.line,
+                opacity: composerEntrance,
+                transform: [
+                  {
+                    translateY: composerEntrance.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [18, 0],
+                    }),
+                  },
+                  {
+                    scale: composerEntrance.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.985, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <Text style={[styles.inputLabel, { color: themeColors.ink }]}>Describe your meal</Text>
             <View style={[styles.inputRow, { backgroundColor: themeColors.paper, borderColor: themeColors.line }]}>
               <TextInput
@@ -137,11 +313,26 @@ const MealPlannerScreen = () => {
                 )}
               </LinearGradient>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
 
           {/* Quick suggestions */}
           {!ingredients && !loading && (
-            <View style={styles.suggestionsSection}>
+            <Animated.View
+              style={[
+                styles.suggestionsSection,
+                {
+                  opacity: suggestionsEntrance,
+                  transform: [
+                    {
+                      translateY: suggestionsEntrance.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [12, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
               <Text style={[styles.suggestionsTitle, { color: themeColors.ink }]}>Popular meal plans</Text>
               <Text style={[styles.suggestionsSubtitle, { color: themeColors.inkSoft }]}>Choose a meal to build its cart</Text>
               <ScrollView
@@ -159,29 +350,46 @@ const MealPlannerScreen = () => {
                   { meal: "Chicken biryani", serves: "Serves 5", query: "Chicken biryani for 5" },
                   { meal: "Palak paneer", serves: "Serves 3", query: "Palak paneer for 3" },
                 ].map((item, index) => (
-                  <TouchableOpacity
+                  <Animated.View
                     key={item.query}
-                    style={[styles.suggestionCard, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
-                    onPress={() => { setMealInput(item.query); handlePlan(item.query); }}
-                    activeOpacity={0.82}
+                    style={{
+                      opacity: suggestionEntranceAnims[index],
+                      transform: [
+                        {
+                          translateY: suggestionEntranceAnims[index].interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [16, 0],
+                          }),
+                        },
+                        { scale: suggestionScaleAnims[index] },
+                      ],
+                    }}
                   >
-                    <View style={styles.suggestionCardTop}>
-                      <Text style={[styles.suggestionNumber, { color: themeColors.primary }]}>
-                        {String(index + 1).padStart(2, "0")}
-                      </Text>
-                      <Text style={[styles.suggestionType, { color: themeColors.inkFaint }]}>MEAL PLAN</Text>
-                    </View>
-                    <Text style={[styles.suggestionMeal, { color: themeColors.aubergineDeep }]} numberOfLines={2}>{item.meal}</Text>
-                    <View style={styles.suggestionCardBottom}>
-                      <Text style={[styles.suggestionServes, { color: themeColors.inkSoft }]}>{item.serves}</Text>
-                      <View style={[styles.suggestionGo, { backgroundColor: themeColors.aubergineSoft }]}>
-                        <Ionicons name="arrow-forward" size={14} color={themeColors.primary} />
+                    <TouchableOpacity
+                      style={[styles.suggestionCard, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
+                      onPress={() => { setMealInput(item.query); handlePlan(item.query); }}
+                      onPressIn={() => animateSuggestionScale(index, 0.965)}
+                      onPressOut={() => animateSuggestionScale(index, 1)}
+                      activeOpacity={0.92}
+                    >
+                      <View style={styles.suggestionCardTop}>
+                        <Text style={[styles.suggestionNumber, { color: themeColors.primary }]}>
+                          {String(index + 1).padStart(2, "0")}
+                        </Text>
+                        <Text style={[styles.suggestionType, { color: themeColors.inkFaint }]}>MEAL PLAN</Text>
                       </View>
-                    </View>
-                  </TouchableOpacity>
+                      <Text style={[styles.suggestionMeal, { color: themeColors.aubergineDeep }]} numberOfLines={2}>{item.meal}</Text>
+                      <View style={styles.suggestionCardBottom}>
+                        <Text style={[styles.suggestionServes, { color: themeColors.inkSoft }]}>{item.serves}</Text>
+                        <View style={[styles.suggestionGo, { backgroundColor: themeColors.aubergineSoft }]}>
+                          <Ionicons name="arrow-forward" size={14} color={themeColors.primary} />
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  </Animated.View>
                 ))}
               </ScrollView>
-            </View>
+            </Animated.View>
           )}
 
           {/* Error */}
@@ -194,8 +402,25 @@ const MealPlannerScreen = () => {
 
           {/* Results */}
           {ingredients && (
-            <Animated.View style={{ opacity: fadeAnim }}>
-              <View style={[styles.resultsHeader, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}>
+            <View>
+              <Animated.View
+                style={[
+                  styles.resultsHeader,
+                  {
+                    backgroundColor: themeColors.card,
+                    borderColor: themeColors.line,
+                    opacity: resultsHeaderAnim,
+                    transform: [
+                      {
+                        translateY: resultsHeaderAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [12, 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
                 <View style={styles.dishNameRow}>
                   <Ionicons name="checkmark-circle" size={20} color={themeColors.coriander} />
                   <Text style={[FONTS.heading, { fontSize: 20, flex: 1, color: themeColors.ink }]}>{dish}</Text>
@@ -203,51 +428,88 @@ const MealPlannerScreen = () => {
                 <Text style={[FONTS.uiBody, { marginTop: 4, marginLeft: 28, fontSize: 13, color: themeColors.inkSoft }]}>
                   {ingredients.length} ingredients found
                 </Text>
-              </View>
+              </Animated.View>
 
               {/* Ingredient list */}
-              {ingredients.map((ing, i) => (
-                <TouchableOpacity
-                  key={i}
-                  style={[styles.ingredientRow, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
-                  onPress={() => handleSearchIngredient(ing.name)}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.ingredientIndex, { backgroundColor: themeColors.aubergineSoft }]}>
-                    <Text style={[FONTS.uiBodyBold, { fontSize: 12, color: themeColors.aubergine }]}>{i + 1}</Text>
-                  </View>
-                  <View style={styles.ingredientInfo}>
-                    <Text style={[FONTS.uiBodyBold, { fontSize: 15, color: themeColors.ink }]}>{ing.name}</Text>
-                    <Text style={[FONTS.uiBody, { marginTop: 1, fontSize: 12, color: themeColors.inkSoft }]}>{ing.quantity}</Text>
-                  </View>
-                  <View style={[styles.searchChip, { backgroundColor: themeColors.aubergineSoft, borderColor: themeColors.aubergineSoft }]}>
-                    <Ionicons name="search" size={13} color={themeColors.aubergine} />
-                    <Text style={[FONTS.uiBodyBold, { fontSize: 11, color: themeColors.aubergine }]}>Compare</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+              {ingredients.map((ing, i) => {
+                const rowAnim = ingredientAnims.current[i];
+                return (
+                  <Animated.View
+                    key={`${ing.name}-${i}`}
+                    style={{
+                      opacity: rowAnim,
+                      transform: [
+                        {
+                          translateY: rowAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [14, 0],
+                          }),
+                        },
+                        {
+                          scale: rowAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.985, 1],
+                          }),
+                        },
+                      ],
+                    }}
+                  >
+                    <TouchableOpacity
+                      style={[styles.ingredientRow, { backgroundColor: themeColors.card, borderColor: themeColors.line }]}
+                      onPress={() => handleSearchIngredient(ing.name)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.ingredientIndex, { backgroundColor: themeColors.aubergineSoft }]}>
+                        <Text style={[FONTS.uiBodyBold, { fontSize: 12, color: themeColors.aubergine }]}>{i + 1}</Text>
+                      </View>
+                      <View style={styles.ingredientInfo}>
+                        <Text style={[FONTS.uiBodyBold, { fontSize: 15, color: themeColors.ink }]}>{ing.name}</Text>
+                        <Text style={[FONTS.uiBody, { marginTop: 1, fontSize: 12, color: themeColors.inkSoft }]}>{ing.quantity}</Text>
+                      </View>
+                      <View style={[styles.searchChip, { backgroundColor: themeColors.aubergineSoft, borderColor: themeColors.aubergineSoft }]}>
+                        <Ionicons name="search" size={13} color={themeColors.aubergine} />
+                        <Text style={[FONTS.uiBodyBold, { fontSize: 11, color: themeColors.aubergine }]}>Compare</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </Animated.View>
+                );
+              })}
 
-              {/* Search all CTA */}
-              <TouchableOpacity
-                style={styles.searchAllBtn}
-                onPress={handleSearchAll}
-                activeOpacity={0.85}
+              <Animated.View
+                style={{
+                  opacity: resultsCtaAnim,
+                  transform: [
+                    {
+                      translateY: resultsCtaAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [12, 0],
+                      }),
+                    },
+                  ],
+                }}
               >
-                <LinearGradient
-                  colors={[themeColors.aubergine, themeColors.aubergineDeep]}
-                  style={styles.searchAllGradient}
+                {/* Search all CTA */}
+                <TouchableOpacity
+                  style={styles.searchAllBtn}
+                  onPress={handleSearchAll}
+                  activeOpacity={0.85}
                 >
-                  <Ionicons name="cart-outline" size={18} color="#fff" />
-                  <Text style={[FONTS.uiBodyBold, { color: "#fff", fontSize: 16 }]}>
-                    Start with {ingredients[0]?.name}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
+                  <LinearGradient
+                    colors={[themeColors.aubergine, themeColors.aubergineDeep]}
+                    style={styles.searchAllGradient}
+                  >
+                    <Ionicons name="cart-outline" size={18} color="#fff" />
+                    <Text style={[FONTS.uiBodyBold, { color: "#fff", fontSize: 16 }]}>
+                      Start with {ingredients[0]?.name}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-              <Text style={[FONTS.uiBody, { textAlign: "center", marginTop: SPACING.md, fontSize: 12, color: themeColors.inkFaint }]}>
-                Tap any ingredient to compare prices across all platforms
-              </Text>
-            </Animated.View>
+                <Text style={[FONTS.uiBody, { textAlign: "center", marginTop: SPACING.md, fontSize: 12, color: themeColors.inkFaint }]}>
+                  Tap any ingredient to compare prices across all platforms
+                </Text>
+              </Animated.View>
+            </View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -327,7 +589,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     minHeight: 54,
-    borderRadius: 16,
+    borderRadius: 999,
     paddingHorizontal: 15,
     borderWidth: 1,
     marginBottom: SPACING.lg,
@@ -339,7 +601,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   planBtn: {
-    borderRadius: 16,
+    borderRadius: 999,
     overflow: "hidden",
     ...SHADOWS.md,
   },

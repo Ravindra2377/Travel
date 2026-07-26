@@ -59,7 +59,7 @@ const SplashScreen = ({ onFinish }) => {
           colors={
             isDark
               ? [themeColors.paper, themeColors.paperDim]
-              : ["#F7F8F6", "#E3F3EA"]
+              : ["#F7F8F7", "#E3F3EA"]
           }
           style={styles.background}
         />

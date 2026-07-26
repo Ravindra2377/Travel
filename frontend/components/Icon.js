@@ -34,6 +34,21 @@ const ICONS = {
   // ── Navigation ──
   "home": (c) => <Path d="M3 12.5L12 3l9 9.5V21a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z" fill={c} />,
   "home-outline": (c, sw) => <Path d="M3 12.5L12 3l9 9.5V21a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" />,
+  "comparez-home": (c, sw) => <G>
+    <Polyline points="2.5,10.5 12,2.5 21.5,10.5" stroke={c} strokeWidth={sw + 0.15} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Polyline points="4.2,10.5 12,4.6 19.8,10.5" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M4.2 10.5V21.5H19.8V10.5" stroke={c} strokeWidth={sw + 0.15} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M9.5 21.5V15h5v6.5" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Line x1="17.6" y1="4.8" x2="17.6" y2="7.1" stroke={c} strokeWidth={sw} strokeLinecap="round" />
+  </G>,
+  "comparez-home-active": (c, sw) => <G>
+    <Path d="M4.2 10.5L12 4.6l7.8 5.9v11H4.2z" fill={c} opacity={0.12} />
+    <Polyline points="2.5,10.5 12,2.5 21.5,10.5" stroke={c} strokeWidth={sw + 0.35} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Polyline points="4.2,10.5 12,4.6 19.8,10.5" stroke={c} strokeWidth={sw + 0.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M4.2 10.5V21.5H19.8V10.5" stroke={c} strokeWidth={sw + 0.35} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M9.5 21.5V15h5v6.5" stroke={c} strokeWidth={sw + 0.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Line x1="17.6" y1="4.8" x2="17.6" y2="7.1" stroke={c} strokeWidth={sw + 0.2} strokeLinecap="round" />
+  </G>,
 
   "arrow-back": (c, sw) => <G><Line x1="20" y1="12" x2="4" y2="12" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Polyline points="10,18 4,12 10,6" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
   "arrow-forward": (c, sw) => <G><Line x1="4" y1="12" x2="20" y2="12" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Polyline points="14,6 20,12 14,18" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
@@ -53,10 +68,22 @@ const ICONS = {
   // ── Search ──
   "search": (c, sw) => <G><Circle cx="10.5" cy="10.5" r="7" stroke={c} strokeWidth={sw} fill="none" /><Line x1="15.5" y1="15.5" x2="21" y2="21" stroke={c} strokeWidth={sw} strokeLinecap="round" /></G>,
   "search-outline": (c, sw) => <G><Circle cx="10.5" cy="10.5" r="7" stroke={c} strokeWidth={sw} fill="none" /><Line x1="15.5" y1="15.5" x2="21" y2="21" stroke={c} strokeWidth={sw} strokeLinecap="round" /></G>,
+  "comparez-search": (c, sw) => <G>
+    <Circle cx="9.4" cy="9.2" r="7.2" stroke={c} strokeWidth={sw + 0.2} fill="none" />
+    <Line x1="14.55" y1="14.35" x2="19.7" y2="19.5" stroke={c} strokeWidth={sw + 0.2} strokeLinecap="round" />
+  </G>,
 
   // ── Heart / Likes ──
   "heart": (c) => <Path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill={c} />,
   "heart-outline": (c, sw) => <Path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke={c} strokeWidth={sw} fill="none" />,
+  "comparez-wishlist": (c, sw) => <Path
+    d="M11.8 21.4C9.7 19.5 3.2 15.4 2.4 9.1 1.9 5 4.4 2 7.7 2.3c2.2.2 3.8 1.6 4.6 3.3 1.3-1.5 3-2.3 5.1-2.1 3.5.4 5.4 3.3 4.3 6.8-1.3 4.2-5.4 7.4-9.9 11.1z"
+    stroke={c}
+    strokeWidth={sw + 0.2}
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  />,
 
   // ── Person / Profile ──
   "person": (c) => <G><Circle cx="12" cy="7" r="4" fill={c} /><Path d="M4 21v-1c0-3.31 2.69-6 6-6h4c3.31 0 6 2.69 6 6v1" fill={c} /></G>,
@@ -72,8 +99,63 @@ const ICONS = {
   "basket-outline": (c, sw) => <G><Path d="M2 10h20l-2 10H4z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /><Polyline points="8,10 12,3 16,10" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
   "meal-cart": (c) => <G><Path d="M3 10h18l-2 11H5z" fill={c} /><Path d="M8 10l4-7 4 7" stroke={c} strokeWidth={1.7} fill="none" strokeLinecap="round" strokeLinejoin="round" /><Path d="M12 17c-2.6-2.2-2.2-5.3 2.8-5.8.2 3.8-1 5.4-2.8 5.8z" fill="#fff" /><Path d="M12 17c-.2-2.1-1.2-3.4-3.6-4.2-.5 2.7.8 4.2 3.6 4.2z" fill="#fff" opacity={0.9} /></G>,
   "meal-cart-outline": (c, sw) => <G><Path d="M3 10h18l-2 11H5z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /><Path d="M8 10l4-7 4 7" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /><Path d="M12 17c-2.6-2.2-2.2-5.3 2.8-5.8.2 3.8-1 5.4-2.8 5.8z" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /><Path d="M12 17c-.2-2.1-1.2-3.4-3.6-4.2-.5 2.7.8 4.2 3.6 4.2z" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
+  "comparez-meal-cart": (c, sw) => <G>
+    <Path d="M7.8 9.2L10.7 3.5c.7-1.35 1.9-1.35 2.6 0l2.9 5.7" stroke={c} strokeWidth={sw + 0.15} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M3.2 8.4h17.6l-1.1 13.1H4.3z" stroke={c} strokeWidth={sw + 0.15} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Line x1="3.5" y1="13" x2="20.5" y2="13" stroke={c} strokeWidth={sw} strokeLinecap="round" />
+    <Line x1="4" y1="17.2" x2="20" y2="17.2" stroke={c} strokeWidth={sw} strokeLinecap="round" />
+    <Line x1="7.8" y1="9.2" x2="16.2" y2="9.2" stroke={c} strokeWidth={sw} strokeLinecap="round" />
+  </G>,
+  "comparez-meal-cart-active": (c, sw) => <G>
+    <Path d="M3.2 8.4h17.6l-1.1 13.1H4.3z" fill={c} opacity={0.12} />
+    <Path d="M7.8 9.2L10.7 3.5c.7-1.35 1.9-1.35 2.6 0l2.9 5.7" stroke={c} strokeWidth={sw + 0.35} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M3.2 8.4h17.6l-1.1 13.1H4.3z" stroke={c} strokeWidth={sw + 0.35} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Line x1="3.5" y1="13" x2="20.5" y2="13" stroke={c} strokeWidth={sw + 0.15} strokeLinecap="round" />
+    <Line x1="4" y1="17.2" x2="20" y2="17.2" stroke={c} strokeWidth={sw + 0.15} strokeLinecap="round" />
+    <Line x1="7.8" y1="9.2" x2="16.2" y2="9.2" stroke={c} strokeWidth={sw + 0.15} strokeLinecap="round" />
+  </G>,
   "ingredients-list": (c, sw) => <G><Path d="M5 8c0-3.2 2.3-5.2 6.2-5.5.1 3.8-2 5.6-6.2 5.5z" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /><Line x1="5" y1="8" x2="9" y2="4" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Circle cx="5" cy="12" r="1.2" fill={c} /><Circle cx="5" cy="17.5" r="1.2" fill={c} /><Line x1="9" y1="12" x2="20" y2="12" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="9" y1="17.5" x2="20" y2="17.5" stroke={c} strokeWidth={sw} strokeLinecap="round" /></G>,
-  "beans-ai": (c, sw) => <G><Path d="M17.8 3.4c3.7 2.6 3.4 8.5.2 12.7-3.5 4.6-9.7 6.3-13.2 2.5-3.2-3.5-1.3-8.1 2.2-9.1 2.6-.8 3.1-2.3 4-4.1 1.3-2.6 4.3-3.7 6.8-2z" stroke={c} strokeWidth={sw + 0.2} fill="none" strokeLinecap="round" strokeLinejoin="round" /><Path d="M14.5 7l.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7z" fill={c} /><Path d="M9.2 13.2l.45 1.35L11 15l-1.35.45-.45 1.35-.45-1.35L7.4 15l1.35-.45z" fill={c} /></G>,
+  "beans-ai": (c, sw) => <G>
+    <Path
+      d="M17.8 3.4c3.7 2.6 3.4 8.5.2 12.7-3.5 4.6-9.7 6.3-13.2 2.5-3.2-3.5-1.3-8.1 2.2-9.1 2.6-.8 3.1-2.3 4-4.1 1.3-2.6 4.3-3.7 6.8-2z"
+      stroke={c}
+      strokeWidth={sw + 0.45}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Circle
+      cx="8.1"
+      cy="15.4"
+      r="1.65"
+      stroke={c}
+      strokeWidth={sw}
+      fill="none"
+    />
+    <Circle
+      cx="16.2"
+      cy="8.3"
+      r="1.65"
+      stroke={c}
+      strokeWidth={sw}
+      fill="none"
+    />
+    <Path
+      d="M9.7 14.5c1.45-2.35 3.05-3.8 5.25-5.15"
+      stroke={c}
+      strokeWidth={sw + 0.15}
+      fill="none"
+      strokeLinecap="round"
+    />
+    <Polyline
+      points="12.9,9.2 15.15,9.2 14.7,11.35"
+      stroke={c}
+      strokeWidth={sw + 0.15}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </G>,
   "cart": (c) => <G><Path d="M6 6h15l-1.5 9H7.5z" fill={c} /><Circle cx="9" cy="20" r="1.5" fill={c} /><Circle cx="18" cy="20" r="1.5" fill={c} /><Line x1="1" y1="3" x2="5" y2="3" stroke={c} strokeWidth={1.5} strokeLinecap="round" /><Line x1="5" y1="3" x2="6" y2="15" stroke={c} strokeWidth={1.5} strokeLinecap="round" /></G>,
   "cart-outline": (c, sw) => <G><Path d="M6 6h15l-1.5 9H7.5z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /><Circle cx="9" cy="20" r="1.5" stroke={c} strokeWidth={sw} fill="none" /><Circle cx="18" cy="20" r="1.5" stroke={c} strokeWidth={sw} fill="none" /><Line x1="1" y1="3" x2="5" y2="3" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="5" y1="3" x2="6" y2="15" stroke={c} strokeWidth={sw} /></G>,
 

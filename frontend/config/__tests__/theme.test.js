@@ -17,7 +17,7 @@ describe("Theme Configuration", () => {
     });
 
     it("should have background and surface colors", () => {
-      expect(COLORS.background).toBe("#F7F8F6");
+      expect(COLORS.background).toBe("#F7F8F7");
       expect(COLORS.surface).toBe("#FFFFFF");
       expect(COLORS.card).toBe("#FFFFFF");
     });

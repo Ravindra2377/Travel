@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"net/http"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -9,6 +11,27 @@ import (
 )
 
 const deviceTokenTTL = 24 * time.Hour
+
+var platformNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 _-]{0,39}$`)
+
+func validatePlatformTokens(platform string, tokens map[string]string) (string, bool) {
+	platform = strings.TrimSpace(platform)
+	if !platformNamePattern.MatchString(platform) || len(tokens) == 0 || len(tokens) > 20 {
+		return "", false
+	}
+
+	totalSize := 0
+	for key, value := range tokens {
+		if key == "" || len(key) > 64 || len(value) > 64*1024 {
+			return "", false
+		}
+		totalSize += len(key) + len(value)
+		if totalSize > 128*1024 {
+			return "", false
+		}
+	}
+	return platform, true
+}
 
 // TokenStore manages user authentication tokens per device
 type TokenStore struct {
@@ -34,14 +57,9 @@ func pruneExpiredLocked(now time.Time) {
 	}
 }
 
-// deviceKey generates a unique identifier for the device
-func deviceKey(c echo.Context) string {
-	// Use X-Device-Id if provided by client
-	if id := c.Request().Header.Get("X-Device-Id"); id != "" {
-		return id
-	}
-	// Fallback: IP + User-Agent
-	return c.RealIP() + "|" + c.Request().UserAgent()
+// accountKey binds linked-platform sessions to the authenticated CompareZ user.
+func accountKey(c echo.Context) (string, bool) {
+	return authenticatedUserID(c)
 }
 
 // ConnectAccount stores authentication tokens for a platform
@@ -59,19 +77,18 @@ func ConnectAccount(c echo.Context) error {
 		})
 	}
 
-	if req.Platform == "" {
+	platform, valid := validatePlatformTokens(req.Platform, req.Tokens)
+	if !valid {
 		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Platform is required",
+			"error": "Invalid platform credentials",
 		})
 	}
+	req.Platform = platform
 
-	if len(req.Tokens) == 0 {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Tokens are required",
-		})
+	key, ok := accountKey(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required"})
 	}
-
-	key := deviceKey(c)
 	now := time.Now()
 
 	Store.mu.Lock()
@@ -109,7 +126,10 @@ func DisconnectAccount(c echo.Context) error {
 		})
 	}
 
-	key := deviceKey(c)
+	key, ok := accountKey(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required"})
+	}
 	now := time.Now()
 
 	Store.mu.Lock()
@@ -131,10 +151,28 @@ func DisconnectAccount(c echo.Context) error {
 	})
 }
 
+// DisconnectAllAccounts removes every linked-platform session for the user.
+// DELETE /accounts
+func DisconnectAllAccounts(c echo.Context) error {
+	key, ok := accountKey(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required"})
+	}
+
+	Store.mu.Lock()
+	delete(Store.byKey, key)
+	Store.mu.Unlock()
+
+	return c.NoContent(http.StatusNoContent)
+}
+
 // GetAccountStatus returns connection status for all platforms
 // GET /accounts/status
 func GetAccountStatus(c echo.Context) error {
-	key := deviceKey(c)
+	key, ok := accountKey(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required"})
+	}
 	now := time.Now()
 
 	Store.mu.Lock()
@@ -181,7 +219,10 @@ func BulkConnectAccounts(c echo.Context) error {
 		})
 	}
 
-	key := deviceKey(c)
+	key, ok := accountKey(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required"})
+	}
 	now := time.Now()
 
 	Store.mu.Lock()
@@ -200,10 +241,14 @@ func BulkConnectAccounts(c echo.Context) error {
 	// Store all platform tokens
 	connectedPlatforms := make([]string, 0, len(payload))
 	for platform, tokens := range payload {
-		if len(tokens) > 0 {
-			deviceTokens.Platforms[platform] = tokens
-			connectedPlatforms = append(connectedPlatforms, platform)
+		normalizedPlatform, valid := validatePlatformTokens(platform, tokens)
+		if !valid {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid platform credentials",
+			})
 		}
+		deviceTokens.Platforms[normalizedPlatform] = tokens
+		connectedPlatforms = append(connectedPlatforms, normalizedPlatform)
 	}
 
 	deviceTokens.UpdatedAt = now
@@ -218,7 +263,10 @@ func BulkConnectAccounts(c echo.Context) error {
 
 // GetTokensForRequest retrieves stored tokens for the current device
 func GetTokensForRequest(c echo.Context) map[string]map[string]string {
-	key := deviceKey(c)
+	key, ok := accountKey(c)
+	if !ok {
+		return nil
+	}
 	now := time.Now()
 
 	Store.mu.Lock()

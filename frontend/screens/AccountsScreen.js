@@ -10,13 +10,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "../components/Icon";
 import api from "../config/api";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
 import ScreenHeader from "../components/ScreenHeader";
+import { platformTokenStorage } from "../services/platformTokenStorage";
 
 // Platform configuration with proper login URLs
 const PLATFORMS = [
@@ -67,6 +67,48 @@ const PLATFORMS = [
   },
 ];
 
+const isAllowedPlatformUrl = (platform, rawUrl) => {
+  if (!platform || !rawUrl) return false;
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== "https:") return false;
+    const allowedHost = new URL(platform.loginUrl).hostname.replace(/^www\./, "");
+    const requestedHost = url.hostname.replace(/^www\./, "");
+    return (
+      requestedHost === allowedHost ||
+      requestedHost.endsWith(`.${allowedHost}`)
+    );
+  } catch {
+    return false;
+  }
+};
+
+const sanitizeCapturedTokens = (payload) => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const entries = Object.entries(payload);
+  if (entries.length === 0 || entries.length > 20) return null;
+
+  let totalSize = 0;
+  const sanitized = {};
+  for (const [key, value] of entries) {
+    if (
+      typeof key !== "string" ||
+      key.length === 0 ||
+      key.length > 64 ||
+      typeof value !== "string" ||
+      value.length > 64 * 1024
+    ) {
+      return null;
+    }
+    totalSize += key.length + value.length;
+    if (totalSize > 128 * 1024) return null;
+    sanitized[key] = value;
+  }
+  return sanitized;
+};
+
 export default function AccountsScreen({ navigation }) {
   const { themeColors, isDark } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
@@ -81,9 +123,8 @@ export default function AccountsScreen({ navigation }) {
 
   const checkConnections = async () => {
     try {
-      const tokens = await AsyncStorage.getItem("userTokens");
-      if (tokens) {
-        const parsed = JSON.parse(tokens);
+      const parsed = await platformTokenStorage.getAll();
+      if (Object.keys(parsed).length > 0) {
         const status = {};
 
         PLATFORMS.forEach((platform) => {
@@ -127,14 +168,19 @@ export default function AccountsScreen({ navigation }) {
           style: "destructive",
           onPress: async () => {
             try {
-              const tokens = await AsyncStorage.getItem("userTokens");
-              if (tokens) {
-                const parsed = JSON.parse(tokens);
-                delete parsed[platformId];
-                await AsyncStorage.setItem(
-                  "userTokens",
-                  JSON.stringify(parsed),
-                );
+              const tokens = await platformTokenStorage.getAll();
+              if (tokens[platformId]) {
+                await platformTokenStorage.removePlatform(platformId);
+                try {
+                  await api.delete(
+                    `/accounts/disconnect/${encodeURIComponent(platformId)}`,
+                  );
+                } catch (backendErr) {
+                  console.warn(
+                    "[AccountsScreen] Backend disconnect failed:",
+                    backendErr?.message,
+                  );
+                }
                 await checkConnections();
                 Haptics.notificationAsync(
                   Haptics.NotificationFeedbackType.Success,
@@ -157,12 +203,16 @@ export default function AccountsScreen({ navigation }) {
       if (data.type === "LOG") {
         console.log(`[WebView-${currentPlatform?.id}] ${data.message}`);
       } else if (data.type === "TOKENS" && currentPlatform) {
-        console.log(
-          `[WebView] ✅ Tokens captured for ${currentPlatform.id}:`,
-          Object.keys(data.payload),
-        );
+        const sourceUrl = event.nativeEvent?.url;
+        const safePayload = sanitizeCapturedTokens(data.payload);
+        if (
+          !safePayload ||
+          !isAllowedPlatformUrl(currentPlatform, sourceUrl)
+        ) {
+          throw new Error("Rejected untrusted WebView credential message");
+        }
 
-        await saveTokens(currentPlatform.id, data.payload);
+        await saveTokens(currentPlatform.id, safePayload);
         setModalVisible(false);
         await checkConnections();
 
@@ -180,8 +230,7 @@ export default function AccountsScreen({ navigation }) {
 
   const saveTokens = async (platformId, newTokens) => {
     try {
-      const existing = await AsyncStorage.getItem("userTokens");
-      const tokens = existing ? JSON.parse(existing) : {};
+      const tokens = await platformTokenStorage.getAll();
 
       tokens[platformId] = {
         ...tokens[platformId],
@@ -189,8 +238,7 @@ export default function AccountsScreen({ navigation }) {
         _capturedAt: new Date().toISOString(),
       };
 
-      await AsyncStorage.setItem("userTokens", JSON.stringify(tokens));
-      console.log(`[Tokens] Saved tokens for ${platformId} locally`);
+      await platformTokenStorage.setPlatform(platformId, tokens[platformId]);
 
       try {
         await api.post("/accounts/connect", {
@@ -303,6 +351,18 @@ export default function AccountsScreen({ navigation }) {
               <WebView
                 ref={webViewRef}
                 source={{ uri: currentPlatform?.loginUrl }}
+                originWhitelist={["https://*"]}
+                mixedContentMode="never"
+                allowFileAccess={false}
+                allowFileAccessFromFileURLs={false}
+                allowUniversalAccessFromFileURLs={false}
+                onShouldStartLoadWithRequest={(request) => {
+                  try {
+                    return isAllowedPlatformUrl(currentPlatform, request.url);
+                  } catch {
+                    return false;
+                  }
+                }}
                 style={styles.webview}
                 injectedJavaScript={`
                   (function() {

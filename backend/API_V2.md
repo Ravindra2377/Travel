@@ -253,9 +253,9 @@ sequenceDiagram
     User->>WebView: Logs into Blinkit
     WebView->>JavaScript: Capture localStorage/cookies
     JavaScript->>ReactNative: Send tokens
-    ReactNative->>AsyncStorage: Save locally
+    ReactNative->>SecureStore: Save encrypted credentials locally
     ReactNative->>Backend: POST /accounts/connect
-    Backend->>Memory: Store tokens by deviceKey
+    Backend->>Memory: Store tokens by authenticated user
 ```
 
 ### 2. User Searches Product
@@ -275,22 +275,16 @@ sequenceDiagram
 
 ## Token Storage
 
-### Device Identification
+### Authenticated ownership
 
-Tokens are stored per-device using a unique key:
+Every account, search, comparison, and AI request requires the CompareZ JWT:
 
-```go
-func deviceKey(c echo.Context) string {
-    // Priority 1: X-Device-Id header (recommended)
-    if id := c.Request().Header.Get("X-Device-Id"); id != "" {
-        return id
-    }
-    // Priority 2: IP + User-Agent (fallback)
-    return c.RealIP() + "|" + c.Request().UserAgent()
-}
+```http
+Authorization: Bearer <comparez-jwt>
 ```
 
-**Recommendation:** Send `X-Device-Id` header from mobile app for reliable device tracking.
+The backend validates the token and uses its subject as the storage key. Client-supplied
+device IDs and token headers are not trusted for account ownership.
 
 ### Data Structure
 
@@ -306,7 +300,7 @@ type DeviceTokens struct {
 
 ```json
 {
-  "192.168.1.8|okhttp/4.12.0": {
+  "507f1f77bcf86cd799439011": {
     "Platforms": {
       "Blinkit": {
         "auth": "{\"accessToken\":\"v2::xxx\"}",

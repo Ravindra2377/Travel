@@ -13,6 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const accountTestUserID = "507f1f77bcf86cd799439011"
+
+func authenticateAccountTest(c echo.Context) {
+	c.Set(userIDContextKey, accountTestUserID)
+}
+
 func TestTokenStoreBasics(t *testing.T) {
 	// Reset the store before test
 	Store.byKey = make(map[string]*DeviceTokens)
@@ -22,32 +28,29 @@ func TestTokenStoreBasics(t *testing.T) {
 	assert.Len(t, Store.byKey, 0)
 }
 
-func TestDeviceKey(t *testing.T) {
+func TestAccountKeyUsesAuthenticatedUser(t *testing.T) {
 	e := echo.New()
 
-	// Test with X-Device-Id header
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("X-Device-Id", "test-device-123")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	authenticateAccountTest(c)
 
-	key := deviceKey(c)
-	assert.Equal(t, "test-device-123", key)
+	key, ok := accountKey(c)
+	assert.True(t, ok)
+	assert.Equal(t, accountTestUserID, key)
 }
 
-func TestDeviceKeyFallback(t *testing.T) {
+func TestAccountKeyRejectsAnonymousRequest(t *testing.T) {
 	e := echo.New()
 
-	// Test fallback to IP + User-Agent
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.RemoteAddr = "127.0.0.1:12345"
-	req.Header.Set("User-Agent", "TestAgent/1.0")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	key := deviceKey(c)
-	assert.NotEmpty(t, key)
-	assert.Contains(t, key, "|")
+	key, ok := accountKey(c)
+	assert.False(t, ok)
+	assert.Empty(t, key)
 }
 
 func TestConnectAccount(t *testing.T) {
@@ -68,6 +71,7 @@ func TestConnectAccount(t *testing.T) {
 	req.Header.Set("X-Device-Id", "device-1")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	authenticateAccountTest(c)
 
 	err := ConnectAccount(c)
 	require.NoError(t, err)
@@ -95,6 +99,7 @@ func TestConnectAccountInvalidRequest(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	authenticateAccountTest(c)
 
 	err := ConnectAccount(c)
 	require.NoError(t, err)
@@ -115,6 +120,7 @@ func TestConnectAccountNoTokens(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	authenticateAccountTest(c)
 
 	err := ConnectAccount(c)
 	require.NoError(t, err)
@@ -139,6 +145,7 @@ func TestGetAccountStatus(t *testing.T) {
 	req.Header.Set("X-Device-Id", "device-1")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	authenticateAccountTest(c)
 	ConnectAccount(c)
 
 	// Now check status
@@ -146,6 +153,7 @@ func TestGetAccountStatus(t *testing.T) {
 	req.Header.Set("X-Device-Id", "device-1")
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
+	authenticateAccountTest(c)
 
 	err := GetAccountStatus(c)
 	require.NoError(t, err)
@@ -168,6 +176,7 @@ func TestGetAccountStatusEmpty(t *testing.T) {
 	req.Header.Set("X-Device-Id", "device-unknown")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	authenticateAccountTest(c)
 
 	err := GetAccountStatus(c)
 	require.NoError(t, err)
@@ -196,6 +205,7 @@ func TestDisconnectAccount(t *testing.T) {
 	req.Header.Set("X-Device-Id", "device-1")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	authenticateAccountTest(c)
 	ConnectAccount(c)
 
 	// Now disconnect
@@ -203,6 +213,7 @@ func TestDisconnectAccount(t *testing.T) {
 	req.Header.Set("X-Device-Id", "device-1")
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
+	authenticateAccountTest(c)
 	c.SetParamNames("platform")
 	c.SetParamValues("Blinkit")
 
@@ -230,6 +241,7 @@ func TestBulkConnectAccounts(t *testing.T) {
 	req.Header.Set("X-Device-Id", "device-1")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	authenticateAccountTest(c)
 
 	err := BulkConnectAccounts(c)
 	require.NoError(t, err)
@@ -289,6 +301,7 @@ func TestConnectAccountMultiplePlatforms(t *testing.T) {
 	req.Header.Set("X-Device-Id", "device-1")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	authenticateAccountTest(c)
 	ConnectAccount(c)
 
 	// Connect second platform with same device
@@ -305,6 +318,7 @@ func TestConnectAccountMultiplePlatforms(t *testing.T) {
 	req.Header.Set("X-Device-Id", "device-1")
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
+	authenticateAccountTest(c)
 	ConnectAccount(c)
 
 	// Check status should show both
@@ -312,6 +326,7 @@ func TestConnectAccountMultiplePlatforms(t *testing.T) {
 	req.Header.Set("X-Device-Id", "device-1")
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
+	authenticateAccountTest(c)
 
 	GetAccountStatus(c)
 

@@ -13,7 +13,7 @@ import { useTheme } from "../context/ThemeContext";
 
 const SORT_OPTIONS = [
   { id: "relevance", label: "Relevance" },
-  { id: "price_asc", label: "Price (Low to High)" },
+  { id: "price_asc", label: "Best Value (Low to High)" },
   { id: "price_desc", label: "Price (High to Low)" },
 ];
 

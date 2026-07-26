@@ -17,6 +17,10 @@ import {
   TouchableOpacity,
   Animated,
   ActivityIndicator,
+  AccessibilityInfo,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -34,6 +38,7 @@ import PlatformDOMScraperService from "../services/PlatformDOMScraperService";
 import api from "../config/api";
 import { AuthContext } from "../context/AuthContext";
 import GroqService from "../services/GroqService";
+import { platformTokenStorage } from "../services/platformTokenStorage";
 import { useAudioRecorder, AudioModule, RecordingPresets } from "expo-audio";
 
 const SUGGESTIONS = [
@@ -88,6 +93,65 @@ const SUGGESTIONS = [
 ];
 
 const PLATFORMS = ["Blinkit", "Zepto", "BigBasket", "Amazon", "Flipkart"];
+const PLATFORM_HOSTS = {
+  Blinkit: ["blinkit.com"],
+  Zepto: ["zepto.com", "zepto.co.in"],
+  BigBasket: ["bigbasket.com"],
+  Amazon: ["amazon.in", "amazon.com"],
+  Flipkart: ["flipkart.com"],
+};
+
+const isAllowedPlatformNavigation = (platform, rawUrl) => {
+  if (rawUrl === "about:blank" || rawUrl?.startsWith("blob:")) return true;
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== "https:") return false;
+    const host = url.hostname.replace(/^www\./, "");
+    return (PLATFORM_HOSTS[platform] || []).some(
+      (allowed) => host === allowed || host.endsWith(`.${allowed}`),
+    );
+  } catch {
+    return false;
+  }
+};
+
+const sanitizeWebViewTokenPayload = (payload) => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  const entries = Object.entries(payload);
+  if (entries.length === 0 || entries.length > 20) return null;
+  let totalSize = 0;
+  const result = {};
+  for (const [key, value] of entries) {
+    if (
+      typeof key !== "string" ||
+      key.length === 0 ||
+      key.length > 64 ||
+      typeof value !== "string" ||
+      value.length > 64 * 1024
+    ) {
+      return null;
+    }
+    totalSize += key.length + value.length;
+    if (totalSize > 128 * 1024) return null;
+    result[key] = value;
+  }
+  return result;
+};
+
+const getPlatformSelection = (platforms) => {
+  const requested = Array.isArray(platforms)
+    ? new Set(platforms.filter((platform) => PLATFORMS.includes(platform)))
+    : null;
+  return PLATFORMS.reduce(
+    (selection, platform) => ({
+      ...selection,
+      [platform]: requested?.size ? requested.has(platform) : true,
+    }),
+    {},
+  );
+};
 const ENABLE_BACKEND_FALLBACK = true;
 const ENABLE_BACKEND_COLLECTION = true;
 const DEFAULT_PLATFORM_TIMEOUT_MS = 8000;
@@ -101,6 +165,265 @@ const PLATFORM_TIMEOUTS = {
 };
 const SEARCH_DEBOUNCE_MS = 400;
 const PARTIAL_AGGREGATION_DELAY_MS = 800; // ⬆ increased for better batching while searching
+
+const AnimatedSearchResult = React.memo(
+  ({
+    item,
+    index,
+    onPress,
+    revealKey,
+    reduceMotion,
+    animateEntrance,
+  }) => {
+    const shouldAnimate = animateEntrance && !reduceMotion;
+    const opacity = useRef(new Animated.Value(shouldAnimate ? 0 : 1)).current;
+    const translateY = useRef(
+      new Animated.Value(shouldAnimate ? 18 : 0),
+    ).current;
+    const scale = useRef(
+      new Animated.Value(shouldAnimate ? 0.985 : 1),
+    ).current;
+
+    useEffect(() => {
+      opacity.stopAnimation();
+      translateY.stopAnimation();
+      scale.stopAnimation();
+
+      if (!shouldAnimate) {
+        opacity.setValue(1);
+        translateY.setValue(0);
+        scale.setValue(1);
+        return undefined;
+      }
+
+      opacity.setValue(0);
+      translateY.setValue(18);
+      scale.setValue(0.985);
+
+      const animation = Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 320,
+          delay: Math.min(index, 7) * 72,
+          useNativeDriver: true,
+        }),
+        Animated.spring(translateY, {
+          toValue: 0,
+          delay: Math.min(index, 7) * 72,
+          stiffness: 155,
+          damping: 19,
+          mass: 0.85,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          delay: Math.min(index, 7) * 72 + 90,
+          stiffness: 175,
+          damping: 17,
+          mass: 0.8,
+          useNativeDriver: true,
+        }),
+      ]);
+
+      animation.start();
+      return () => animation.stop();
+    }, [
+      index,
+      opacity,
+      revealKey,
+      scale,
+      shouldAnimate,
+      translateY,
+    ]);
+
+    return (
+      <Animated.View
+        style={{
+          opacity,
+          transform: [{ translateY }, { scale }],
+        }}
+      >
+        <ProductCard
+          product={item}
+          onPress={onPress}
+          animateBestPrice={shouldAnimate}
+          bestPriceRevealDelay={Math.min(index, 7) * 72 + 250}
+          bestPriceRevealKey={revealKey}
+        />
+      </Animated.View>
+    );
+  },
+);
+
+const SearchResultSkeleton = React.memo(
+  ({ shimmer, pulse, themeColors, reduceMotion }) => (
+    <Animated.View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[
+        styles.skeletonCard,
+        {
+          backgroundColor: themeColors.card,
+          borderColor: themeColors.line,
+          opacity: reduceMotion ? 0.72 : pulse,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.skeletonImage,
+          { backgroundColor: themeColors.cardAlt },
+        ]}
+      />
+      <View style={styles.skeletonCopy}>
+        <View
+          style={[
+            styles.skeletonLineWide,
+            { backgroundColor: themeColors.cardAlt },
+          ]}
+        />
+        <View
+          style={[
+            styles.skeletonLineMedium,
+            { backgroundColor: themeColors.cardAlt },
+          ]}
+        />
+        <View
+          style={[
+            styles.skeletonPrice,
+            { backgroundColor: themeColors.cardAlt },
+          ]}
+        />
+        <View style={styles.skeletonPills}>
+          <View
+            style={[
+              styles.skeletonPill,
+              { backgroundColor: themeColors.cardAlt },
+            ]}
+          />
+          <View
+            style={[
+              styles.skeletonPillSmall,
+              { backgroundColor: themeColors.cardAlt },
+            ]}
+          />
+        </View>
+      </View>
+      {!reduceMotion ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.skeletonShimmer,
+            {
+              backgroundColor: "rgba(255,255,255,0.58)",
+              transform: [
+                {
+                  translateX: shimmer.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-120, 430],
+                  }),
+                },
+                { rotate: "10deg" },
+              ],
+            },
+          ]}
+        />
+      ) : null}
+    </Animated.View>
+  ),
+);
+
+const PlatformScanStatus = React.memo(
+  ({
+    platform,
+    isDone,
+    entry,
+    meta,
+    themeColors,
+    isDark,
+    pulseAnim,
+    reduceMotion,
+  }) => {
+    const completionScale = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+      if (!isDone) {
+        completionScale.setValue(1);
+        return;
+      }
+
+      if (reduceMotion) {
+        completionScale.setValue(1);
+        return;
+      }
+
+      const animation = Animated.sequence([
+        Animated.spring(completionScale, {
+          toValue: 1.08,
+          stiffness: 230,
+          damping: 15,
+          mass: 0.65,
+          useNativeDriver: true,
+        }),
+        Animated.spring(completionScale, {
+          toValue: 1,
+          stiffness: 210,
+          damping: 17,
+          mass: 0.7,
+          useNativeDriver: true,
+        }),
+      ]);
+      animation.start();
+      return () => animation.stop();
+    }, [completionScale, isDone, reduceMotion]);
+
+    const products = entry?.products || [];
+    const count = products.filter((product) => product?.in_stock === true).length;
+
+    return (
+      <Animated.View
+        style={[
+          styles.platformStatusCard,
+          {
+            backgroundColor: themeColors.background,
+            borderColor: themeColors.border,
+            opacity: isDone ? 1 : pulseAnim,
+            transform: [{ scale: completionScale }],
+          },
+          isDone && {
+            borderColor: themeColors.primary,
+            backgroundColor: isDark
+              ? `${themeColors.primary}15`
+              : COLORS.accentMuted,
+          },
+        ]}
+      >
+        <Ionicons
+          name={isDone ? "checkmark-circle" : meta.icon}
+          size={18}
+          color={isDone ? "#10B981" : themeColors.textTertiary}
+          style={styles.platformStatusIcon}
+        />
+        <Text
+          style={[
+            styles.platformStatusName,
+            { color: isDone ? themeColors.primary : themeColors.textPrimary },
+          ]}
+        >
+          {meta.label}
+        </Text>
+        <Text
+          style={[
+            styles.platformStatusCount,
+            { color: themeColors.textTertiary },
+          ]}
+        >
+          {isDone ? `${count} items` : "Scanning..."}
+        </Text>
+      </Animated.View>
+    );
+  },
+);
 
 // Resource-blocking helper: allow only navigation, API/JSON, and WebSocket traffic.
 // Blocks images, fonts, analytics, and stylesheets to cut WebView load time by 1.5-3s.
@@ -149,7 +472,7 @@ const shouldBlockWebViewRequest = (request) => {
     return false;
   }
 };
-const SEARCH_CACHE_VERSION = 2;
+const SEARCH_CACHE_VERSION = 3;
 
 const NON_PRICE_TOKEN_REGEX =
   /%|\b(off|mins?|min|ml|ltr|litre|litres|kg|g|gm|grams?|pcs?|piece|pack|combo)\b/i;
@@ -227,6 +550,8 @@ const parseQuantity = (text) => {
 
   // Normalize common forms
   const replaced = s
+    .replace(/([a-z])([0-9])/gi, "$1 $2")
+    .replace(/([0-9])([a-z])/gi, "$1 $2")
     .replace(/\bgrams?\b/gi, "g")
     .replace(/\bgm\b/gi, "g")
     .replace(/\bkilograms?\b/gi, "kg")
@@ -234,18 +559,66 @@ const parseQuantity = (text) => {
     .replace(/\bml\b/gi, "ml")
     .replace(/\bltr\b/gi, "l");
 
+  const toBaseQuantity = (rawValue, unit) => {
+    const value = Number(rawValue);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    if (unit === "kg") return { amount: value * 1000, unit: "g" };
+    if (unit === "g") return { amount: value, unit: "g" };
+    if (unit === "l") return { amount: value * 1000, unit: "ml" };
+    if (unit === "ml") return { amount: value, unit: "ml" };
+    return null;
+  };
+
+  // Multipacks: "4 x 100 g" and "100 g x 4".
+  const countFirst = replaced.match(
+    /\b([0-9]+)\s*[x×]\s*([0-9]+(?:\.[0-9]+)?)\s*(kg|g|ml|l)\b/,
+  );
+  if (countFirst) {
+    const each = toBaseQuantity(countFirst[2], countFirst[3]);
+    if (each) {
+      return {
+        amount: Number(countFirst[1]) * each.amount,
+        unit: each.unit,
+      };
+    }
+  }
+
+  const quantityFirst = replaced.match(
+    /\b([0-9]+(?:\.[0-9]+)?)\s*(kg|g|ml|l)\s*[x×]\s*([0-9]+)\b/,
+  );
+  if (quantityFirst) {
+    const each = toBaseQuantity(quantityFirst[1], quantityFirst[2]);
+    if (each) {
+      return {
+        amount: Number(quantityFirst[3]) * each.amount,
+        unit: each.unit,
+      };
+    }
+  }
+
   // Match patterns like 1kg, 1 kg, 500g, 250 ml, 0.5 l
   const m = replaced.match(/([0-9]+(?:\.[0-9]+)?)\s*(kg|g|ml|l)\b/);
-  if (!m) return null;
-  const rawVal = parseFloat(m[1]);
-  if (!Number.isFinite(rawVal) || rawVal <= 0) return null;
-  const unit = m[2];
+  if (m) return toBaseQuantity(m[1], m[2]);
 
-  // Convert to base: grams for weight, milliliters for volume
-  if (unit === "kg") return { amount: rawVal * 1000, unit: "g" };
-  if (unit === "g") return { amount: rawVal, unit: "g" };
-  if (unit === "l") return { amount: rawVal * 1000, unit: "ml" };
-  if (unit === "ml") return { amount: rawVal, unit: "ml" };
+  const pieces = replaced.match(
+    /\b(?:pack\s+of\s+)?([0-9]+)\s*(?:pcs?|pieces?|count|units?)\b/,
+  );
+  if (pieces) {
+    return { amount: Number(pieces[1]), unit: "item" };
+  }
+  const packOf = replaced.match(/\bpack\s+of\s+([0-9]+)\b/);
+  if (packOf) {
+    return { amount: Number(packOf[1]), unit: "item" };
+  }
+
+  // Item-count listings often omit "pcs", for example "12 white eggs".
+  const countedItems = replaced.match(
+    /\b([0-9]+)\s+(?:(?:white|brown|large|medium|small|farm|free\s*range)\s+){0,3}(eggs?|capsules?|tablets?|sachets?|bags?|rolls?|bottles?|cans?)\b/,
+  );
+  if (countedItems) {
+    return { amount: Number(countedItems[1]), unit: "item" };
+  }
+
   return null;
 };
 
@@ -261,6 +634,7 @@ const computeUnitPrice = (price, title) => {
     return {
       unitPrice: Math.round(per100 * 100) / 100,
       unitLabel: "per 100 g",
+      unitType: "weight",
     };
   }
   if (qty.unit === "ml") {
@@ -268,6 +642,14 @@ const computeUnitPrice = (price, title) => {
     return {
       unitPrice: Math.round(per100 * 100) / 100,
       unitLabel: "per 100 ml",
+      unitType: "volume",
+    };
+  }
+  if (qty.unit === "item") {
+    return {
+      unitPrice: Math.round((price / qty.amount) * 100) / 100,
+      unitLabel: "per item",
+      unitType: "item",
     };
   }
   return null;
@@ -383,6 +765,58 @@ const getProductMatchKey = (name, extraTextForQty = "") => {
 
   if (!key) return clean.slice(0, 30);
   return key;
+};
+
+const getProductIdentityTokens = (name = "") => {
+  const identityStopWords = new Set([
+    "a",
+    "an",
+    "and",
+    "best",
+    "buy",
+    "fresh",
+    "large",
+    "medium",
+    "new",
+    "of",
+    "original",
+    "pack",
+    "premium",
+    "product",
+    "pure",
+    "quality",
+    "small",
+    "the",
+  ]);
+
+  return Array.from(
+    new Set(
+      sanitizeProductName(name)
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter(
+          (token) =>
+            token &&
+            !identityStopWords.has(token) &&
+            !/^\d+(?:\.\d+)?$/.test(token) &&
+            !/^\d+(?:ml|g|kg|l|gm|ltr|pcs?)$/.test(token),
+        )
+        .map((token) =>
+          token.length > 3 && token.endsWith("s") && !token.endsWith("ss")
+            ? token.slice(0, -1)
+            : token,
+        ),
+    ),
+  );
+};
+
+const getIdentitySimilarity = (leftTokens = [], rightTokens = []) => {
+  if (!leftTokens.length || !rightTokens.length) return 0;
+  const right = new Set(rightTokens);
+  const shared = leftTokens.filter((token) => right.has(token)).length;
+  return (2 * shared) / (leftTokens.length + rightTokens.length);
 };
 
 const selectBestDisplayName = (listings = [], fallback = "") => {
@@ -607,17 +1041,73 @@ const SearchScreen = ({ navigation, route }) => {
   const [aiExpandedQuery, setAiExpandedQuery] = useState(null); // Set when AI rewrites a query
   const [isRecording, setIsRecording] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState(""); // "recording" | "transcribing" | ""
+  const [reduceMotion, setReduceMotion] = useState(false);
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   const [filterModalVisible, setFilterModalVisible] = useState(false);
-  const [sortBy, setSortBy] = useState("relevance");
+  const [sortBy, setSortBy] = useState("price_asc");
   const [selectedPlatforms, setSelectedPlatforms] = useState(
-    PLATFORMS.reduce((acc, p) => ({ ...acc, [p]: true }), {}),
+    getPlatformSelection(route?.params?.platforms),
   );
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseLoopRef = useRef(null);
+  const scanBeamAnim = useRef(new Animated.Value(0)).current;
+  const searchCompressionAnim = useRef(new Animated.Value(1)).current;
+  const scanLoopRef = useRef(null);
+  const resultHapticTimerRef = useRef(null);
+  const lastSettledSearchRef = useRef("");
+  const revealedResultsRef = useRef(new Set());
   const { user } = useContext(AuthContext);
+
+  const configureResultsLayout = useCallback(() => {
+    if (reduceMotion) return;
+    LayoutAnimation.configureNext({
+      duration: 320,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+      },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+    });
+  }, [reduceMotion]);
+
+  const updateSortBy = useCallback(
+    (nextSort) => {
+      configureResultsLayout();
+      setSortBy(nextSort);
+    },
+    [configureResultsLayout],
+  );
+
+  const updateSelectedPlatforms = useCallback(
+    (nextSelection) => {
+      configureResultsLayout();
+      setSelectedPlatforms(nextSelection);
+    },
+    [configureResultsLayout],
+  );
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled?.().then(setReduceMotion);
+    const subscription = AccessibilityInfo.addEventListener?.(
+      "reduceMotionChanged",
+      setReduceMotion,
+    );
+    return () => subscription?.remove?.();
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === "android") {
+      UIManager.setLayoutAnimationEnabledExperimental?.(true);
+    }
+  }, []);
 
   // ── Voice Search ──────────────────────────────────────────────────────────
   const startRecording = async () => {
@@ -676,7 +1166,6 @@ const SearchScreen = ({ navigation, route }) => {
     if (isRecording) stopRecording();
     else startRecording();
   };
-  // ─────────────────────────────────────────────────────────────────────────
 
   const [state, dispatch] = useReducer(reducer, {
     connectedPlatforms: [],
@@ -711,11 +1200,50 @@ const SearchScreen = ({ navigation, route }) => {
         ]),
       );
       pulseLoopRef.current.start();
+
+      if (!reduceMotion) {
+        searchCompressionAnim.stopAnimation();
+        Animated.spring(searchCompressionAnim, {
+          toValue: 0.985,
+          stiffness: 180,
+          damping: 20,
+          mass: 0.8,
+          useNativeDriver: true,
+        }).start();
+
+        scanBeamAnim.setValue(0);
+        scanLoopRef.current = Animated.loop(
+          Animated.sequence([
+            Animated.timing(scanBeamAnim, {
+              toValue: 1,
+              duration: 1250,
+              useNativeDriver: true,
+            }),
+            Animated.delay(240),
+          ]),
+        );
+        scanLoopRef.current.start();
+      }
     } else {
       if (pulseLoopRef.current) pulseLoopRef.current.stop();
       pulseAnim.setValue(1);
+      if (scanLoopRef.current) scanLoopRef.current.stop();
+      scanBeamAnim.setValue(0);
+      Animated.spring(searchCompressionAnim, {
+        toValue: 1,
+        stiffness: 190,
+        damping: 18,
+        mass: 0.75,
+        useNativeDriver: true,
+      }).start();
     }
-  }, [loading]);
+  }, [
+    loading,
+    pulseAnim,
+    reduceMotion,
+    scanBeamAnim,
+    searchCompressionAnim,
+  ]);
 
   useEffect(() => {
     if (!loading) return;
@@ -956,12 +1484,11 @@ const SearchScreen = ({ navigation, route }) => {
 
     const hydrateStoredTokens = async () => {
       try {
-        const tokensRaw = await AsyncStorage.getItem("userTokens");
+        const parsed = await platformTokenStorage.getAll();
         if (cancelled) {
           return;
         }
 
-        const parsed = tokensRaw ? JSON.parse(tokensRaw) : {};
         storedTokensRef.current = parsed;
 
         const tokenMap = {};
@@ -998,6 +1525,10 @@ const SearchScreen = ({ navigation, route }) => {
   // ── Sync query from navigation params (e.g. from Meal to Cart / AI Copilot) ──
   useEffect(() => {
     const incomingQuery = route?.params?.query;
+    const incomingPlatforms = route?.params?.platforms;
+    if (Array.isArray(incomingPlatforms) && incomingPlatforms.length > 0) {
+      setSelectedPlatforms(getPlatformSelection(incomingPlatforms));
+    }
     if (
       incomingQuery &&
       incomingQuery.trim() &&
@@ -1008,9 +1539,9 @@ const SearchScreen = ({ navigation, route }) => {
       );
       setQuery(incomingQuery.trim());
       // Clear the param so navigating back and forth doesn't re-trigger
-      navigation.setParams({ query: undefined });
+      navigation.setParams({ query: undefined, platforms: undefined });
     }
-  }, [route?.params?.query]);
+  }, [route?.params?.query, route?.params?.platforms]);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -1112,6 +1643,7 @@ const SearchScreen = ({ navigation, route }) => {
     }
 
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      revealedResultsRef.current.clear();
       monitor.mark("search-cache-hit");
       const duration = monitor.measure(
         "search-from-cache",
@@ -1159,6 +1691,7 @@ const SearchScreen = ({ navigation, route }) => {
 
     // Generate new session ID to reject old results
     const newSessionId = Date.now();
+    revealedResultsRef.current.clear();
     searchSessionIdRef.current = newSessionId;
     aggregatedSessionIdRef.current = null;
     fallbackAttemptedRef.current.clear(); // Reset per-platform fallback guard for new search
@@ -1237,7 +1770,19 @@ const SearchScreen = ({ navigation, route }) => {
 
   const handleWebViewMessage = (platform, event) => {
     try {
-      const rawData = JSON.parse(event.nativeEvent.data);
+      const sourceUrl = event.nativeEvent?.url;
+      const rawMessage = event.nativeEvent?.data;
+      if (
+        !isAllowedPlatformNavigation(platform, sourceUrl) ||
+        typeof rawMessage !== "string" ||
+        rawMessage.length > 2 * 1024 * 1024
+      ) {
+        return;
+      }
+      const rawData = JSON.parse(rawMessage);
+      if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) {
+        return;
+      }
 
       // ── FAST PATH: LOG messages are just debug output, skip all heavy work ──
       if (rawData.type === "LOG") {
@@ -1310,11 +1855,17 @@ const SearchScreen = ({ navigation, route }) => {
           : rawData;
 
       if (data.type === "TOKENS_SYNC" || data.type === "SYNC_TOKENS") {
-        persistPlatformTokens(platform, data.payload || {});
+        const safePayload = sanitizeWebViewTokenPayload(data.payload);
+        if (safePayload) {
+          persistPlatformTokens(platform, safePayload);
+        }
         return;
       }
 
       if (data.type === "SEARCH_RESULTS") {
+        if (Array.isArray(data.products) && data.products.length > 500) {
+          data.products = data.products.slice(0, 500);
+        }
         if (Array.isArray(data.products)) {
           data.products = data.products.map((product) =>
             normalizeIncomingProduct(product, platform),
@@ -1475,7 +2026,18 @@ const SearchScreen = ({ navigation, route }) => {
         ...mergedPayload,
       };
       storedTokensRef.current = stored;
-      await AsyncStorage.setItem("userTokens", JSON.stringify(stored));
+      await platformTokenStorage.setPlatform(platform, stored[platform]);
+      try {
+        await api.post("/accounts/connect", {
+          platform,
+          tokens: stored[platform],
+        });
+      } catch (backendErr) {
+        console.warn(
+          `[Search] Failed to refresh ${platform} backend session:`,
+          backendErr?.message,
+        );
+      }
     } catch (err) {
       console.warn(`[Search] Failed to persist ${platform} tokens:`, err);
     }
@@ -1526,23 +2088,7 @@ const SearchScreen = ({ navigation, route }) => {
       console.log(
         `[Search] Falling back to backend API for ${platform} query: ${fallbackQuery}`,
       );
-      const tokens = storedTokensRef.current || {};
-
-      // Pass scoped token first, otherwise fall back to all tokens.
-      const scopedTokens = {};
-      const livePlatformTokens = connectedPlatformTokensRef.current[platform];
-      if (tokens[platform] || livePlatformTokens) {
-        scopedTokens[platform] = {
-          ...(tokens[platform] || {}),
-          ...(livePlatformTokens || {}),
-        };
-      }
-      // If no scoped token exists, fall back to all tokens so backend can still resolve provider auth
-      const tokensForHeader =
-        Object.keys(scopedTokens).length > 0 ? scopedTokens : tokens;
-
       const response = await api.get("/compare", {
-        headers: { "X-User-Tokens": JSON.stringify(tokensForHeader) },
         params: {
           q: fallbackQuery,
           lat: 12.9716,
@@ -1711,6 +2257,7 @@ const SearchScreen = ({ navigation, route }) => {
 
     // Group products by name similarity
     const productMap = {};
+    const productBuckets = {};
     const platformCounts = {};
 
     Object.values(resultsToAggregate).forEach(({ products }) => {
@@ -1747,14 +2294,58 @@ const SearchScreen = ({ navigation, route }) => {
 
         const extraText =
           `${product.quantity || product.weight || ""} ${product.raw_text || ""}`.trim();
-        const key = getProductMatchKey(product.product_name, extraText);
+        const baseKey = getProductMatchKey(product.product_name, extraText);
+        const identityTokens = getProductIdentityTokens(product.product_name);
+        const bucketKeys = productBuckets[baseKey] || [];
+        let bestGroupKey = "";
+        let bestGroupScore = 0;
+
+        bucketKeys.forEach((candidateKey) => {
+          const candidate = productMap[candidateKey];
+          if (!candidate) return;
+
+          const samePlatformListings = candidate.listings.filter(
+            (listing) => listing.platform === product.platform,
+          );
+          const similarity = getIdentitySimilarity(
+            identityTokens,
+            candidate.identityTokens,
+          );
+          const isExactPlatformDuplicate = samePlatformListings.some(
+            (listing) =>
+              (listing.product_url &&
+                listing.product_url === product.product_url) ||
+              sanitizeProductName(listing.product_name).toLowerCase() ===
+                sanitizeProductName(product.product_name).toLowerCase(),
+          );
+
+          // One platform can return many flavours with the same opening words.
+          // Only keep those in one comparison group when they are genuinely
+          // the same listing; otherwise preserve the variant as its own card.
+          if (
+            samePlatformListings.length > 0 &&
+            !isExactPlatformDuplicate
+          ) {
+            return;
+          }
+
+          if (similarity >= 0.58 && similarity > bestGroupScore) {
+            bestGroupKey = candidateKey;
+            bestGroupScore = similarity;
+          }
+        });
+
+        const key =
+          bestGroupKey || `${baseKey || "product"}::${bucketKeys.length}`;
 
         if (!productMap[key]) {
           productMap[key] = {
             name: product.product_name,
             listings: [],
             maxRelevance: 0,
+            identityTokens,
           };
+          productBuckets[baseKey] = [...bucketKeys, key];
         }
 
         productMap[key].maxRelevance = Math.max(
@@ -1901,7 +2492,14 @@ const SearchScreen = ({ navigation, route }) => {
         ...(() => {
           const resolvedPrice = best > 0 ? best : first.price || 0;
           const titleForQty =
-            uniqueListings.find((l) => l.raw_product_name)?.raw_product_name ||
+            uniqueListings
+              .map(
+                (listing) =>
+                  `${listing.raw_product_name || listing.product_name || ""} ${
+                    listing.quantity || listing.weight || ""
+                  } ${listing.raw_text || ""}`,
+              )
+              .join(" ") ||
             displayName ||
             group?.name ||
             "";
@@ -1910,9 +2508,14 @@ const SearchScreen = ({ navigation, route }) => {
             return {
               unitPrice: unitInfo.unitPrice,
               unitLabel: unitInfo.unitLabel,
+              unitType: unitInfo.unitType,
             };
           }
-          return { unitPrice: undefined, unitLabel: undefined };
+          return {
+            unitPrice: undefined,
+            unitLabel: undefined,
+            unitType: undefined,
+          };
         })(),
         platformCount: listings.length,
         totalPlatforms: uniqueListings.length,
@@ -1976,6 +2579,22 @@ const SearchScreen = ({ navigation, route }) => {
     );
 
     if (cappedResults.length > 0) {
+      if (!reduceMotion) {
+        LayoutAnimation.configureNext({
+          duration: 380,
+          create: {
+            type: LayoutAnimation.Types.easeInEaseOut,
+            property: LayoutAnimation.Properties.opacity,
+          },
+          update: {
+            type: LayoutAnimation.Types.easeInEaseOut,
+          },
+          delete: {
+            type: LayoutAnimation.Types.easeInEaseOut,
+            property: LayoutAnimation.Properties.opacity,
+          },
+        });
+      }
       setResults(cappedResults);
 
       // Prefetch all image URLs into expo-image disk cache so they appear
@@ -2064,8 +2683,24 @@ const SearchScreen = ({ navigation, route }) => {
   );
 
   const renderProductItem = useCallback(
-    ({ item }) => <ProductCard product={item} onPress={handleProduct} />,
-    [handleProduct],
+    ({ item, index }) => {
+      const revealKey = `${currentSearchQuery}:${searchSessionIdRef.current}`;
+      const resultKey = `${revealKey}:${item.id}`;
+      const animateEntrance = !revealedResultsRef.current.has(resultKey);
+      revealedResultsRef.current.add(resultKey);
+
+      return (
+        <AnimatedSearchResult
+          item={item}
+          index={index}
+          onPress={handleProduct}
+          revealKey={revealKey}
+          reduceMotion={reduceMotion}
+          animateEntrance={animateEntrance}
+        />
+      );
+    },
+    [currentSearchQuery, handleProduct, reduceMotion],
   );
 
   const renderEmpty = () => {
@@ -2261,6 +2896,43 @@ const SearchScreen = ({ navigation, route }) => {
               : "All platforms scanned"}
         </Text>
 
+        <View
+          style={[
+            styles.scanTrack,
+            {
+              backgroundColor: isDark
+                ? `${themeColors.primary}12`
+                : `${themeColors.primary}0A`,
+              borderColor: `${themeColors.primary}22`,
+            },
+          ]}
+        >
+          <Animated.View
+            style={[
+              styles.scanBeam,
+              {
+                backgroundColor: themeColors.primary,
+                opacity: reduceMotion
+                  ? 0.28
+                  : scanBeamAnim.interpolate({
+                      inputRange: [0, 0.12, 0.82, 1],
+                      outputRange: [0, 0.72, 0.72, 0],
+                    }),
+                transform: [
+                  {
+                    translateX: reduceMotion
+                      ? 0
+                      : scanBeamAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [-64, 340],
+                        }),
+                  },
+                ],
+              },
+            ]}
+          />
+        </View>
+
         {/* Per-platform status cards */}
         <View style={styles.platformStatusRow}>
           {state.connectedPlatforms.map((platform) => {
@@ -2271,53 +2943,18 @@ const SearchScreen = ({ navigation, route }) => {
               label: platform,
             };
             const entry = platformResults[platform];
-            const products = entry?.products || [];
-            const count = products.filter(
-              (p) => p && p.in_stock === true,
-            ).length;
             return (
-              <Animated.View
+              <PlatformScanStatus
                 key={platform}
-                style={[
-                  styles.platformStatusCard,
-                  {
-                    backgroundColor: themeColors.background,
-                    borderColor: themeColors.border,
-                  },
-                  isDone
-                    ? {
-                        borderColor: themeColors.primary,
-                        backgroundColor: isDark
-                          ? themeColors.primary + "15"
-                          : COLORS.accentMuted,
-                      }
-                    : { opacity: pulseAnim },
-                ]}
-              >
-                <Ionicons
-                  name={isDone ? "checkmark-circle" : meta.icon}
-                  size={18}
-                  color={isDone ? "#10B981" : themeColors.textTertiary}
-                  style={styles.platformStatusIcon}
-                />
-                <Text
-                  style={[
-                    styles.platformStatusName,
-                    { color: themeColors.textPrimary },
-                    isDone && { color: themeColors.primary },
-                  ]}
-                >
-                  {meta.label}
-                </Text>
-                <Text
-                  style={[
-                    styles.platformStatusCount,
-                    { color: themeColors.textTertiary },
-                  ]}
-                >
-                  {isDone ? `${count} items` : "Scanning..."}
-                </Text>
-              </Animated.View>
+                platform={platform}
+                isDone={isDone}
+                entry={entry}
+                meta={meta}
+                themeColors={themeColors}
+                isDark={isDark}
+                pulseAnim={pulseAnim}
+                reduceMotion={reduceMotion}
+              />
             );
           })}
         </View>
@@ -2365,6 +3002,28 @@ const SearchScreen = ({ navigation, route }) => {
             {SAVING_TIPS[tipIndex]}
           </Text>
         </View>
+
+        {results.length === 0 ? (
+          <View style={styles.skeletonResults}>
+            <Text
+              style={[
+                styles.skeletonHeading,
+                { color: themeColors.textSecondary },
+              ]}
+            >
+              Preparing comparisons
+            </Text>
+            {[0, 1, 2].map((item) => (
+              <SearchResultSkeleton
+                key={item}
+                shimmer={scanBeamAnim}
+                pulse={pulseAnim}
+                themeColors={themeColors}
+                reduceMotion={reduceMotion}
+              />
+            ))}
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -2377,32 +3036,122 @@ const SearchScreen = ({ navigation, route }) => {
       .map((product) => {
         if (!product || !product.listings) return null;
         const filteredListings = product.listings.filter(
-          (listing) => listing && selectedPlatforms[listing.platform],
+          (listing) =>
+            listing &&
+            selectedPlatforms[listing.platform] &&
+            Number(listing.price) > 0 &&
+            listing.in_stock !== false,
         );
         if (filteredListings.length === 0) return null;
 
         const bestListing = filteredListings.reduce((a, b) =>
           a.price < b.price ? a : b,
         );
+        const bestListingTitle =
+          `${bestListing.raw_product_name || bestListing.product_name || product.name || ""} ${
+            bestListing.quantity || bestListing.weight || ""
+          } ${bestListing.raw_text || ""}`.trim();
+        const unitInfo = computeUnitPrice(
+          Number(bestListing.price),
+          bestListingTitle,
+        );
         return {
           ...product,
           listings: filteredListings,
-          price: bestListing.price,
+          price: Number(bestListing.price),
           bestPlatform: bestListing.platform,
           platformCount: filteredListings.length,
+          unitPrice: unitInfo?.unitPrice,
+          unitLabel: unitInfo?.unitLabel,
+          unitType: unitInfo?.unitType,
         };
       })
       .filter(Boolean);
 
+    const lowestCheckoutPrice = Math.min(
+      ...finalResults.map((product) => Number(product.price)),
+    );
+    const lowestUnitPriceByType = finalResults.reduce((lowest, product) => {
+      if (!product.unitType || !Number.isFinite(product.unitPrice)) {
+        return lowest;
+      }
+      const current = lowest[product.unitType];
+      return {
+        ...lowest,
+        [product.unitType]:
+          current === undefined
+            ? product.unitPrice
+            : Math.min(current, product.unitPrice),
+      };
+    }, {});
+
+    finalResults = finalResults.map((product) => ({
+      ...product,
+      isLowestPrice: product.price === lowestCheckoutPrice,
+      isBestValue:
+        !!product.unitType &&
+        Number.isFinite(product.unitPrice) &&
+        product.unitPrice === lowestUnitPriceByType[product.unitType],
+    }));
+
     // Sort
     if (sortBy === "price_asc") {
-      finalResults.sort((a, b) => a.price - b.price);
+      finalResults.sort(
+        (a, b) =>
+          (Number.isFinite(a.unitPrice)
+            ? a.unitPrice
+            : Number(a.price)) -
+            (Number.isFinite(b.unitPrice)
+              ? b.unitPrice
+              : Number(b.price)) ||
+          Number(a.price) - Number(b.price) ||
+          b.platformCount - a.platformCount,
+      );
     } else if (sortBy === "price_desc") {
       finalResults.sort((a, b) => b.price - a.price);
     }
 
+    const primaryBestValueIndex = finalResults.findIndex(
+      (product) => product.isBestValue,
+    );
+    finalResults = finalResults.map((product, index) => ({
+      ...product,
+      isPrimaryBestValue: index === primaryBestValueIndex,
+    }));
+
     return finalResults;
   }, [results, selectedPlatforms, sortBy]);
+
+  useEffect(() => {
+    if (loading || filteredAndSortedResults.length === 0) return undefined;
+
+    const settledKey = `${currentSearchQuery}:${results.length}`;
+    if (!currentSearchQuery || lastSettledSearchRef.current === settledKey) {
+      return undefined;
+    }
+
+    lastSettledSearchRef.current = settledKey;
+    if (resultHapticTimerRef.current) {
+      clearTimeout(resultHapticTimerRef.current);
+    }
+    resultHapticTimerRef.current = setTimeout(() => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => {},
+      );
+    }, reduceMotion ? 80 : 620);
+
+    return () => {
+      if (resultHapticTimerRef.current) {
+        clearTimeout(resultHapticTimerRef.current);
+      }
+    };
+  }, [
+    currentSearchQuery,
+    filteredAndSortedResults.length,
+    loading,
+    reduceMotion,
+    results.length,
+  ]);
 
   return (
     <SafeAreaView
@@ -2435,24 +3184,33 @@ const SearchScreen = ({ navigation, route }) => {
             },
           ]}
         >
-          <SearchBar
-            value={query}
-            onChangeText={(text) => {
-              setQuery(text);
-              if (!text) setAiExpandedQuery(null);
+          <Animated.View
+            style={{
+              transform: [
+                { scaleX: searchCompressionAnim },
+                { scaleY: searchCompressionAnim },
+              ],
             }}
-            onClear={() => {
-              setQuery("");
-              setResults([]);
-              setHasSearched(false);
-              setAiExpandedQuery(null);
-            }}
-            onFilterPress={() => setFilterModalVisible(true)}
-            onMicPress={handleMicPress}
-            isRecording={isRecording}
-            autoFocus={!hasSearched && query === ""}
-            testID="searchInput"
-          />
+          >
+            <SearchBar
+              value={query}
+              onChangeText={(text) => {
+                setQuery(text);
+                if (!text) setAiExpandedQuery(null);
+              }}
+              onClear={() => {
+                setQuery("");
+                setResults([]);
+                setHasSearched(false);
+                setAiExpandedQuery(null);
+              }}
+              onFilterPress={() => setFilterModalVisible(true)}
+              onMicPress={handleMicPress}
+              isRecording={isRecording}
+              autoFocus={!hasSearched && query === ""}
+              testID="searchInput"
+            />
+          </Animated.View>
 
           {/* Voice status banner */}
           {voiceStatus === "recording" && (
@@ -2558,14 +3316,9 @@ const SearchScreen = ({ navigation, route }) => {
           keyExtractor={(item) => String(item.id)}
           initialNumToRender={6}
           maxToRenderPerBatch={6}
-          windowSize={5}
+          windowSize={9}
           updateCellsBatchingPeriod={100}
-          removeClippedSubviews={true}
-          getItemLayout={(data, index) => ({
-            length: 160,
-            offset: 160 * index,
-            index,
-          })}
+          removeClippedSubviews={false}
           contentContainerStyle={styles.list}
           ListHeaderComponent={renderSearchProgress}
           ListEmptyComponent={renderEmpty}
@@ -2579,6 +3332,11 @@ const SearchScreen = ({ navigation, route }) => {
             key={platform}
             ref={(ref) => (webViewRefs.current[platform] = ref)}
             source={{ uri: searchUrls[platform] || getPlatformUrl(platform) }}
+            originWhitelist={["https://*"]}
+            mixedContentMode="never"
+            allowFileAccess={false}
+            allowFileAccessFromFileURLs={false}
+            allowUniversalAccessFromFileURLs={false}
             style={
               captchaPlatform === platform
                 ? styles.visibleWebView
@@ -2591,6 +3349,9 @@ const SearchScreen = ({ navigation, route }) => {
             onMessage={(event) => handleWebViewMessage(platform, event)}
             // ── Optimization 1: Block images, fonts, and trackers ──────────
             onShouldStartLoadWithRequest={(request) => {
+              if (!isAllowedPlatformNavigation(platform, request.url)) {
+                return false;
+              }
               // CRITICAL: Block non-http deep links (e.g. flipkart://, intent://)
               // otherwise Flipkart will redirect out of the WebView and hang the scraper forever
               if (
@@ -2728,9 +3489,9 @@ const SearchScreen = ({ navigation, route }) => {
           visible={filterModalVisible}
           onClose={() => setFilterModalVisible(false)}
           sortBy={sortBy}
-          setSortBy={setSortBy}
+          setSortBy={updateSortBy}
           selectedPlatforms={selectedPlatforms}
-          setSelectedPlatforms={setSelectedPlatforms}
+          setSelectedPlatforms={updateSelectedPlatforms}
         />
       </View>
     </SafeAreaView>
@@ -2888,12 +3649,13 @@ const styles = StyleSheet.create({
   },
   platformStatusRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
     marginBottom: SPACING.md,
     gap: SPACING.sm,
   },
   platformStatusCard: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 82,
     alignItems: "center",
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.sm,
@@ -2901,6 +3663,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.cardAlt,
+  },
+  scanTrack: {
+    height: 10,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: SPACING.md,
+  },
+  scanBeam: {
+    width: 64,
+    height: "100%",
+    borderRadius: RADIUS.full,
   },
   platformStatusIcon: {
     marginBottom: SPACING.xs,
@@ -2959,6 +3733,72 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     flex: 1,
     lineHeight: 16,
+  },
+  skeletonResults: {
+    marginTop: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  skeletonHeading: {
+    ...FONTS.captionBold,
+    marginBottom: 2,
+    letterSpacing: 0.35,
+  },
+  skeletonCard: {
+    minHeight: 132,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    padding: SPACING.md,
+    flexDirection: "row",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  skeletonImage: {
+    width: 82,
+    height: 82,
+    borderRadius: RADIUS.md,
+  },
+  skeletonCopy: {
+    flex: 1,
+    marginLeft: SPACING.md,
+  },
+  skeletonLineWide: {
+    width: "86%",
+    height: 12,
+    borderRadius: 6,
+  },
+  skeletonLineMedium: {
+    width: "58%",
+    height: 9,
+    borderRadius: 5,
+    marginTop: 9,
+  },
+  skeletonPrice: {
+    width: 68,
+    height: 21,
+    borderRadius: 7,
+    marginTop: 14,
+  },
+  skeletonPills: {
+    flexDirection: "row",
+    gap: 7,
+    marginTop: 11,
+  },
+  skeletonPill: {
+    width: 76,
+    height: 20,
+    borderRadius: 10,
+  },
+  skeletonPillSmall: {
+    width: 54,
+    height: 20,
+    borderRadius: 10,
+  },
+  skeletonShimmer: {
+    position: "absolute",
+    top: -32,
+    bottom: -32,
+    width: 58,
+    opacity: 0.32,
   },
   list: {
     paddingHorizontal: SPACING.xl,

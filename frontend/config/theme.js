@@ -9,7 +9,7 @@ export const lightColors = {
   primaryLight:   "#4FAF86",
   brandPurple:    "#16845B",
   brandPurpleLight: "#4FAF86",
-  background:     "#F7F8F6",
+  background:     "#F7F8F7",
   backgroundDark: "#0F172A", // Fallback if used statically
   surface:        "#FFFFFF",
   surfaceDark:    "#1E293B",
@@ -80,7 +80,7 @@ export const lightColors = {
   gradientCool:     ["#0EA5A8", "#16845B"],
 
   // ── CompareZ Redesign Tokens (Additive) ───────────────────────────
-  paper:          "#F7F8F6",
+  paper:          "#F7F8F7",
   paperDim:       "#EDF2EE",
   headerSurface:  "#EAF5EF",
   ink:            "#18201C",
@@ -277,7 +277,7 @@ const FONTS = {
     letterSpacing: -0.2,
   },
   body: {
-    fontFamily: "Fraunces",
+    fontFamily: "Inter",
     fontSize: 15,
     fontWeight: "400",
     color: "#475569",
@@ -291,7 +291,7 @@ const FONTS = {
     lineHeight: 20,
   },
   bodyBold: {
-    fontFamily: "FrauncesBold",
+    fontFamily: "InterSemiBold",
     fontSize: 15,
     fontWeight: "700",
     color: "#0F172A",
@@ -305,7 +305,7 @@ const FONTS = {
     lineHeight: 20,
   },
   caption: {
-    fontFamily: "Fraunces",
+    fontFamily: "Inter",
     fontSize: 12,
     fontWeight: "400",
     color: "#94A3B8",
@@ -318,7 +318,7 @@ const FONTS = {
     lineHeight: 16,
   },
   captionBold: {
-    fontFamily: "FrauncesMedium",
+    fontFamily: "InterSemiBold",
     fontSize: 12,
     fontWeight: "600",
     color: "#64748B",
@@ -383,17 +383,17 @@ const FONTS = {
     color: "#211C2B",
   },
   uiBody: {
-    fontFamily: "Fraunces",
+    fontFamily: "Inter",
     fontWeight: "400",
     color: "#211C2B",
   },
   uiBodyMedium: {
-    fontFamily: "FrauncesMedium",
+    fontFamily: "InterMedium",
     fontWeight: "500",
     color: "#211C2B",
   },
   uiBodyBold: {
-    fontFamily: "FrauncesBold",
+    fontFamily: "InterSemiBold",
     fontWeight: "600",
     color: "#211C2B",
   },
@@ -408,12 +408,12 @@ const FONTS = {
     color: "#18201C",
   },
   mono: {
-    fontFamily: "FrauncesMedium",
+    fontFamily: "InterMedium",
     fontWeight: "500",
     color: "#211C2B",
   },
   monoBold: {
-    fontFamily: "FrauncesSemiBold",
+    fontFamily: "InterSemiBold",
     fontWeight: "600",
     color: "#211C2B",
   },

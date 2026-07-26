@@ -16,15 +16,17 @@ import {
   Keyboard,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import Svg, { Path } from "react-native-svg";
 import { Ionicons } from "../components/Icon";
 import { WishlistContext } from "../context/WishlistContext";
 import { SPACING, RADIUS, FONTS, SHADOWS } from "../config/theme";
 import { useTheme } from "../context/ThemeContext";
 import GroqService from "../services/GroqService";
 import * as Haptics from "expo-haptics";
+import LiquidGlass from "./LiquidGlass";
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
-const FAB_SIZE = 52;
+const FAB_SIZE = 64;
 const FAB_RIGHT = 20;
 const FAB_BOTTOM = 140;
 const FAB_EDGE_MARGIN = 12;
@@ -39,7 +41,7 @@ const STARTER_PROMPTS = [
   { label: "Plan a grocery basket", prompt: "Help me plan a grocery basket" },
 ];
 
-const AICopilot = () => {
+const AICopilot = ({ activeRouteName }) => {
   const [open, setOpen] = useState(false);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -357,7 +359,7 @@ const AICopilot = () => {
   return (
     <>
       {/* Floating Action Button */}
-      {!open && (
+      {!open && activeRouteName !== "Home" && (
         <Animated.View
           {...panResponder.panHandlers}
           style={[
@@ -372,8 +374,28 @@ const AICopilot = () => {
         >
           <Animated.View style={{ transform: [{ scale: fabScale }] }}>
             <TouchableOpacity onPress={pressFab} activeOpacity={1}>
-              <View style={[styles.fabGradient, { backgroundColor: themeColors.primary }]}>
-                <Ionicons name="beans-ai" size={27} color="#fff" />
+              <View style={styles.beanFab}>
+                <Svg
+                  pointerEvents="none"
+                  width={FAB_SIZE}
+                  height={FAB_SIZE}
+                  viewBox="0 0 24 24"
+                  style={StyleSheet.absoluteFill}
+                >
+                  <Path
+                    d="M17.8 3.4c3.7 2.6 3.4 8.5.2 12.7-3.5 4.6-9.7 6.3-13.2 2.5-3.2-3.5-1.3-8.1 2.2-9.1 2.6-.8 3.1-2.3 4-4.1 1.3-2.6 4.3-3.7 6.8-2z"
+                    fill={themeColors.primary}
+                    stroke="rgba(255,255,255,0.56)"
+                    strokeWidth="0.55"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+                <Ionicons
+                  name="sparkles"
+                  size={25}
+                  color="#FFFFFF"
+                  style={styles.beanFabSparkles}
+                />
               </View>
             </TouchableOpacity>
           </Animated.View>
@@ -483,14 +505,16 @@ const AICopilot = () => {
                 },
               ]}
             >
-              <View
+              <LiquidGlass
+                radius={RADIUS.full}
+                intensity={56}
                 style={[
                   styles.inputWrapper,
                   {
-                    backgroundColor: themeColors.card,
                     borderColor: themeColors.line,
                   },
                 ]}
+                contentStyle={styles.inputWrapperContent}
               >
                 <TextInput
                   style={[styles.input, { color: themeColors.ink }]}
@@ -515,7 +539,7 @@ const AICopilot = () => {
                     <Ionicons name="send" size={16} color="#fff" />
                   </View>
                 </TouchableOpacity>
-              </View>
+              </LiquidGlass>
             </View>
           </View>
         </Animated.View>
@@ -532,12 +556,14 @@ const styles = StyleSheet.create({
     zIndex: 9999,
     ...SHADOWS.md,
   },
-  fabGradient: {
+  beanFab: {
     width: FAB_SIZE,
     height: FAB_SIZE,
-    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
+  },
+  beanFabSparkles: {
+    transform: [{ translateX: -1 }, { translateY: 2 }],
   },
   panel: {
     position: "absolute",
@@ -639,11 +665,14 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === "ios" ? 36 : 32,
   },
   inputWrapper: {
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    minHeight: 46,
+  },
+  inputWrapperContent: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: RADIUS.full,
     paddingHorizontal: SPACING.md,
-    borderWidth: 1,
   },
   input: {
     flex: 1,
