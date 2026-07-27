@@ -2,13 +2,12 @@
   "expo": {
     "name": "CompareZ",
     "slug": "frontend",
-    "version": "1.0.0",
-    "orientation": "portrait",
+    "version": "1.0.2",
     "icon": "./assets/icon_new.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "splash": {
-      "backgroundColor": "#fafafa"
+      "backgroundColor": "#F7F8F7"
     },
     "ios": {
       "supportsTablet": true,
@@ -19,11 +18,11 @@
       }
     },
     "android": {
+      "versionCode": 9,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive_new.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.panviravindra.comparez",
       "usesCleartextTraffic": true,
       "permissions": [
@@ -45,12 +44,21 @@
           "locationWhenInUsePermission": "Allow CompareZ to use your location to find the best delivery prices."
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ]
     ],
-    "owner": "panvi",
+    "owner": "panvi_ravindra",
     "extra": {
       "eas": {
-        "projectId": "ec01b9de-1d85-4ca6-a808-0055cf954368"
+        "projectId": "48c7f27e-faae-4b8a-beea-ebb9978b9dde"
       }
     }
   }

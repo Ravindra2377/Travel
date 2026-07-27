@@ -165,6 +165,9 @@ const PLATFORM_TIMEOUTS = {
 };
 const SEARCH_DEBOUNCE_MS = 400;
 const PARTIAL_AGGREGATION_DELAY_MS = 800; // ⬆ increased for better batching while searching
+const INITIAL_RESULT_COUNT = 18;
+const RESULT_PAGE_SIZE = 12;
+const MAX_PREFETCH_IMAGES = 12;
 
 const AnimatedSearchResult = React.memo(
   ({
@@ -1031,6 +1034,9 @@ const SearchScreen = ({ navigation, route }) => {
   const { themeColors, isDark } = useTheme();
   const [query, setQuery] = useState(route?.params?.query || "");
   const [results, setResults] = useState([]);
+  const [visibleResultCount, setVisibleResultCount] = useState(
+    INITIAL_RESULT_COUNT,
+  );
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [platformResults, setPlatformResults] = useState({});
@@ -1546,6 +1552,7 @@ const SearchScreen = ({ navigation, route }) => {
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
+      setVisibleResultCount(INITIAL_RESULT_COUNT);
       setHasSearched(false);
       lastSearchKeyRef.current = "";
       setSearchUrls({});
@@ -1644,6 +1651,7 @@ const SearchScreen = ({ navigation, route }) => {
 
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
       revealedResultsRef.current.clear();
+      setVisibleResultCount(INITIAL_RESULT_COUNT);
       monitor.mark("search-cache-hit");
       const duration = monitor.measure(
         "search-from-cache",
@@ -1692,6 +1700,7 @@ const SearchScreen = ({ navigation, route }) => {
     // Generate new session ID to reject old results
     const newSessionId = Date.now();
     revealedResultsRef.current.clear();
+    setVisibleResultCount(INITIAL_RESULT_COUNT);
     searchSessionIdRef.current = newSessionId;
     aggregatedSessionIdRef.current = null;
     fallbackAttemptedRef.current.clear(); // Reset per-platform fallback guard for new search
@@ -1813,9 +1822,22 @@ const SearchScreen = ({ navigation, route }) => {
               product?.in_stock !== undefined
                 ? product.in_stock
                 : product?.inStock;
-            if (val === undefined || val === null) return false;
+            // A product returned from a live results page is available unless
+            // the platform explicitly marks it unavailable. Some platform and
+            // backend payloads omit this field, so treating an absent value as
+            // false silently removed otherwise valid result cards.
+            if (val === undefined || val === null) return true;
             if (typeof val === "string") {
-              return val.toLowerCase() === "true" || val === "1";
+              const normalized = val.trim().toLowerCase();
+              if (
+                normalized === "false" ||
+                normalized === "0" ||
+                normalized === "out_of_stock" ||
+                normalized === "unavailable"
+              ) {
+                return false;
+              }
+              return true;
             }
             return !!val;
           })(),
@@ -2418,7 +2440,7 @@ const SearchScreen = ({ navigation, route }) => {
     console.log("╚════════════════════════════════════════════════════════╝");
 
     // Convert to array format
-    const aggregated = Object.values(productMap).map((group, idx) => {
+    const aggregated = Object.entries(productMap).map(([groupKey, group]) => {
       // Deduplicate listings by platform (keep the first one for each platform)
       const platformBestListings = new Map();
 
@@ -2483,8 +2505,12 @@ const SearchScreen = ({ navigation, route }) => {
       const uniqueImages = Array.from(new Set(imageCandidates));
 
       return {
-        id: idx,
+        // Keep the key tied to the product rather than its current array
+        // position. Results arrive platform-by-platform and are re-sorted by
+        // value; index keys made React reuse a card for a different product.
+        id: groupKey,
         name: displayName,
+        searchQuery: stableQuery,
         brand: first.brand || "",
         price: best > 0 ? best : first.price || 0,
         originalPrice: worst > best ? worst : undefined,
@@ -2579,46 +2605,31 @@ const SearchScreen = ({ navigation, route }) => {
     );
 
     if (cappedResults.length > 0) {
-      if (!reduceMotion) {
-        LayoutAnimation.configureNext({
-          duration: 380,
-          create: {
-            type: LayoutAnimation.Types.easeInEaseOut,
-            property: LayoutAnimation.Properties.opacity,
-          },
-          update: {
-            type: LayoutAnimation.Types.easeInEaseOut,
-          },
-          delete: {
-            type: LayoutAnimation.Types.easeInEaseOut,
-            property: LayoutAnimation.Properties.opacity,
-          },
-        });
-      }
+      // Do not run a parent LayoutAnimation while partial platform results are
+      // replacing and reordering FlatList data. On Android this can leave
+      // recycled cells transparent. AnimatedSearchResult already provides the
+      // entrance motion for genuinely new cards.
       setResults(cappedResults);
 
-      // Prefetch all image URLs into expo-image disk cache so they appear
-      // instantly when the user scrolls — avoids the slow Amazon CDN round-trip.
+      // Warm only the first visible images. Starting a request for every image
+      // in a large result set floods the network and JS bridge, which makes the
+      // list stutter while the user is trying to scroll.
       try {
         const allImageUrls = [];
-        cappedResults.forEach((p) => {
+        cappedResults.slice(0, INITIAL_RESULT_COUNT).forEach((p) => {
           if (p.imageCandidates && p.imageCandidates.length > 0) {
-            allImageUrls.push(...p.imageCandidates);
+            allImageUrls.push(p.imageCandidates[0]);
           } else if (p.image_url) {
             allImageUrls.push(p.image_url);
           }
         });
-        // Prefetch in small batches to avoid flooding the network
-        const BATCH = 5;
-        const prefetchBatch = (urls) =>
-          urls.forEach((url) => {
+        Array.from(new Set(allImageUrls))
+          .slice(0, MAX_PREFETCH_IMAGES)
+          .forEach((url) => {
             if (url && url.startsWith("http")) {
               Image.prefetch(url).catch(() => {});
             }
           });
-        for (let i = 0; i < allImageUrls.length; i += BATCH) {
-          prefetchBatch(allImageUrls.slice(i, i + BATCH));
-        }
       } catch (prefetchErr) {
         // Non-critical — silently ignore prefetch failures
       }
@@ -3122,6 +3133,21 @@ const SearchScreen = ({ navigation, route }) => {
     return finalResults;
   }, [results, selectedPlatforms, sortBy]);
 
+  const visibleResults = useMemo(
+    () => filteredAndSortedResults.slice(0, visibleResultCount),
+    [filteredAndSortedResults, visibleResultCount],
+  );
+
+  const revealMoreResults = useCallback(() => {
+    setVisibleResultCount((current) => {
+      if (current >= filteredAndSortedResults.length) return current;
+      return Math.min(
+        current + RESULT_PAGE_SIZE,
+        filteredAndSortedResults.length,
+      );
+    });
+  }, [filteredAndSortedResults.length]);
+
   useEffect(() => {
     if (loading || filteredAndSortedResults.length === 0) return undefined;
 
@@ -3201,6 +3227,7 @@ const SearchScreen = ({ navigation, route }) => {
               onClear={() => {
                 setQuery("");
                 setResults([]);
+                setVisibleResultCount(INITIAL_RESULT_COUNT);
                 setHasSearched(false);
                 setAiExpandedQuery(null);
               }}
@@ -3311,14 +3338,16 @@ const SearchScreen = ({ navigation, route }) => {
         )}
 
         <FlatList
-          data={filteredAndSortedResults}
+          data={visibleResults}
           renderItem={renderProductItem}
           keyExtractor={(item) => String(item.id)}
           initialNumToRender={6}
-          maxToRenderPerBatch={6}
-          windowSize={9}
-          updateCellsBatchingPeriod={100}
+          maxToRenderPerBatch={4}
+          windowSize={7}
+          updateCellsBatchingPeriod={80}
           removeClippedSubviews={false}
+          onEndReached={revealMoreResults}
+          onEndReachedThreshold={0.6}
           contentContainerStyle={styles.list}
           ListHeaderComponent={renderSearchProgress}
           ListEmptyComponent={renderEmpty}

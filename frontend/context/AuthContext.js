@@ -4,6 +4,11 @@ import axios from "axios";
 import { API_URL } from "../config/api";
 import { secureStorage } from "../services/secureStorage";
 import { platformTokenStorage } from "../services/platformTokenStorage";
+import {
+  expireSession,
+  markSessionActive,
+  subscribeToSessionExpiry,
+} from "../services/sessionManager";
 
 export const AuthContext = createContext();
 
@@ -32,6 +37,7 @@ export const AuthProvider = ({ children }) => {
       const { token, user: userData } = response.data;
       setUserToken(token);
       setUser(userData);
+      markSessionActive();
       await secureStorage.setItem("userToken", token);
       await secureStorage.setItem("userData", JSON.stringify(userData));
     } catch (e) {
@@ -83,6 +89,7 @@ export const AuthProvider = ({ children }) => {
       const { token, user: userData } = response.data;
       setUserToken(token);
       setUser(userData);
+      markSessionActive();
       await secureStorage.setItem("userToken", token);
       await secureStorage.setItem("userData", JSON.stringify(userData));
     } catch (e) {
@@ -133,9 +140,29 @@ export const AuthProvider = ({ children }) => {
   const isLoggedIn = async () => {
     try {
       setIsLoading(true);
-      let token = await secureStorage.getItem("userToken");
-      let userData = await secureStorage.getItem("userData");
+      const token = await secureStorage.getItem("userToken");
+      const userData = await secureStorage.getItem("userData");
+
+      if (token) {
+        try {
+          await axios.get(`${API_URL}/accounts/status`, {
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 12000,
+          });
+        } catch (error) {
+          if (error?.response?.status === 401) {
+            await expireSession("expired");
+            setUserToken(null);
+            setUser(null);
+            setIsLoading(false);
+            return;
+          }
+          // Keep a valid cached session when the backend is merely offline.
+        }
+      }
+
       setUserToken(token);
+      if (token) markSessionActive();
       if (userData) {
         setUser(JSON.parse(userData));
       }
@@ -144,6 +171,18 @@ export const AuthProvider = ({ children }) => {
     }
     setIsLoading(false);
   };
+
+  useEffect(() => {
+    return subscribeToSessionExpiry(() => {
+      setUserToken(null);
+      setUser(null);
+      setIsLoading(false);
+      Alert.alert(
+        "Session expired",
+        "Please sign in again to continue using Beans and connected services.",
+      );
+    });
+  }, []);
 
   useEffect(() => {
     isLoggedIn();

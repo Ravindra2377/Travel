@@ -81,6 +81,18 @@ func Connect() {
 	); err != nil {
 		log.Printf("⚠️  Failed to ensure search history index: %v", err)
 	}
+	if _, err := DB.Collection("search_history").Indexes().CreateOne(
+		indexCtx,
+		mongo.IndexModel{
+			Keys: bson.D{
+				{Key: "query", Value: 1},
+				{Key: "created_at", Value: -1},
+			},
+			Options: options.Index().SetName("query_price_history"),
+		},
+	); err != nil {
+		log.Printf("⚠️  Failed to ensure price history index: %v", err)
+	}
 
 	fmt.Println("🚀 Connected to MongoDB")
 }

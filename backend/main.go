@@ -161,6 +161,7 @@ func main() {
 	{
 		searchV2.POST("/collect", handlers.CollectSearchResults) // Collect frontend search results
 		searchV2.GET("/history", handlers.GetSearchHistory)      // Get search history
+		searchV2.GET("/price-history", handlers.GetPriceHistory) // Real observed 30/90-day prices
 		searchV2.GET("/validate", handlers.ValidateTokens)       // Validate stored tokens
 	}
 

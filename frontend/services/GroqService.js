@@ -9,6 +9,7 @@
 
 import { API_URL } from "../config/api";
 import { secureStorage } from "./secureStorage";
+import { expireSession } from "./sessionManager";
 
 const PROXY_CHAT_URL = `${API_URL}/ai/chat`;
 const PROXY_AUDIO_URL = `${API_URL}/ai/transcribe`;
@@ -40,8 +41,19 @@ async function groqFetch(model, messages, maxTokens = 300, jsonMode = false) {
   });
 
   if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`AI proxy error ${response.status}: ${err}`);
+    const errorBody = await response.text();
+    if (response.status === 401) {
+      await expireSession("expired");
+      throw new Error("Your session expired. Sign in again to use Beans.");
+    }
+    let message = "Beans is temporarily unavailable.";
+    try {
+      const parsed = JSON.parse(errorBody);
+      if (parsed?.error) message = parsed.error;
+    } catch {
+      // Keep the safe user-facing fallback for non-JSON upstream errors.
+    }
+    throw new Error(message);
   }
   const data = await response.json();
   return data.choices?.[0]?.message?.content || "";
@@ -180,7 +192,13 @@ Return JSON only:
       body: formData,
     });
 
-    if (!response.ok) throw new Error(`Whisper error ${response.status}`);
+    if (!response.ok) {
+      if (response.status === 401) {
+        await expireSession("expired");
+        throw new Error("Your session expired. Sign in again to use voice search.");
+      }
+      throw new Error("Voice search is temporarily unavailable.");
+    }
     const data = await response.json();
     return data.text || "";
   },

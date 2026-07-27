@@ -20,6 +20,8 @@ import { useTheme } from "../context/ThemeContext";
 import * as Haptics from "expo-haptics";
 import GroqService from "../services/GroqService";
 import { AppButton, Badge, PriceTag, RatingRow } from "../components/SharedUI";
+import api from "../config/api";
+import Svg, { Circle, Line, Polyline } from "react-native-svg";
 
 const extractQuantity = (text) => {
   const compact = String(text || "")
@@ -100,12 +102,213 @@ const pickDisplayTitle = (productName, listings = []) => {
   return candidates.reduce((a, b) => (a.length > b.length ? a : b));
 };
 
+const formatHistoryPrice = (value) =>
+  Number.isFinite(Number(value))
+    ? `₹${Math.round(Number(value)).toLocaleString("en-IN")}`
+    : "—";
+
+const PriceHistoryChart = ({ points, color, gridColor }) => {
+  const chartWidth = 320;
+  const chartHeight = 108;
+  const insetX = 10;
+  const insetY = 12;
+  const prices = points.map((point) => Number(point.price)).filter(Number.isFinite);
+  const low = Math.min(...prices);
+  const high = Math.max(...prices);
+  const spread = Math.max(high - low, high * 0.04, 1);
+  const coordinates = points.map((point, index) => {
+    const x =
+      points.length === 1
+        ? chartWidth / 2
+        : insetX + (index / (points.length - 1)) * (chartWidth - insetX * 2);
+    const y =
+      insetY +
+      ((high - Number(point.price)) / spread) * (chartHeight - insetY * 2);
+    return { x, y };
+  });
+
+  return (
+    <Svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
+      {[28, 54, 80].map((y) => (
+        <Line
+          key={y}
+          x1={insetX}
+          x2={chartWidth - insetX}
+          y1={y}
+          y2={y}
+          stroke={gridColor}
+          strokeWidth="1"
+        />
+      ))}
+      <Polyline
+        points={coordinates.map(({ x, y }) => `${x},${y}`).join(" ")}
+        fill="none"
+        stroke={color}
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {coordinates.map(({ x, y }, index) => (
+        <Circle
+          key={`${points[index].date}-${index}`}
+          cx={x}
+          cy={y}
+          r={index === coordinates.length - 1 ? 4.5 : 3}
+          fill={color}
+          stroke="#FFFFFF"
+          strokeWidth="2"
+        />
+      ))}
+    </Svg>
+  );
+};
+
+const PriceHistoryCard = ({
+  history,
+  loading,
+  error,
+  days,
+  onChangeDays,
+  themeColors,
+}) => {
+  const ready = history?.status === "ready" && history?.points?.length > 1;
+  const points = history?.points || [];
+
+  return (
+    <View
+      style={[
+        styles.historyCard,
+        { backgroundColor: themeColors.card, borderColor: themeColors.line },
+      ]}
+    >
+      <View style={styles.historyHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={[FONTS.heading, styles.historyTitle, { color: themeColors.ink }]}>
+            Price history
+          </Text>
+          <Text style={[FONTS.uiBody, styles.historySubtitle, { color: themeColors.inkSoft }]}>
+            {ready
+              ? `${history.distinct_days} observed days · best available price`
+              : "Real prices observed by CompareZ"}
+          </Text>
+        </View>
+        <View style={[styles.historyRange, { backgroundColor: themeColors.cardAlt }]}>
+          {[30, 90].map((range) => (
+            <TouchableOpacity
+              key={range}
+              onPress={() => onChangeDays(range)}
+              style={[
+                styles.historyRangeButton,
+                days === range && { backgroundColor: themeColors.card },
+              ]}
+            >
+              <Text
+                style={[
+                  FONTS.monoBold,
+                  styles.historyRangeText,
+                  { color: days === range ? themeColors.primary : themeColors.inkSoft },
+                ]}
+              >
+                {range}D
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={styles.historyLoading}>
+          <ActivityIndicator size="small" color={themeColors.primary} />
+          <Text style={[FONTS.uiBody, { color: themeColors.inkSoft }]}>
+            Loading observed prices…
+          </Text>
+        </View>
+      ) : error ? (
+        <View style={[styles.historyEmpty, { backgroundColor: themeColors.cardAlt }]}>
+          <View style={[styles.historyEmptyIcon, { backgroundColor: themeColors.corianderSoft }]}>
+            <Ionicons name="cloud-offline-outline" size={20} color={themeColors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[FONTS.uiBodyBold, { color: themeColors.ink }]}>
+              Price history is unavailable
+            </Text>
+            <Text style={[FONTS.uiBody, styles.historyEmptyText, { color: themeColors.inkSoft }]}>
+              Your current comparison still works. Try the history again later.
+            </Text>
+          </View>
+        </View>
+      ) : ready ? (
+        <>
+          <View
+            style={[
+              styles.historyVerdict,
+              { backgroundColor: themeColors.corianderSoft },
+            ]}
+          >
+            <Ionicons name="analytics-outline" size={16} color={themeColors.coriander} />
+            <Text style={[FONTS.uiBodyBold, { color: themeColors.coriander }]}>
+              {history.verdict}
+            </Text>
+          </View>
+          <PriceHistoryChart
+            points={points}
+            color={themeColors.primary}
+            gridColor={themeColors.line}
+          />
+          <View style={styles.historyDates}>
+            <Text style={[FONTS.uiBody, styles.historyDateText, { color: themeColors.inkFaint }]}>
+              {points[0]?.date?.slice(5)}
+            </Text>
+            <Text style={[FONTS.uiBody, styles.historyDateText, { color: themeColors.inkFaint }]}>
+              {points[points.length - 1]?.date?.slice(5)}
+            </Text>
+          </View>
+          <View style={[styles.historyStats, { borderTopColor: themeColors.line }]}>
+            {[
+              ["Current", history.current_price],
+              ["Usual", history.usual_price],
+              ["Recent low", history.lowest_price],
+            ].map(([label, price]) => (
+              <View key={label} style={styles.historyStat}>
+                <Text style={[FONTS.uiBody, styles.historyStatLabel, { color: themeColors.inkSoft }]}>
+                  {label}
+                </Text>
+                <Text style={[FONTS.heading, styles.historyStatPrice, { color: themeColors.ink }]}>
+                  {formatHistoryPrice(price)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : (
+        <View style={[styles.historyEmpty, { backgroundColor: themeColors.cardAlt }]}>
+          <View style={[styles.historyEmptyIcon, { backgroundColor: themeColors.corianderSoft }]}>
+            <Ionicons name="pulse-outline" size={20} color={themeColors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[FONTS.uiBodyBold, { color: themeColors.ink }]}>
+              Price tracking has started
+            </Text>
+            <Text style={[FONTS.uiBody, styles.historyEmptyText, { color: themeColors.inkSoft }]}>
+              Compare this exact product again on another day to reveal its trend and usual price.
+            </Text>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+};
+
 const ProductDetailScreen = ({ route, navigation }) => {
   const { product } = route.params;
   const { toggleWishlist, isLiked } = useContext(WishlistContext);
   const { themeColors, isDark } = useTheme();
   const [aiInsight, setAiInsight] = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
+  const [historyDays, setHistoryDays] = useState(30);
+  const [priceHistory, setPriceHistory] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(false);
 
   const liked = isLiked(product.id);
 
@@ -125,6 +328,40 @@ const ProductDetailScreen = ({ route, navigation }) => {
     product.rating_text || bestListing?.rating_text,
   );
   const displayTitle = pickDisplayTitle(product.name, product.listings);
+
+  useEffect(() => {
+    let active = true;
+    const loadPriceHistory = async () => {
+      if (!displayTitle || !bestListing?.price) {
+        if (active) setHistoryLoading(false);
+        return;
+      }
+      setHistoryLoading(true);
+      setHistoryError(false);
+      try {
+        const response = await api.get("/search/price-history", {
+          params: {
+            name: displayTitle,
+            query: product.searchQuery || "",
+            days: historyDays,
+            current_price: bestListing.price,
+          },
+        });
+        if (active) setPriceHistory(response.data);
+      } catch (error) {
+        if (active) {
+          setPriceHistory(null);
+          setHistoryError(true);
+        }
+      } finally {
+        if (active) setHistoryLoading(false);
+      }
+    };
+    loadPriceHistory();
+    return () => {
+      active = false;
+    };
+  }, [bestListing?.price, displayTitle, historyDays, product.searchQuery]);
 
   useEffect(() => {
     const fetchInsight = async () => {
@@ -231,6 +468,15 @@ const ProductDetailScreen = ({ route, navigation }) => {
                 </Text>
               </View>
             )}
+
+            <PriceHistoryCard
+              history={priceHistory}
+              loading={historyLoading}
+              error={historyError}
+              days={historyDays}
+              onChangeDays={setHistoryDays}
+              themeColors={themeColors}
+            />
 
             {/* AI Insight */}
             <View style={[styles.aiInsightCard, { backgroundColor: themeColors.aubergineSoft, marginTop: SPACING.lg }]}>
@@ -373,6 +619,104 @@ const styles = StyleSheet.create({
   savingsText: {
     ...FONTS.bodyBold,
     color: "#fff",
+  },
+  historyCard: {
+    marginTop: SPACING.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderRadius: RADIUS.xl,
+  },
+  historyHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  historyTitle: {
+    fontSize: 17,
+  },
+  historySubtitle: {
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  historyRange: {
+    flexDirection: "row",
+    padding: 3,
+    borderRadius: RADIUS.full,
+  },
+  historyRangeButton: {
+    minWidth: 38,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    alignItems: "center",
+  },
+  historyRangeText: {
+    fontSize: 10,
+    letterSpacing: 0.6,
+  },
+  historyLoading: {
+    minHeight: 116,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+  },
+  historyVerdict: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    marginBottom: SPACING.sm,
+  },
+  historyDates: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: -4,
+    paddingHorizontal: 8,
+  },
+  historyDateText: {
+    fontSize: 10,
+  },
+  historyStats: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+  },
+  historyStat: {
+    flex: 1,
+  },
+  historyStatLabel: {
+    fontSize: 10.5,
+    marginBottom: 3,
+  },
+  historyStatPrice: {
+    fontSize: 15,
+  },
+  historyEmpty: {
+    minHeight: 104,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: RADIUS.lg,
+  },
+  historyEmptyIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  historyEmptyText: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 4,
   },
   aiInsightCard: {
     padding: SPACING.md,
