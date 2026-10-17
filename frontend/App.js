@@ -62,11 +62,7 @@ const MainTabs = () => {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Journal" component={TripJournalScreen} />
-      <Tab.Screen
-        name="Capture"
-        component={MomentCaptureScreen}
-        options={{ animation: "slide_from_bottom" }}
-      />
+      <Tab.Screen name="Capture" component={MomentCaptureScreen} />
       <Tab.Screen name="Map" component={RouteMapScreen} />
       <Tab.Screen name="Passport" component={PassportScreen} />
     </Tab.Navigator>
