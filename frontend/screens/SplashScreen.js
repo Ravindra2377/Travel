@@ -95,14 +95,14 @@ const SplashScreen = ({ onFinish }) => {
               />
             </View>
             <Text style={[styles.loadingText, { color: themeColors.inkSoft }]}>
-              Initializing CompareZ...
+              Opening your travel stories...
             </Text>
           </View>
         </Animated.View>
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: themeColors.inkSoft }]}>
-            Secure · Fast · Smart
+            A trip is a story, not a folder
           </Text>
         </View>
       </View>

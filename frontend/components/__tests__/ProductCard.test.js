@@ -34,7 +34,7 @@ describe("ProductCard", () => {
     expect(getByText("₹40")).toBeTruthy();
     expect(getByText("3/6 Platforms")).toBeTruthy();
     expect(getByText("11% OFF")).toBeTruthy();
-    expect(getByText("Best on Blinkit")).toBeTruthy();
+    expect(getByText("Blinkit")).toBeTruthy();
     expect(getByText("Save ₹4.5")).toBeTruthy();
   });
 

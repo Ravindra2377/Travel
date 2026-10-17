@@ -408,14 +408,25 @@ const FONTS = {
     color: "#18201C",
   },
   mono: {
-    fontFamily: "InterMedium",
-    fontWeight: "500",
-    color: "#211C2B",
+    fontFamily: "IBMPlexMono",
+    fontSize: 13,
+    letterSpacing: 0.3,
+  },
+  monoMedium: {
+    fontFamily: "IBMPlexMonoMedium",
+    fontSize: 13,
+    letterSpacing: 0.3,
   },
   monoBold: {
-    fontFamily: "InterSemiBold",
-    fontWeight: "600",
-    color: "#211C2B",
+    fontFamily: "IBMPlexMonoSemiBold",
+    fontSize: 13,
+    letterSpacing: 0.3,
+  },
+  ticketStamp: {
+    fontFamily: "IBMPlexMonoSemiBold",
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
   },
 };
 

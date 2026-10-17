@@ -280,7 +280,7 @@ const ProductCard = ({
                 {name}
               </Text>
               {brand ? (
-                <Text style={[styles.brand, { color: themeColors.textTertiary }]}>{brand.toUpperCase()}</Text>
+                <Text style={[styles.brand, { color: themeColors.textTertiary }]}>{brand}</Text>
               ) : null}
 
               <View style={styles.priceRow}>

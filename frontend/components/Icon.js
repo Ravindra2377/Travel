@@ -3,7 +3,7 @@
 // This component renders pure SVG — no font files needed.
 
 import React from "react";
-import Svg, { Path, Circle, Line, Polyline, Rect, G } from "react-native-svg";
+import Svg, { Path, Circle, Line, Polyline, Rect, G, Polygon } from "react-native-svg";
 
 const Icon = ({ name, size = 24, color = "#000", style }) => {
   const s = size;
@@ -270,6 +270,40 @@ const ICONS = {
   "bell": (c, sw) => <G><Path d="M18 8A6 6 0 0 0 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /><Path d="M13.73 21A2 2 0 0 1 10.27 21" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
   "flame": (c, sw) => <Path d="M12 22c-4 0-7-3-7-7 0-3 2-5 4-7l1-1 1 2c.5-1 1.5-3 1.5-5.5 0-.5.5-1 1-.5C16 5 19 9 19 15c0 4-3 7-7 7z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" />,
   "link": (c, sw) => <G><Path d="M10 13a4.5 4.5 0 006.36 0l3-3a4.5 4.5 0 00-6.36-6.36l-1 1" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /><Path d="M14 11a4.5 4.5 0 00-6.36 0l-3 3a4.5 4.5 0 006.36 6.36l1-1" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /></G>,
+
+  // ── Travel & Trip Moments Icons ──
+  "add": (c, sw) => <G><Line x1="12" y1="5" x2="12" y2="19" stroke={c} strokeWidth={sw + 0.5} strokeLinecap="round" /><Line x1="5" y1="12" x2="19" y2="12" stroke={c} strokeWidth={sw + 0.5} strokeLinecap="round" /></G>,
+  "add-outline": (c, sw) => <G><Circle cx="12" cy="12" r="10" stroke={c} strokeWidth={sw} fill="none" /><Line x1="12" y1="8" x2="12" y2="16" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="8" y1="12" x2="16" y2="12" stroke={c} strokeWidth={sw} strokeLinecap="round" /></G>,
+  "add-circle": (c) => <G><Circle cx="12" cy="12" r="10" fill={c} /><Line x1="12" y1="8" x2="12" y2="16" stroke="#fff" strokeWidth={2} strokeLinecap="round" /><Line x1="8" y1="12" x2="16" y2="12" stroke="#fff" strokeWidth={2} strokeLinecap="round" /></G>,
+
+  "compass": (c, sw) => <G><Circle cx="12" cy="12" r="10" stroke={c} strokeWidth={sw} fill="none" /><Polygon points="16,8 13.5,13.5 8,16 10.5,10.5" fill={c} /></G>,
+  "compass-outline": (c, sw) => <G><Circle cx="12" cy="12" r="10" stroke={c} strokeWidth={sw} fill="none" /><Polygon points="16,8 13.5,13.5 8,16 10.5,10.5" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /></G>,
+
+  "map": (c, sw) => <Path d="M1 6v15l7-4 8 4 7-4V2l-7 4-8-4z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" />,
+  "map-outline": (c, sw) => <G><Path d="M1 6v15l7-4 8 4 7-4V2l-7 4-8-4z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /><Line x1="8" y1="2" x2="8" y2="17" stroke={c} strokeWidth={sw} /><Line x1="16" y1="6" x2="16" y2="21" stroke={c} strokeWidth={sw} /></G>,
+
+  "camera": (c) => <G><Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" fill={c} /><Circle cx="12" cy="13" r="4" fill="#fff" /></G>,
+  "camera-outline": (c, sw) => <G><Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /><Circle cx="12" cy="13" r="4" stroke={c} strokeWidth={sw} fill="none" /></G>,
+
+  "journal": (c, sw) => <G><Path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /><Path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /><Line x1="8" y1="7" x2="16" y2="7" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="8" y1="11" x2="14" y2="11" stroke={c} strokeWidth={sw} strokeLinecap="round" /></G>,
+  "journal-outline": (c, sw) => <G><Path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" /><Path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /><Line x1="8" y1="7" x2="16" y2="7" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="8" y1="11" x2="14" y2="11" stroke={c} strokeWidth={sw} strokeLinecap="round" /></G>,
+  "book-outline": (c, sw) => <G><Path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /><Path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /></G>,
+
+  "earth": (c, sw) => <G><Circle cx="12" cy="12" r="10" stroke={c} strokeWidth={sw} fill="none" /><Line x1="2" y1="12" x2="22" y2="12" stroke={c} strokeWidth={sw} /><Path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" stroke={c} strokeWidth={sw} fill="none" /></G>,
+  "earth-outline": (c, sw) => <G><Circle cx="12" cy="12" r="10" stroke={c} strokeWidth={sw} fill="none" /><Line x1="2" y1="12" x2="22" y2="12" stroke={c} strokeWidth={sw} /><Path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" stroke={c} strokeWidth={sw} fill="none" /></G>,
+
+  "ribbon-outline": (c, sw) => <G><Circle cx="12" cy="8" r="6" stroke={c} strokeWidth={sw} fill="none" /><Polyline points="15.5,13.5 18,22 12,19 6,22 8.5,13.5" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
+  "airplane": (c, sw) => <Path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0011.5 2 1.5 1.5 0 0010 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" />,
+
+  "play": (c) => <Polygon points="5,3 19,12 5,21" fill={c} />,
+  "pause": (c) => <G><Rect x="6" y="4" width="4" height="16" fill={c} /><Rect x="14" y="4" width="4" height="16" fill={c} /></G>,
+
+  "cloudy": (c, sw) => <Path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" />,
+  "partly-sunny": (c, sw) => <G><Circle cx="8" cy="8" r="3" stroke={c} strokeWidth={sw} fill="none" /><Path d="M18 12h-1.2A6 6 0 1010 20h8a4 4 0 000-8z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /></G>,
+  "rainy": (c, sw) => <G><Path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z" stroke={c} strokeWidth={sw} fill="none" strokeLinejoin="round" /><Line x1="8" y1="21" x2="7" y2="23" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="12" y1="21" x2="11" y2="23" stroke={c} strokeWidth={sw} strokeLinecap="round" /><Line x1="16" y1="21" x2="15" y2="23" stroke={c} strokeWidth={sw} strokeLinecap="round" /></G>,
+
+  "create-outline": (c, sw) => <G><Path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /><Path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke={c} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" /></G>,
+  "share-social": (c, sw) => <G><Circle cx="18" cy="5" r="3" stroke={c} strokeWidth={sw} fill="none" /><Circle cx="6" cy="12" r="3" stroke={c} strokeWidth={sw} fill="none" /><Circle cx="18" cy="19" r="3" stroke={c} strokeWidth={sw} fill="none" /><Line x1="8.6" y1="13.5" x2="15.4" y2="17.5" stroke={c} strokeWidth={sw} /><Line x1="15.4" y1="6.5" x2="8.6" y2="10.5" stroke={c} strokeWidth={sw} /></G>,
 };
 
 // Also export as default AND as named export so existing `import { Ionicons }` syntax works

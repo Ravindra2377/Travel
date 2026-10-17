@@ -1,1006 +1,1138 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useState, useMemo } from "react";
 import {
-  AccessibilityInfo,
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Easing,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+  Alert,
+  StatusBar,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "@react-navigation/native";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import LiquidGlass from "../components/LiquidGlass";
-import BrandHeader from "../components/BrandHeader";
-import { Ionicons } from "../components/Icon";
-import LocationPickerModal from "../components/LocationPickerModal";
-import { AuthContext } from "../context/AuthContext";
-import { WishlistContext } from "../context/WishlistContext";
 import { useTheme } from "../context/ThemeContext";
-import { FONTS, SHADOWS, SPACING } from "../config/theme";
-import GroqService from "../services/GroqService";
-import LocationService from "../services/LocationService";
+import { useTrips } from "../context/TripContext";
+import { FONTS, SPACING, RADIUS, SHADOWS } from "../config/theme";
+import LiquidGlass from "../components/LiquidGlass";
+import GlassCard from "../components/GlassCard";
+import { Ionicons } from "../components/Icon";
 
-const PLATFORM_MENTIONS = [
-  { name: "Blinkit", pattern: /\bblinkit\b/i },
-  { name: "Zepto", pattern: /\bzepto\b/i },
-  { name: "BigBasket", pattern: /\b(?:big\s*basket|bigbasket)\b/i },
-  { name: "Amazon", pattern: /\bamazon\b/i },
-  { name: "Flipkart", pattern: /\bflipkart\b/i },
+const { width } = Dimensions.get("window");
+
+const PRESET_COLORS = [
+  { primary: "#16845B", secondary: "#D97706", name: "Forest & Amber" },
+  { primary: "#BE123C", secondary: "#1E293B", name: "Autumn Crimson" },
+  { primary: "#0284C7", secondary: "#F59E0B", name: "Azure & Lemon" },
+  { primary: "#7C3AED", secondary: "#EC4899", name: "Dusk Violet" },
+  { primary: "#0F766E", secondary: "#F97316", name: "Emerald & Coral" },
 ];
 
-const getMentionedPlatforms = (text = "") =>
-  PLATFORM_MENTIONS.filter(({ pattern }) => pattern.test(text)).map(
-    ({ name }) => name,
-  );
-
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-};
+const PRESET_COVERS = [
+  "https://images.unsplash.com/photo-1600100397608-f010f4439c2e?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1533105079780-92b9be482077?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1200&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?q=80&w=1200&auto=format&fit=crop",
+];
 
 const HomeScreen = ({ navigation }) => {
-  const { user } = useContext(AuthContext);
-  const { wishlist } = useContext(WishlistContext);
-  const { themeColors } = useTheme();
-  const [prompt, setPrompt] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [thinking, setThinking] = useState(false);
-  const [recentSearches, setRecentSearches] = useState([]);
-  const [locationModalVisible, setLocationModalVisible] = useState(false);
-  const [currentCity, setCurrentCity] = useState("");
-  const [currentPincode, setCurrentPincode] = useState("");
-  const historyRef = useRef([]);
-  const scrollRef = useRef(null);
-  const greetingEntrance = useRef(new Animated.Value(0)).current;
-  const searchEntrance = useRef(new Animated.Value(0)).current;
-  const radarEntrance = useRef(new Animated.Value(0)).current;
-  const [reduceMotion, setReduceMotion] = useState(false);
-  const homePaper = themeColors.paper;
+  const { themeColors, isDark, toggleTheme } = useTheme();
+  const { trips, activeTrip, setActiveTrip, moments, addTrip } = useTrips();
 
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled?.().then(setReduceMotion);
-    const subscription = AccessibilityInfo.addEventListener?.(
-      "reduceMotionChanged",
-      setReduceMotion,
-    );
-    return () => subscription?.remove?.();
-  }, []);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newCity, setNewCity] = useState("");
+  const [newCountry, setNewCountry] = useState("");
+  const [newStartDate, setNewStartDate] = useState("2026-10-18");
+  const [newEndDate, setNewEndDate] = useState("2026-10-24");
+  const [newNotes, setNewNotes] = useState("");
+  const [selectedColorIndex, setSelectedColorIndex] = useState(0);
+  const [selectedCoverIndex, setSelectedCoverIndex] = useState(0);
 
-  useFocusEffect(
-    useCallback(() => {
-      AsyncStorage.getItem("comparex_search_history")
-        .then((stored) => {
-          try {
-            setRecentSearches((JSON.parse(stored) || []).slice(0, 3));
-          } catch {
-            setRecentSearches([]);
-          }
-        })
-        .catch(() => setRecentSearches([]));
+  // Active Trip Moments
+  const activeMoments = useMemo(() => {
+    if (!activeTrip) return [];
+    return moments.filter((m) => m.tripId === activeTrip.id);
+  }, [activeTrip, moments]);
 
-      LocationService.init().then((location) => {
-        if (!location) return;
-        setCurrentCity(location.city || "");
-        setCurrentPincode(location.pincode || "");
-      });
+  // "On This Day" Memory
+  const onThisDayMoment = useMemo(() => {
+    if (!moments || moments.length === 0) return null;
+    const favorite = moments.find((m) => m.isFavorite);
+    return favorite || moments[0];
+  }, [moments]);
 
-      greetingEntrance.setValue(reduceMotion ? 1 : 0);
-      searchEntrance.setValue(reduceMotion ? 1 : 0);
-      radarEntrance.setValue(reduceMotion ? 1 : 0);
-
-      if (reduceMotion) return undefined;
-
-      const entrance = Animated.parallel([
-        Animated.timing(greetingEntrance, {
-          toValue: 1,
-          duration: 260,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(searchEntrance, {
-          toValue: 1,
-          duration: 280,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.spring(radarEntrance, {
-          toValue: 1,
-          tension: 105,
-          friction: 12,
-          useNativeDriver: true,
-        }),
-      ]);
-      entrance.start();
-
-      return () => entrance.stop();
-    }, [
-      greetingEntrance,
-      radarEntrance,
-      reduceMotion,
-      searchEntrance,
-    ]),
-  );
-
-  const confirmClearSearchHistory = () => {
-    Alert.alert(
-      "Clear search history?",
-      "This removes your recent product searches from this device.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          style: "destructive",
-          onPress: async () => {
-            await AsyncStorage.removeItem("comparex_search_history");
-            setRecentSearches([]);
-            Haptics.notificationAsync(
-              Haptics.NotificationFeedbackType.Success,
-            );
-          },
-        },
-      ],
-    );
-  };
-
-  const sendPrompt = async (value) => {
-    const text = (typeof value === "string" ? value : prompt).trim();
-    if (!text || thinking) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const userMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      text,
-    };
-    setMessages((current) => [...current, userMessage]);
-    setPrompt("");
-    setThinking(true);
-
-    const nextHistory = [
-      ...historyRef.current,
-      { role: "user", content: text },
-    ].slice(-10);
-    historyRef.current = nextHistory;
+  const handleCreateTrip = async () => {
+    if (!newTitle.trim()) {
+      Alert.alert("Missing Title", "Please give your trip a title.");
+      return;
+    }
+    const colorPreset = PRESET_COLORS[selectedColorIndex];
+    const coverUri = PRESET_COVERS[selectedCoverIndex];
 
     try {
-      const requestedPlatforms = getMentionedPlatforms(text);
-      const reply = await GroqService.copilotChat(nextHistory, {
-        screen: "Home",
-        city: currentCity,
-        pincode: currentPincode,
-        wishlistCount: wishlist.length,
-        wishlistItems: wishlist
-          .map((item) => item.name || item.title)
-          .filter(Boolean)
-          .slice(0, 6),
-        recentSearches,
-        requestedPlatforms,
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const created = await addTrip({
+        title: newTitle.trim(),
+        city: newCity.trim() || "Wanderland",
+        country: newCountry.trim() || "Earth",
+        startDate: newStartDate,
+        endDate: newEndDate,
+        status: "active",
+        coverUri,
+        themeColor: colorPreset.primary,
+        secondaryColor: colorPreset.secondary,
+        notes: newNotes.trim(),
       });
 
-      const searches = [];
-      const searchRegex = /\[SUGGEST_SEARCH:\s*(.*?)\]/g;
-      let match;
-      while ((match = searchRegex.exec(reply)) !== null) {
-        if (match[1]) searches.push(match[1].trim());
-      }
-      const cleanedReply = reply
-        .replace(/\[SHOW_CART\]/g, "")
-        .replace(searchRegex, "")
-        .trim();
+      setCreateModalVisible(false);
+      setNewTitle("");
+      setNewCity("");
+      setNewCountry("");
+      setNewNotes("");
 
-      historyRef.current = [
-        ...nextHistory,
-        { role: "assistant", content: cleanedReply },
-      ];
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${Date.now()}`,
-          role: "assistant",
-          text: cleanedReply,
-          searches: searches.length > 0 ? searches : [text],
-          usesRequestAsSearch: searches.length === 0,
-          requestedPlatforms,
-        },
-      ]);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${Date.now()}`,
-          role: "assistant",
-          text: "I couldn’t connect just now. You can still open Search, Meal Cart, or Wishlist below.",
-        },
-      ]);
-    } finally {
-      setThinking(false);
+      navigation.navigate("TripCover", { tripId: created.id });
+    } catch (e) {
+      Alert.alert("Error", "Could not create trip.");
     }
   };
 
-  const firstName =
-    user?.name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
-  const latestSearch = recentSearches[0];
-  const savingsRadar = latestSearch
-    ? {
-        eyebrow: "READY TO RECHECK",
-        icon: "time-outline",
-        title: latestSearch,
-        description:
-          "Prices can change between stores. Run a fresh comparison before you buy.",
-        actionLabel: "Compare again",
-        meta: "",
-        onPress: () =>
-          navigation.navigate("Search", { query: latestSearch }),
-      }
-    : wishlist.length > 0
-      ? {
-          eyebrow: "SAVED FOR LATER",
-          icon: "comparez-wishlist",
-          title: `${wishlist.length} saved product${wishlist.length === 1 ? "" : "s"}`,
-          description:
-            "Review your saved products and compare their current store prices.",
-          actionLabel: "Review wishlist",
-          meta: "Ready to compare",
-          onPress: () => navigation.navigate("Likes"),
-        }
-      : {
-          eyebrow: "START YOUR RADAR",
-          icon: "comparez-search",
-          title: "Make your first comparison",
-          description:
-            "Search for a product once and your next useful price check will appear here.",
-          actionLabel: "Find a product",
-          meta: "Start here",
-          onPress: () => navigation.navigate("Search"),
-        };
-
-  const openSavingsRadar = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    savingsRadar.onPress();
-  };
-
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: homePaper }]}>
-      <View style={[styles.container, { backgroundColor: homePaper }]}>
-        <BrandHeader
-          city={currentCity}
-          pincode={currentPincode}
-          onLocationPress={() => setLocationModalVisible(true)}
-          editorial
-          backgroundColor={homePaper}
-        />
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: themeColors.paper }]}
+      edges={["top"]}
+    >
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
 
-        <ScrollView
-          ref={scrollRef}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={[
-            styles.scrollContent,
-            messages.length === 0 && styles.scrollContentIdle,
-          ]}
-          onContentSizeChange={() => {
-            if (messages.length > 0) {
-              scrollRef.current?.scrollToEnd({ animated: true });
-            }
-          }}
-        >
-          <View style={messages.length === 0 && styles.idleContent}>
-            <Animated.Text
-              style={[
-                styles.greeting,
-                {
-                  color: themeColors.primary,
-                  opacity: greetingEntrance,
-                  transform: [
-                    {
-                      translateY: greetingEntrance.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [16, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              {getGreeting()}, {firstName}
-            </Animated.Text>
-            <Animated.View
-              style={{
-                opacity: searchEntrance,
-                transform: [
-                  {
-                    scaleX: searchEntrance.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.92, 1],
-                    }),
-                  },
-                  {
-                    translateY: searchEntrance.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [12, 0],
-                    }),
-                  },
-                ],
-              }}
-            >
-              <LiquidGlass
-                neutral
-                radius={29}
-                intensity={72}
-                style={[
-                  styles.composer,
-                  {
-                    borderColor: themeColors.line,
-                  },
-                ]}
-                contentStyle={styles.composerContent}
-              >
-                <TextInput
-                  style={[styles.composerInput, { color: themeColors.ink }]}
-                  placeholder="Describe what you want to buy or save on..."
-                  placeholderTextColor={themeColors.inkFaint}
-                  value={prompt}
-                  onChangeText={setPrompt}
-                  maxLength={500}
-                  returnKeyType="send"
-                  blurOnSubmit
-                  onSubmitEditing={() => sendPrompt()}
+      {/* Top Header */}
+      <View style={styles.header}>
+        <View>
+          <Text
+            style={[
+              FONTS.captionBold,
+              styles.subtitle,
+              { color: themeColors.primary },
+            ]}
+          >
+            JOURNAL & DISCOVERY
+          </Text>
+          <Text
+            style={[
+              FONTS.h1,
+              styles.headerTitle,
+              { color: themeColors.ink },
+            ]}
+          >
+            Trip Moments
+          </Text>
+        </View>
+
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={[
+              styles.iconBtn,
+              {
+                backgroundColor: isDark
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(0,0,0,0.04)",
+              },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.navigate("Search");
+            }}
+          >
+            <Ionicons name="search" size={20} color={themeColors.ink} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.iconBtn,
+              {
+                backgroundColor: isDark
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(0,0,0,0.04)",
+              },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              toggleTheme();
+            }}
+          >
+            <Ionicons
+              name={isDark ? "sunny" : "moon"}
+              size={20}
+              color={themeColors.ink}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.newTripBtn,
+              { backgroundColor: themeColors.primary },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setCreateModalVisible(true);
+            }}
+          >
+            <Ionicons name="add" size={18} color="#FFFFFF" />
+            <Text style={styles.newTripBtnText}>New Trip</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Active Trip Banner */}
+        {activeTrip ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.pulseDotWrapper}>
+                <View
+                  style={[
+                    styles.pulseDot,
+                    { backgroundColor: themeColors.primary },
+                  ]}
                 />
-                <TouchableOpacity
+                <Text
                   style={[
-                    styles.composerSend,
-                    {
-                      backgroundColor: prompt.trim()
-                        ? "rgba(209,241,228,0.82)"
-                        : "rgba(255,255,255,0.34)",
-                      borderColor: "rgba(255,255,255,0.78)",
-                    },
+                    FONTS.ticketStamp,
+                    { color: themeColors.primary },
                   ]}
-                  onPress={() => sendPrompt()}
-                  disabled={!prompt.trim() || thinking}
-                  activeOpacity={0.8}
                 >
-                  <Ionicons
-                    name="arrow-forward"
-                    size={20}
-                    color={
-                      prompt.trim()
-                        ? themeColors.primary
-                        : themeColors.inkFaint
-                    }
-                  />
-                </TouchableOpacity>
-              </LiquidGlass>
-            </Animated.View>
+                  ACTIVE EXPEDITION
+                </Text>
+              </View>
 
-            {messages.length === 0 ? (
-              <>
-                <Animated.View
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  navigation.navigate("Capture", { tripId: activeTrip.id });
+                }}
+                style={[
+                  styles.quickCaptureBtn,
+                  { backgroundColor: `${themeColors.primary}18` },
+                ]}
+              >
+                <Ionicons
+                  name="camera"
+                  size={15}
+                  color={themeColors.primary}
+                />
+                <Text
                   style={[
-                    styles.radarSection,
-                    {
-                      opacity: radarEntrance,
-                      transform: [
-                        {
-                          translateY: radarEntrance.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [28, 0],
-                          }),
-                        },
-                      ],
-                    },
+                    FONTS.captionBold,
+                    { color: themeColors.primary, marginLeft: 6 },
                   ]}
                 >
-                  <View style={styles.radarSectionHeader}>
-                    <Text
-                      style={[
-                        styles.sectionLabel,
-                        styles.radarSectionLabel,
-                        { color: themeColors.inkSoft },
-                      ]}
-                    >
-                      Recent search
-                    </Text>
-                    {recentSearches.length > 0 ? (
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        accessibilityLabel="Clear search history"
-                        onPress={confirmClearSearchHistory}
-                        hitSlop={8}
-                      >
-                        <Text
-                          style={[
-                            styles.clearHistory,
-                            { color: themeColors.primary },
-                          ]}
-                        >
-                          Clear history
-                        </Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel={`${savingsRadar.actionLabel}: ${savingsRadar.title}`}
-                    style={[
-                      styles.radarCard,
-                      { backgroundColor: themeColors.aubergineDeep },
-                    ]}
-                    onPress={openSavingsRadar}
-                    activeOpacity={0.88}
-                  >
-                    <View style={styles.radarGlowLarge} />
-                    <View style={styles.radarGlowSmall} />
-                    <View style={styles.radarTopRow}>
-                      <View style={styles.radarMark}>
-                        <Ionicons
-                          name={savingsRadar.icon}
-                          size={19}
-                          color="#FFFFFF"
-                        />
-                      </View>
-                      <Text style={styles.radarEyebrow}>
-                        {savingsRadar.eyebrow}
-                      </Text>
-                    </View>
-                    <Text
-                      numberOfLines={2}
-                      style={styles.radarTitle}
-                    >
-                      {savingsRadar.title}
-                    </Text>
-                    <Text style={styles.radarDescription}>
-                      {savingsRadar.description}
-                    </Text>
-                    <View style={styles.radarFooter}>
-                      <View style={styles.radarAction}>
-                        <Text
-                          numberOfLines={1}
-                          style={[
-                            styles.radarActionText,
-                            { color: themeColors.aubergineDeep },
-                          ]}
-                        >
-                          {savingsRadar.actionLabel}
-                        </Text>
-                        <Ionicons
-                          name="arrow-forward"
-                          size={15}
-                          color={themeColors.aubergineDeep}
-                        />
-                      </View>
-                      {savingsRadar.meta ? (
-                        <Text style={styles.radarMeta}>
-                          {savingsRadar.meta}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </TouchableOpacity>
-                </Animated.View>
-              </>
-            ) : (
-              <View style={styles.workspace}>
-                <View style={styles.workspaceHeader}>
-                  <Text
-                    style={[
-                      styles.sectionLabel,
-                      styles.workspaceLabel,
-                      { color: themeColors.inkSoft },
-                    ]}
-                  >
-                    YOUR SHOPPING WORKSPACE
+                  Capture
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.92}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setActiveTrip(activeTrip);
+                navigation.navigate("TripCover", { tripId: activeTrip.id });
+              }}
+              style={[styles.heroCard, SHADOWS.lg]}
+            >
+              <Image
+                source={{ uri: activeTrip.coverUri }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                transition={300}
+              />
+              <LinearGradient
+                colors={[
+                  "transparent",
+                  "rgba(0,0,0,0.30)",
+                  "rgba(0,0,0,0.85)",
+                ]}
+                style={StyleSheet.absoluteFill}
+              />
+
+              {/* Badges on top */}
+              <View style={styles.heroTopBadges}>
+                <LiquidGlass
+                  radius={12}
+                  intensity={40}
+                  style={styles.heroGlassBadge}
+                >
+                  <Text style={styles.heroBadgeText}>
+                    {activeTrip.city ? `${activeTrip.city}, ` : ""}
+                    {activeTrip.country || "Explore"}
                   </Text>
+                </LiquidGlass>
+
+                <LiquidGlass
+                  radius={12}
+                  intensity={40}
+                  style={styles.heroGlassBadge}
+                >
+                  <Ionicons name="images" size={13} color="#FFFFFF" />
+                  <Text style={[styles.heroBadgeText, { marginLeft: 5 }]}>
+                    {activeMoments.length} moments
+                  </Text>
+                </LiquidGlass>
+              </View>
+
+              {/* Title & Stats */}
+              <View style={styles.heroContent}>
+                <Text style={styles.heroDates}>
+                  {activeTrip.startDate} — {activeTrip.endDate}
+                </Text>
+                <Text style={styles.heroTitle} numberOfLines={2}>
+                  {activeTrip.title}
+                </Text>
+
+                {activeTrip.notes ? (
+                  <Text style={styles.heroNotes} numberOfLines={2}>
+                    {activeTrip.notes}
+                  </Text>
+                ) : null}
+
+                {/* Bottom Action Strip */}
+                <View style={styles.heroActionsRow}>
                   <TouchableOpacity
+                    style={[
+                      styles.heroActionBtn,
+                      { backgroundColor: themeColors.primary },
+                    ]}
                     onPress={() => {
-                      setMessages([]);
-                      historyRef.current = [];
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      navigation.navigate("Journal", {
+                        tripId: activeTrip.id,
+                      });
                     }}
                   >
-                    <Text
-                      style={[
-                        styles.newBrief,
-                        { color: themeColors.primary },
-                      ]}
-                    >
-                      New brief
-                    </Text>
+                    <Ionicons name="journal" size={16} color="#FFFFFF" />
+                    <Text style={styles.heroActionBtnText}>View Journal</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.heroActionGhostBtn}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      navigation.navigate("Map", { tripId: activeTrip.id });
+                    }}
+                  >
+                    <Ionicons name="map-outline" size={16} color="#FFFFFF" />
+                    <Text style={styles.heroActionGhostText}>Route Map</Text>
                   </TouchableOpacity>
                 </View>
-                {messages.map((message) => {
-                  const isUser = message.role === "user";
-                  return isUser ? (
-                    <View
-                      key={message.id}
-                      style={styles.requestBlock}
-                    >
-                      <Text
-                        style={[
-                          styles.requestLabel,
-                          { color: themeColors.inkFaint },
-                        ]}
-                      >
-                        YOUR REQUEST
-                      </Text>
-                      <View style={styles.requestTextRow}>
-                        <Ionicons
-                          name="arrow-forward"
-                          size={15}
-                          color={themeColors.primary}
-                        />
-                        <Text
-                          style={[
-                            styles.requestText,
-                            { color: themeColors.ink },
-                          ]}
-                        >
-                          {message.text}
-                        </Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <View
-                      key={message.id}
+              </View>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {/* "On This Day" Memory Strip */}
+        {onThisDayMoment ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text
+                style={[
+                  FONTS.ticketStamp,
+                  { color: themeColors.inkSoft },
+                ]}
+              >
+                ON THIS DAY · PAST MEMORIES
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.navigate("MomentDetail", {
+                  moment: onThisDayMoment,
+                });
+              }}
+              style={[
+                styles.memoryCard,
+                {
+                  backgroundColor: themeColors.surface,
+                  borderColor: isDark
+                    ? "rgba(255,255,255,0.12)"
+                    : "rgba(0,0,0,0.06)",
+                },
+                SHADOWS.sm,
+              ]}
+            >
+              <Image
+                source={{ uri: onThisDayMoment.mediaUri }}
+                style={styles.memoryThumb}
+                contentFit="cover"
+                transition={200}
+              />
+              <View style={styles.memoryDetails}>
+                <View style={styles.memoryTopRow}>
+                  <Text
+                    style={[
+                      FONTS.ticketStamp,
+                      { color: themeColors.primary },
+                    ]}
+                  >
+                    {onThisDayMoment.city} ·{" "}
+                    {new Date(onThisDayMoment.takenAt).toLocaleDateString(
+                      undefined,
+                      { month: "short", day: "numeric" }
+                    )}
+                  </Text>
+                  {onThisDayMoment.isFavorite && (
+                    <Ionicons name="heart" size={15} color="#EF4444" />
+                  )}
+                </View>
+
+                <Text
+                  style={[
+                    FONTS.h3,
+                    styles.memoryTitle,
+                    { color: themeColors.ink },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {onThisDayMoment.title}
+                </Text>
+
+                <Text
+                  style={[
+                    FONTS.caption,
+                    styles.memoryCaption,
+                    { color: themeColors.inkSoft },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {onThisDayMoment.text}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {/* All Stories & Journeys */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text
+              style={[
+                FONTS.ticketStamp,
+                { color: themeColors.inkSoft },
+              ]}
+            >
+              ALL JOURNEYS ({trips.length})
+            </Text>
+          </View>
+
+          {trips.map((trip) => {
+            const tripMomentsCount = moments.filter(
+              (m) => m.tripId === trip.id
+            ).length;
+            const isCurrent = activeTrip?.id === trip.id;
+
+            return (
+              <TouchableOpacity
+                key={trip.id}
+                activeOpacity={0.9}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setActiveTrip(trip);
+                  navigation.navigate("TripCover", { tripId: trip.id });
+                }}
+                style={[
+                  styles.tripCard,
+                  {
+                    backgroundColor: themeColors.surface,
+                    borderColor: isCurrent
+                      ? trip.themeColor || themeColors.primary
+                      : isDark
+                        ? "rgba(255,255,255,0.08)"
+                        : "rgba(0,0,0,0.05)",
+                    borderWidth: isCurrent ? 2 : 1,
+                  },
+                  SHADOWS.md,
+                ]}
+              >
+                <View style={styles.tripCardImageContainer}>
+                  <Image
+                    source={{ uri: trip.coverUri }}
+                    style={StyleSheet.absoluteFill}
+                    contentFit="cover"
+                    transition={250}
+                  />
+                  <LinearGradient
+                    colors={["transparent", "rgba(0,0,0,0.65)"]}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={styles.tripCardPill}>
+                    <Text style={styles.tripCardStatusText}>
+                      {trip.status.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.tripCardBody}>
+                  <View style={styles.tripCardHeaderRow}>
+                    <Text
                       style={[
-                        styles.briefCard,
-                        {
-                          backgroundColor: themeColors.card,
-                          borderColor: themeColors.line,
-                        },
+                        FONTS.ticketStamp,
+                        { color: trip.themeColor || themeColors.primary },
                       ]}
                     >
-                      <View style={styles.briefHeader}>
-                        <View
-                          style={[
-                            styles.briefMark,
-                            { backgroundColor: themeColors.aubergineSoft },
-                          ]}
-                        >
-                          <Ionicons
-                            name="beans-ai"
-                            size={18}
-                            color={themeColors.primary}
-                          />
-                        </View>
-                        <View style={styles.briefHeadingCopy}>
-                          <Text
-                            style={[
-                              styles.briefTitle,
-                              { color: themeColors.ink },
-                            ]}
-                          >
-                            Beans brief
-                          </Text>
-                          <Text
-                            style={[
-                              styles.briefMeta,
-                              { color: themeColors.inkSoft },
-                            ]}
-                          >
-                            Shopping analysis
-                          </Text>
-                        </View>
-                      </View>
-                      <View
-                        style={[
-                          styles.briefRule,
-                          { backgroundColor: themeColors.line },
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.briefText,
-                          { color: themeColors.ink },
-                        ]}
-                      >
-                        {message.text}
-                      </Text>
-                      {message.searches?.length > 0 ? (
-                        <View style={styles.briefActions}>
-                          {message.searches.map((query) => (
-                            <TouchableOpacity
-                              key={query}
-                              style={[
-                                styles.briefAction,
-                                {
-                                  backgroundColor:
-                                    themeColors.aubergineSoft,
-                                },
-                              ]}
-                              onPress={() =>
-                                navigation.navigate("Search", {
-                                  query,
-                                  platforms:
-                                    message.requestedPlatforms?.length > 0
-                                      ? message.requestedPlatforms
-                                      : undefined,
-                                })
-                              }
-                            >
-                              <Text
-                                style={[
-                                  styles.briefActionText,
-                                  { color: themeColors.primary },
-                                ]}
-                              >
-                                {message.usesRequestAsSearch
-                                  ? message.requestedPlatforms?.length > 0
-                                    ? `Compare on ${message.requestedPlatforms.join(" + ")}`
-                                    : "Start comparing"
-                                  : `Compare ${query}`}
-                              </Text>
-                              <Ionicons
-                                name="arrow-forward"
-                                size={13}
-                                color={themeColors.primary}
-                              />
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      ) : null}
-                    </View>
-                  );
-                })}
-                {thinking ? (
-                  <View
+                      {trip.city ? `${trip.city.toUpperCase()}, ` : ""}
+                      {trip.country?.toUpperCase() || "TRAVEL"}
+                    </Text>
+                    <Text
+                      style={[
+                        FONTS.mono,
+                        { color: themeColors.inkFaint, fontSize: 11 },
+                      ]}
+                    >
+                      {tripMomentsCount} moments
+                    </Text>
+                  </View>
+
+                  <Text
                     style={[
-                      styles.analysisCard,
+                      FONTS.h2,
+                      styles.tripCardTitle,
+                      { color: themeColors.ink },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {trip.title}
+                  </Text>
+
+                  <Text
+                    style={[
+                      FONTS.caption,
+                      { color: themeColors.inkSoft, marginTop: 4 },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {trip.startDate} — {trip.endDate}
+                  </Text>
+
+                  {trip.notes ? (
+                    <Text
+                      style={[
+                        FONTS.caption,
+                        { color: themeColors.inkFaint, marginTop: 6 },
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {trip.notes}
+                    </Text>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <View style={{ height: 120 }} />
+      </ScrollView>
+
+      {/* New Trip Creation Modal */}
+      <Modal
+        visible={createModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setCreateModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContainer,
+              { backgroundColor: themeColors.surface },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <View>
+                <Text
+                  style={[
+                    FONTS.ticketStamp,
+                    { color: themeColors.primary },
+                  ]}
+                >
+                  NEW CHAPTER
+                </Text>
+                <Text
+                  style={[
+                    FONTS.h2,
+                    styles.modalTitle,
+                    { color: themeColors.ink },
+                  ]}
+                >
+                  Create a Trip
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setCreateModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <Ionicons name="close" size={22} color={themeColors.ink} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text
+                style={[
+                  FONTS.captionBold,
+                  styles.fieldLabel,
+                  { color: themeColors.ink },
+                ]}
+              >
+                TRIP TITLE
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    color: themeColors.ink,
+                    borderColor: isDark
+                      ? "rgba(255,255,255,0.15)"
+                      : "rgba(0,0,0,0.1)",
+                    backgroundColor: isDark ? "#1E293B" : "#F8FAF8",
+                  },
+                ]}
+                placeholder="e.g. Lost in the Himalayan Valleys"
+                placeholderTextColor={themeColors.inkFaint}
+                value={newTitle}
+                onChangeText={setNewTitle}
+              />
+
+              <View style={styles.formRow}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text
+                    style={[
+                      FONTS.captionBold,
+                      styles.fieldLabel,
+                      { color: themeColors.ink },
+                    ]}
+                  >
+                    PRIMARY CITY
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
                       {
-                        backgroundColor: themeColors.card,
-                        borderColor: themeColors.line,
+                        color: themeColors.ink,
+                        borderColor: isDark
+                          ? "rgba(255,255,255,0.15)"
+                          : "rgba(0,0,0,0.1)",
+                        backgroundColor: isDark ? "#1E293B" : "#F8FAF8",
+                      },
+                    ]}
+                    placeholder="e.g. Manali"
+                    placeholderTextColor={themeColors.inkFaint}
+                    value={newCity}
+                    onChangeText={setNewCity}
+                  />
+                </View>
+
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text
+                    style={[
+                      FONTS.captionBold,
+                      styles.fieldLabel,
+                      { color: themeColors.ink },
+                    ]}
+                  >
+                    COUNTRY
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        color: themeColors.ink,
+                        borderColor: isDark
+                          ? "rgba(255,255,255,0.15)"
+                          : "rgba(0,0,0,0.1)",
+                        backgroundColor: isDark ? "#1E293B" : "#F8FAF8",
+                      },
+                    ]}
+                    placeholder="e.g. India"
+                    placeholderTextColor={themeColors.inkFaint}
+                    value={newCountry}
+                    onChangeText={setNewCountry}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.formRow}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text
+                    style={[
+                      FONTS.captionBold,
+                      styles.fieldLabel,
+                      { color: themeColors.ink },
+                    ]}
+                  >
+                    START DATE
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        color: themeColors.ink,
+                        borderColor: isDark
+                          ? "rgba(255,255,255,0.15)"
+                          : "rgba(0,0,0,0.1)",
+                        backgroundColor: isDark ? "#1E293B" : "#F8FAF8",
+                      },
+                    ]}
+                    value={newStartDate}
+                    onChangeText={setNewStartDate}
+                  />
+                </View>
+
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text
+                    style={[
+                      FONTS.captionBold,
+                      styles.fieldLabel,
+                      { color: themeColors.ink },
+                    ]}
+                  >
+                    END DATE
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        color: themeColors.ink,
+                        borderColor: isDark
+                          ? "rgba(255,255,255,0.15)"
+                          : "rgba(0,0,0,0.1)",
+                        backgroundColor: isDark ? "#1E293B" : "#F8FAF8",
+                      },
+                    ]}
+                    value={newEndDate}
+                    onChangeText={setNewEndDate}
+                  />
+                </View>
+              </View>
+
+              <Text
+                style={[
+                  FONTS.captionBold,
+                  styles.fieldLabel,
+                  { color: themeColors.ink },
+                ]}
+              >
+                TRIP STORY / INTENTION
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    height: 70,
+                    textAlignVertical: "top",
+                    color: themeColors.ink,
+                    borderColor: isDark
+                      ? "rgba(255,255,255,0.15)"
+                      : "rgba(0,0,0,0.1)",
+                    backgroundColor: isDark ? "#1E293B" : "#F8FAF8",
+                  },
+                ]}
+                placeholder="What is this trip about?"
+                placeholderTextColor={themeColors.inkFaint}
+                multiline
+                value={newNotes}
+                onChangeText={setNewNotes}
+              />
+
+              <Text
+                style={[
+                  FONTS.captionBold,
+                  styles.fieldLabel,
+                  { color: themeColors.ink },
+                ]}
+              >
+                COVER PHOTO THEME
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.coverSelectorRow}
+              >
+                {PRESET_COVERS.map((uri, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => setSelectedCoverIndex(idx)}
+                    style={[
+                      styles.coverChoice,
+                      selectedCoverIndex === idx && {
+                        borderColor: themeColors.primary,
+                        borderWidth: 3,
                       },
                     ]}
                   >
-                    <ActivityIndicator
-                      size="small"
-                      color={themeColors.primary}
+                    <Image
+                      source={{ uri }}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
                     />
-                    <View>
-                      <Text
-                        style={[
-                          styles.analysisTitle,
-                          { color: themeColors.ink },
-                        ]}
-                      >
-                        Building your brief
-                      </Text>
-                      <Text
-                        style={[
-                          styles.analysisSubtitle,
-                          { color: themeColors.inkSoft },
-                        ]}
-                      >
-                        Beans is reviewing your shopping context
-                      </Text>
-                    </View>
-                  </View>
-                ) : null}
-              </View>
-            )}
-          </View>
-          <View
-            style={[
-              styles.bottomSpace,
-              messages.length === 0 && styles.bottomSpaceIdle,
-            ]}
-          />
-        </ScrollView>
-      </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
 
-      <LocationPickerModal
-        visible={locationModalVisible}
-        onClose={() => setLocationModalVisible(false)}
-        onSave={({ city, pincode }) => {
-          setCurrentCity(city);
-          setCurrentPincode(pincode);
-        }}
-      />
+              <Text
+                style={[
+                  FONTS.captionBold,
+                  styles.fieldLabel,
+                  { color: themeColors.ink },
+                ]}
+              >
+                ACCENT PALETTE
+              </Text>
+              <View style={styles.colorPaletteRow}>
+                {PRESET_COLORS.map((preset, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => setSelectedColorIndex(idx)}
+                    style={[
+                      styles.colorCircle,
+                      { backgroundColor: preset.primary },
+                      selectedColorIndex === idx && {
+                        borderWidth: 3,
+                        borderColor: themeColors.ink,
+                        transform: [{ scale: 1.15 }],
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.createSubmitBtn,
+                  { backgroundColor: themeColors.primary },
+                ]}
+                onPress={handleCreateTrip}
+              >
+                <Text style={styles.createSubmitBtnText}>
+                  Begin This Story
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: SPACING.xl,
-    paddingTop: 24,
-  },
-  scrollContentIdle: {
-    flexGrow: 1,
-    paddingTop: 0,
-  },
-  idleContent: {
+  container: {
     flex: 1,
-    justifyContent: "center",
   },
-  greeting: {
-    ...FONTS.editorial,
-    fontSize: 20,
-    lineHeight: 27,
-    letterSpacing: -0.2,
-  },
-  composer: {
-    height: 58,
-    borderRadius: 29,
-    borderWidth: 1,
-    marginTop: 12,
-    ...SHADOWS.sm,
-  },
-  composerContent: {
-    paddingLeft: 19,
-    paddingRight: 14,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  composerInput: {
-    ...FONTS.uiBody,
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-    paddingRight: 12,
-    paddingVertical: 0,
-  },
-  composerSend: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sectionLabel: {
-    ...FONTS.uiBodyBold,
-    fontSize: 9,
-    letterSpacing: 1.35,
-    marginTop: 30,
-    marginBottom: 11,
-  },
-  radarSection: {
-    marginTop: 30,
-  },
-  radarSectionHeader: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 11,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
   },
-  radarSectionLabel: {
-    fontFamily: "InterBold",
-    fontWeight: "700",
-    fontSize: 12,
-    letterSpacing: 1.05,
-    marginTop: 0,
-    marginBottom: 0,
+  subtitle: {
+    letterSpacing: 1.5,
+    marginBottom: 2,
   },
-  radarCard: {
-    minHeight: 220,
-    borderRadius: 26,
-    padding: 20,
-    overflow: "hidden",
-    ...SHADOWS.md,
+  headerTitle: {
+    fontSize: 28,
+    fontFamily: "FrauncesBold",
   },
-  radarGlowLarge: {
-    position: "absolute",
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    right: -72,
-    top: -82,
-    backgroundColor: "rgba(255,255,255,0.07)",
-  },
-  radarGlowSmall: {
-    position: "absolute",
-    width: 82,
-    height: 82,
-    borderRadius: 41,
-    right: 46,
-    bottom: -50,
-    backgroundColor: "rgba(255,255,255,0.05)",
-  },
-  radarTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  radarMark: {
-    width: 36,
-    height: 36,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-  },
-  radarEyebrow: {
-    ...FONTS.uiBodyBold,
-    marginLeft: 10,
-    fontSize: 9,
-    letterSpacing: 1.3,
-    color: "rgba(255,255,255,0.68)",
-  },
-  radarTitle: {
-    ...FONTS.editorialBold,
-    marginTop: 18,
-    fontSize: 25,
-    lineHeight: 30,
-    letterSpacing: -0.35,
-    color: "#FFFFFF",
-    textTransform: "capitalize",
-  },
-  radarDescription: {
-    ...FONTS.uiBody,
-    maxWidth: "90%",
-    marginTop: 7,
-    fontSize: 12,
-    lineHeight: 18,
-    color: "rgba(255,255,255,0.72)",
-  },
-  radarFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 19,
-  },
-  radarAction: {
-    minHeight: 36,
-    maxWidth: "62%",
-    borderRadius: 18,
-    paddingHorizontal: 14,
+  headerRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(255,255,255,0.94)",
   },
-  radarActionText: {
-    ...FONTS.uiBodyBold,
-    flexShrink: 1,
-    fontSize: 10.5,
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  radarMeta: {
-    ...FONTS.uiBodyMedium,
-    maxWidth: "34%",
-    fontSize: 9.5,
-    lineHeight: 13,
-    textAlign: "right",
-    color: "rgba(255,255,255,0.62)",
+  newTripBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    height: 40,
+    borderRadius: 20,
+    gap: 4,
   },
-  clearHistory: {
-    ...FONTS.uiBodyBold,
-    fontSize: 10,
+  newTripBtnText: {
+    color: "#FFFFFF",
+    fontFamily: "InterSemiBold",
+    fontSize: 13,
   },
-  workspace: {
-    marginTop: 24,
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
-  workspaceHeader: {
+  section: {
+    marginTop: 20,
+  },
+  sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  workspaceLabel: {
-    marginTop: 0,
-    marginBottom: 0,
-  },
-  newBrief: {
-    ...FONTS.uiBodyBold,
-    fontSize: 10.5,
-  },
-  requestBlock: {
-    marginBottom: 13,
-    paddingHorizontal: 3,
-  },
-  requestLabel: {
-    ...FONTS.uiBodyBold,
-    fontSize: 8,
-    letterSpacing: 1.05,
-  },
-  requestTextRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginTop: 6,
-  },
-  requestText: {
-    ...FONTS.editorial,
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 21,
-    marginLeft: 8,
-  },
-  briefCard: {
-    borderRadius: 22,
-    borderWidth: 1,
-    padding: 17,
-    marginBottom: 19,
-    ...SHADOWS.sm,
-  },
-  briefHeader: {
+  pulseDotWrapper: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  briefMark: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  briefHeadingCopy: {
-    marginLeft: 10,
-  },
-  briefTitle: {
-    ...FONTS.editorial,
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  briefMeta: {
-    ...FONTS.uiBody,
-    fontSize: 9.5,
-    marginTop: 1,
-  },
-  briefRule: {
-    height: 1,
-    marginVertical: 14,
-  },
-  briefText: {
-    ...FONTS.uiBody,
-    fontSize: 12.5,
-    lineHeight: 20,
-  },
-  briefActions: {
-    marginTop: 14,
     gap: 8,
   },
-  briefAction: {
-    minHeight: 42,
-    borderRadius: 13,
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  quickCaptureBtn: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  heroCard: {
+    height: 360,
+    borderRadius: 28,
+    overflow: "hidden",
+    justifyContent: "space-between",
+    padding: 20,
+  },
+  heroTopBadges: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  heroGlassBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  heroBadgeText: {
+    color: "#FFFFFF",
+    fontFamily: "IBMPlexMonoSemiBold",
+    fontSize: 11,
+    letterSpacing: 0.5,
+  },
+  heroContent: {
+    gap: 6,
+  },
+  heroDates: {
+    color: "rgba(255,255,255,0.75)",
+    fontFamily: "IBMPlexMono",
+    fontSize: 12,
+  },
+  heroTitle: {
+    color: "#FFFFFF",
+    fontFamily: "FrauncesBold",
+    fontSize: 26,
+    lineHeight: 32,
+  },
+  heroNotes: {
+    color: "rgba(255,255,255,0.85)",
+    fontFamily: "Inter",
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  heroActionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 14,
+  },
+  heroActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 16,
+  },
+  heroActionBtnText: {
+    color: "#FFFFFF",
+    fontFamily: "InterSemiBold",
+    fontSize: 13,
+  },
+  heroActionGhostBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.20)",
+  },
+  heroActionGhostText: {
+    color: "#FFFFFF",
+    fontFamily: "InterMedium",
+    fontSize: 13,
+  },
+  memoryCard: {
+    flexDirection: "row",
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 12,
+    alignItems: "center",
+    gap: 14,
+  },
+  memoryThumb: {
+    width: 76,
+    height: 76,
+    borderRadius: 14,
+  },
+  memoryDetails: {
+    flex: 1,
+    gap: 3,
+  },
+  memoryTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  briefActionText: {
-    ...FONTS.uiBodyBold,
-    fontSize: 11,
+  memoryTitle: {
+    fontSize: 16,
+    fontFamily: "FrauncesSemiBold",
   },
-  analysisCard: {
-    minHeight: 68,
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingHorizontal: 15,
+  memoryCaption: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  tripCard: {
+    borderRadius: 24,
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  tripCardImageContainer: {
+    height: 160,
+    width: "100%",
+  },
+  tripCardPill: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    backgroundColor: "rgba(0,0,0,0.50)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  tripCardStatusText: {
+    color: "#FFFFFF",
+    fontFamily: "IBMPlexMonoSemiBold",
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  tripCardBody: {
+    padding: 16,
+  },
+  tripCardHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    justifyContent: "space-between",
+    marginBottom: 4,
   },
-  analysisTitle: {
-    ...FONTS.editorial,
-    fontSize: 14,
+  tripCardTitle: {
+    fontSize: 20,
+    fontFamily: "FrauncesBold",
   },
-  analysisSubtitle: {
-    ...FONTS.uiBody,
-    fontSize: 9.5,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.60)",
+    justifyContent: "flex-end",
+  },
+  modalContainer: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
+    maxHeight: "88%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontFamily: "FrauncesBold",
     marginTop: 2,
   },
-  bottomSpace: {
-    height: 130,
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.06)",
   },
-  bottomSpaceIdle: {
-    height: 84,
+  fieldLabel: {
+    fontSize: 11,
+    letterSpacing: 1,
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  input: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontFamily: "Inter",
+  },
+  formRow: {
+    flexDirection: "row",
+  },
+  coverSelectorRow: {
+    marginVertical: 6,
+  },
+  coverChoice: {
+    width: 90,
+    height: 60,
+    borderRadius: 12,
+    marginRight: 10,
+    overflow: "hidden",
+  },
+  colorPaletteRow: {
+    flexDirection: "row",
+    gap: 14,
+    marginVertical: 10,
+  },
+  colorCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  createSubmitBtn: {
+    marginTop: 24,
+    marginBottom: 20,
+    borderRadius: 18,
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  createSubmitBtnText: {
+    color: "#FFFFFF",
+    fontFamily: "InterSemiBold",
+    fontSize: 16,
   },
 });
 

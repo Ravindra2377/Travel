@@ -161,10 +161,10 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      setUserToken(token);
+      setUserToken((currentToken) => currentToken || token);
       if (token) markSessionActive();
       if (userData) {
-        setUser(JSON.parse(userData));
+        setUser((currentUser) => currentUser || JSON.parse(userData));
       }
     } catch (e) {
       console.log("isLoggedIn error:", e?.message || e);

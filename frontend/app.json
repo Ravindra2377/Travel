@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "CompareZ",
+    "name": "Trip Moments",
     "slug": "frontend",
     "version": "1.0.2",
     "icon": "./assets/icon_new.png",
@@ -13,7 +13,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.panviravindra.comparez",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "CompareZ uses your location to show you the best prices and delivery times in your area.",
+        "NSLocationWhenInUseUsageDescription": "Trip Moments uses your location to auto-tag places and draw your travel route.",
+        "NSCameraUsageDescription": "Capture travel photos and moments directly in your trip story.",
+        "NSPhotoLibraryUsageDescription": "Import travel photos into your trip timeline.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -29,9 +31,7 @@
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -41,7 +41,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow CompareZ to use your location to find the best delivery prices."
+          "locationWhenInUsePermission": "Allow Trip Moments to use your location to auto-tag places and draw your travel route."
         }
       ],
       "expo-audio",
@@ -53,7 +53,12 @@
             "enableShrinkResourcesInReleaseBuilds": true
           }
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-font",
+      "expo-image",
+      "expo-secure-store",
+      "expo-status-bar"
     ],
     "owner": "panvi_ravindra",
     "extra": {

@@ -172,11 +172,15 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
             const isFocused = state.index === index;
             const animatedScale = scaleAnims[index];
             const accessibilityLabel =
-              route.name === "MealPlanner"
-                ? "Meal Cart"
-                : route.name === "Likes"
-                  ? "Wishlist"
-                  : route.name;
+              route.name === "Journal" || route.name === "MealPlanner"
+                ? "Journal"
+                : route.name === "Capture"
+                  ? "Capture Moment"
+                  : route.name === "Map"
+                    ? "Route Map"
+                    : route.name === "Passport" || route.name === "Profile"
+                      ? "Passport"
+                      : "Trips";
 
             const onPress = () => {
               if (swipeInProgress.current) return;
@@ -192,7 +196,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               if (!reduceMotion) {
                 Animated.sequence([
                   Animated.spring(animatedScale, {
-                    toValue: 0.96,
+                    toValue: 0.94,
                     useNativeDriver: true,
                     bounciness: 0,
                   }),
@@ -210,30 +214,43 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               }
             };
 
-            // Custom Icon Logic
+            // Custom Icon Logic for Trip Moments
             const renderIcon = () => {
-              let iconName = "";
+              if (route.name === "Capture") {
+                return (
+                  <View
+                    style={[
+                      styles.captureButton,
+                      {
+                        backgroundColor: themeColors.primary,
+                        shadowColor: themeColors.primary,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="add" size={26} color="#FFFFFF" />
+                  </View>
+                );
+              }
 
+              let iconName = "";
               switch (route.name) {
                 case "Home":
-                  iconName = isFocused
-                    ? "comparez-home-active"
-                    : "comparez-home";
+                case "Trips":
+                  iconName = isFocused ? "compass" : "compass-outline";
                   break;
+                case "Journal":
                 case "MealPlanner":
-                  iconName = "comparez-meal-cart";
+                  iconName = isFocused ? "journal" : "journal-outline";
                   break;
-                case "Search":
-                  iconName = "comparez-search";
+                case "Map":
+                  iconName = isFocused ? "map" : "map-outline";
                   break;
-                case "Deals":
-                  iconName = isFocused ? "pricetags" : "pricetags-outline";
-                  break;
-                case "Likes":
-                  iconName = "comparez-wishlist";
-                  break;
+                case "Passport":
                 case "Profile":
-                  iconName = isFocused ? "person" : "person-outline";
+                  iconName = isFocused ? "earth" : "earth-outline";
+                  break;
+                default:
+                  iconName = isFocused ? "compass" : "compass-outline";
                   break;
               }
 
@@ -241,7 +258,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                 <View style={styles.tabItem}>
                   <Ionicons
                     name={iconName}
-                    size={26}
+                    size={24}
                     color={
                       isFocused ? themeColors.primary : themeColors.inkSoft
                     }
@@ -326,6 +343,17 @@ const styles = StyleSheet.create({
     width: 64,
     height: 54,
     borderRadius: 24,
+  },
+  captureButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });
 

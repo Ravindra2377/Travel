@@ -1,7 +1,11 @@
 import React, { createContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export const WishlistContext = createContext();
+export const WishlistContext = createContext({
+  wishlist: [],
+  toggleWishlist: () => {},
+  isLiked: () => false,
+});
 
 export const WishlistProvider = ({ children }) => {
   const [wishlist, setWishlist] = useState([]);

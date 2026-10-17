@@ -1,48 +1,56 @@
-# PricePilot
+# Trip Moments 🧭
 
-PricePilot is a cross-platform mobile application for real-time product price comparison across multiple e-commerce platforms.
+A mobile travel memory application where a trip feels like a story, not a folder.
 
-## Tech Stack (Trendu Tech)
-- **Frontend**: React Native (Expo)
-- **Backend**: Go (Echo Framework)
-- **Database**: PostgreSQL
-- **Caching**: Redis
-- **Search**: Meilisearch (Planned)
+Built with **Expo SDK 57**, **React Native 0.86**, and the tactile **LiquidGlass** design system.
 
-## Prerequisites
-- Go 1.24+ 
+---
+
+## 🌟 The Core Idea: A Trip is a Story
+
+Everything revolves around one object: the **Trip**. Each trip has a cover, a route, days, and moments, and it can be replayed or shared as a finished piece.
+
+### Key Screens
+
+1. **Trip Cover**: A full-bleed hero photo with a serif title (`Fraunces`), dates (`IBM Plex Mono`), and quiet stats (days, places, moments, kilometers).
+2. **Day-by-Day Journal**: A scroll-driven timeline. Each day opens with a frosted glass header (date, weather icon & temperature, city), and moments sit below in varied photo card sizes with time and place stamps.
+3. **Route Map**: The traveler's path drawn across an interactive map with photo pins and a route scrub slider that highlights the moment nearest to each stop.
+4. **Fast Capture**: One-tap "Trip Mode". Time, place, and weather are filled in automatically via `expo-location` and Open-Meteo, with offline instant saving.
+5. **Recap Reel & 9:16 Cards**: Auto-built Instagram-style story reel of the trip, plus shareable 9:16 story cards.
+6. **Traveler's Passport**: A profile of countries, cities, kilometers, and collectible expedition stamps across all journeys.
+
+---
+
+## 🎨 Design System & Aesthetics
+
+- **Surfaces**: Photography leads. `LiquidGlass` and `GlassCard` translucent chrome float over travel imagery with gradient scrims.
+- **Typography**:
+  - `Fraunces` (serif) for story titles and headers.
+  - `IBM Plex Mono` for timestamps, GPS coordinates, and ticket stamps.
+  - `Inter` for body and narrative captions.
+- **Colors**:
+  - Light Paper (`#F7F8F7`), Ink (`#18201C`), and Forest Green (`#16845B`).
+  - Dark Emerald (`#0E1511`) night mode.
+  - Per-trip color tinting derived from each trip's cover palette.
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
 - Node.js 18+
-- Docker & Docker Compose
+- Expo Go (SDK 57) or Android/iOS Emulator
 
-## Quick Start
-
-### 1. Start Infrastructure (Database & Redis)
-```bash
-cd docker
-docker-compose up -d
-```
-
-### 2. Run Backend
-```bash
-cd backend
-go run main.go
-```
-The server will start at `http://localhost:8080`.
-Health check: `curl http://localhost:8080/health`
-
-### 3. Run Frontend (Mobile App)
-First, ensure you have dependencies installed:
+### Run the App
 ```bash
 cd frontend
 npm install
+npx expo start -c
 ```
-Then start the Expo development server:
-```bash
-npx expo start
-```
-Scan the QR code with the Expo Go app on your phone (Android/iOS) or press `i` to open in iOS Simulator / `a` to open in Android Emulator.
 
-## Project Structure
-- `backend/`: Go API server.
-- `frontend/`: React Native (Expo) application.
-- `docker/`: Docker Compose configuration for local development.
+### Run Tests
+```bash
+cd frontend
+npm test
+```
+All 17 test suites (124+ unit tests) validate storage CRUD, distance calculation, theme tokens, and screen mounting.

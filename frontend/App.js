@@ -3,12 +3,10 @@ import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
-import { AuthContext, AuthProvider } from "./context/AuthContext";
-import { WishlistProvider } from "./context/WishlistContext";
-import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
-import { COLORS } from "./config/theme";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
+
 import {
   Fraunces_400Regular,
   Fraunces_500Medium,
@@ -21,68 +19,64 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
+import {
+  IBMPlexMono_400Regular,
+  IBMPlexMono_500Medium,
+  IBMPlexMono_600SemiBold,
+} from "@expo-google-fonts/ibm-plex-mono";
 
-// Auth Screens
-import LoginScreen from "./screens/LoginScreen";
-import RegisterScreen from "./screens/RegisterScreen";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
+import { TripProvider } from "./context/TripContext";
+import { AuthProvider, AuthContext } from "./context/AuthContext";
+import { WishlistProvider } from "./context/WishlistContext";
+import { COLORS } from "./config/theme";
 
-// Main Screens
-import HomeScreen from "./screens/HomeScreen";
-import SearchScreen from "./screens/SearchScreen";
-import ProductDetailScreen from "./screens/ProductDetailScreen";
-import ProfileScreen from "./screens/ProfileScreen";
-import WishlistScreen from "./screens/WishlistScreen";
-import AccountsScreen from "./screens/AccountsScreen";
-import SupportChatScreen from "./screens/SupportChatScreen";
-import TermsScreen from "./screens/TermsScreen";
-import MealPlannerScreen from "./screens/MealPlannerScreen";
-import InAppBrowser from "./components/InAppBrowser";
 import CustomTabBar from "./components/CustomTabBar";
-import AICopilot from "./components/AICopilot";
+import SplashScreen from "./screens/SplashScreen";
+
+// Trip Moments Screens
+import HomeScreen from "./screens/HomeScreen";
+import TripCoverScreen from "./screens/TripCoverScreen";
+import TripJournalScreen from "./screens/TripJournalScreen";
+import MomentCaptureScreen from "./screens/MomentCaptureScreen";
+import RouteMapScreen from "./screens/RouteMapScreen";
+import MomentDetailScreen from "./screens/MomentDetailScreen";
+import TripRecapScreen from "./screens/TripRecapScreen";
+import PassportScreen from "./screens/PassportScreen";
+import SearchScreen from "./screens/SearchScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-
-const getActiveRouteName = (state) => {
-  if (!state?.routes?.length) return "Home";
-  let route = state.routes[state.index || 0];
-  while (route?.state?.routes?.length) {
-    route = route.state.routes[route.state.index || 0];
-  }
-  return route?.name || "Home";
-};
 
 const MainTabs = () => {
   const { themeColors } = useTheme();
   return (
     <Tab.Navigator
       tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={({ route }) => ({
+      screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: themeColors.primary,
         tabBarInactiveTintColor: themeColors.textTertiary,
         tabBarShowLabel: false,
-      })}
+      }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="MealPlanner" component={MealPlannerScreen} />
-      <Tab.Screen name="Search" component={SearchScreen} />
-      <Tab.Screen name="Likes" component={WishlistScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Journal" component={TripJournalScreen} />
+      <Tab.Screen
+        name="Capture"
+        component={MomentCaptureScreen}
+        options={{ animation: "slide_from_bottom" }}
+      />
+      <Tab.Screen name="Map" component={RouteMapScreen} />
+      <Tab.Screen name="Passport" component={PassportScreen} />
     </Tab.Navigator>
   );
 };
 
-import SplashScreen from "./screens/SplashScreen";
-
-
-
 const AppNav = () => {
-  const { isLoading, userToken } = useContext(AuthContext);
   const { themeColors, isDark } = useTheme();
   const [showSplash, setShowSplash] = React.useState(true);
   const [fontWaitExpired, setFontWaitExpired] = React.useState(false);
-  const [activeRouteName, setActiveRouteName] = React.useState("Home");
 
   const [fontsLoaded, fontError] = useFonts({
     Fraunces: Fraunces_400Regular,
@@ -93,43 +87,28 @@ const AppNav = () => {
     InterMedium: Inter_500Medium,
     InterSemiBold: Inter_600SemiBold,
     InterBold: Inter_700Bold,
+    IBMPlexMono: IBMPlexMono_400Regular,
+    IBMPlexMonoMedium: IBMPlexMono_500Medium,
+    IBMPlexMonoSemiBold: IBMPlexMono_600SemiBold,
   });
 
   const fontsReady = fontsLoaded || Boolean(fontError) || fontWaitExpired;
 
-  // Release builds must never be held on the splash by a font-loading failure.
   React.useEffect(() => {
     const safetyTimer = setTimeout(() => {
       console.warn("[App] Startup timeout reached; continuing with available fonts");
       setFontWaitExpired(true);
       setShowSplash(false);
-    }, 5000);
+    }, 4000);
     return () => clearTimeout(safetyTimer);
   }, []);
 
-  React.useEffect(() => {
-    if (fontError) {
-      console.warn("[App] Custom fonts failed to load; using system fallbacks", fontError);
-    }
-  }, [fontError]);
-
-  // Show splash while it's active or fonts are still loading
   if (showSplash || !fontsReady) {
     return (
       <>
         <StatusBar style={isDark ? "light" : "dark"} />
         <SplashScreen onFinish={() => setShowSplash(false)} />
       </>
-    );
-  }
-
-  // After splash is done, wait for auth to finish loading
-  if (isLoading) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
-        <StatusBar style={isDark ? "light" : "dark"} />
-        <ActivityIndicator size="large" color={themeColors.primary || COLORS.primary} />
-      </View>
     );
   }
 
@@ -148,73 +127,55 @@ const AppNav = () => {
   };
 
   return (
-    <NavigationContainer
-      theme={customTheme}
-      onStateChange={(state) => setActiveRouteName(getActiveRouteName(state))}
-    >
+    <NavigationContainer theme={customTheme}>
       <StatusBar style={isDark ? "light" : "dark"} />
       <View style={{ flex: 1, backgroundColor: themeColors.paper }}>
-        <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
-          {userToken !== null ? (
-            <>
-              <Stack.Screen name="MainTabs" component={MainTabs} />
-              <Stack.Screen
-                name="Search"
-                component={SearchScreen}
-                options={{ animation: "slide_from_right" }}
-              />
-              <Stack.Screen
-                name="ProductDetail"
-                component={ProductDetailScreen}
-                options={{ animation: "slide_from_right" }}
-              />
-              <Stack.Screen
-                name="InAppBrowser"
-                component={InAppBrowser}
-                options={{ animation: "slide_from_bottom" }}
-              />
-              <Stack.Screen
-                name="Accounts"
-                component={AccountsScreen}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="SupportChat"
-                component={SupportChatScreen}
-                options={{ animation: "slide_from_right", headerShown: false }}
-              />
-              <Stack.Screen
-                name="Terms"
-                component={TermsScreen}
-                options={{ animation: "slide_from_right", headerShown: false }}
-              />
-              <Stack.Screen
-                name="MealPlanner"
-                component={MealPlannerScreen}
-                options={{ animation: "slide_from_bottom", headerShown: false }}
-              />
-            </>
-          ) : (
-            <>
-              <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen name="Register" component={RegisterScreen} />
-              <Stack.Screen
-                name="SupportChat"
-                component={SupportChatScreen}
-                options={{ animation: "slide_from_right", headerShown: false }}
-              />
-              <Stack.Screen
-                name="Terms"
-                component={TermsScreen}
-                options={{ animation: "slide_from_right", headerShown: false }}
-              />
-            </>
-          )}
+        <Stack.Navigator
+          screenOptions={{ headerShown: false, animation: "fade" }}
+          initialRouteName="MainTabs"
+        >
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen
+            name="TripCover"
+            component={TripCoverScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+            name="Journal"
+            component={TripJournalScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+            name="Capture"
+            component={MomentCaptureScreen}
+            options={{ animation: "slide_from_bottom" }}
+          />
+          <Stack.Screen
+            name="Map"
+            component={RouteMapScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+            name="MomentDetail"
+            component={MomentDetailScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+            name="TripRecap"
+            component={TripRecapScreen}
+            options={{ animation: "slide_from_bottom" }}
+          />
+          <Stack.Screen
+            name="Passport"
+            component={PassportScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+            name="Search"
+            component={SearchScreen}
+            options={{ animation: "slide_from_right" }}
+          />
         </Stack.Navigator>
-        {/* AICopilot must be inside NavigationContainer to use useNavigationState */}
-        {userToken !== null && (
-          <AICopilot activeRouteName={activeRouteName} />
-        )}
       </View>
     </NavigationContainer>
   );
@@ -228,17 +189,17 @@ const styles = StyleSheet.create({
   },
 });
 
-import { SafeAreaProvider } from "react-native-safe-area-context";
-
 export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <WishlistProvider>
-            <AppNav />
-          </WishlistProvider>
-        </AuthProvider>
+        <TripProvider>
+          <AuthProvider>
+            <WishlistProvider>
+              <AppNav />
+            </WishlistProvider>
+          </AuthProvider>
+        </TripProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

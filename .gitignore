@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing and coverage
+coverage/
+artifacts/
+
+# Expo and React Native
+.expo/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Environment and secrets
+.env
+.env*.local
+*.pem
+
+# Logs and scratch output
+*.log
+backend.log
+recovery_log.txt
+npm-debug.*
+yarn-debug.*
+emulator_logcat.txt
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Compiled binaries
+comparex
+comparex_app
+comparez

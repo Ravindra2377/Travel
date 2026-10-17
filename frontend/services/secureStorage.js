@@ -1,19 +1,19 @@
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
-const webStorage = typeof globalThis !== "undefined" ? globalThis.localStorage : null;
-
 export const secureStorage = {
   async getItem(key) {
     if (Platform.OS === "web") {
-      return webStorage?.getItem(key) ?? null;
+      const storage = typeof globalThis !== "undefined" ? globalThis.localStorage : null;
+      return storage?.getItem(key) ?? null;
     }
     return SecureStore.getItemAsync(key);
   },
 
   async setItem(key, value) {
     if (Platform.OS === "web") {
-      webStorage?.setItem(key, value);
+      const storage = typeof globalThis !== "undefined" ? globalThis.localStorage : null;
+      storage?.setItem(key, value);
       return;
     }
     await SecureStore.setItemAsync(key, value, {
@@ -23,7 +23,8 @@ export const secureStorage = {
 
   async removeItem(key) {
     if (Platform.OS === "web") {
-      webStorage?.removeItem(key);
+      const storage = typeof globalThis !== "undefined" ? globalThis.localStorage : null;
+      storage?.removeItem(key);
       return;
     }
     await SecureStore.deleteItemAsync(key);
