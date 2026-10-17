@@ -68,8 +68,51 @@ describe("tripStorage service", () => {
     const parsed = JSON.parse(backupJson);
     expect(parsed.appName).toBe("TripMoments");
     expect(Array.isArray(parsed.trips)).toBe(true);
+    expect(Array.isArray(parsed.diaryEntries)).toBe(true);
 
     const success = await tripStorage.importBackup(backupJson);
     expect(success).toBe(true);
+  });
+
+  test("loads initial diary entries when storage is empty", async () => {
+    const diary = await tripStorage.getDiaryEntries();
+    expect(diary).toBeDefined();
+    expect(diary.length).toBeGreaterThanOrEqual(1);
+    expect(diary[0].mood).toBe("blown_away");
+    expect(diary[0].isPrivate).toBe(true);
+  });
+
+  test("can save, retrieve, and delete diary entry", async () => {
+    const entry = await tripStorage.saveDiaryEntry({
+      tripId: "trip-2",
+      dateKey: "2025-11-05",
+      mood: "peaceful",
+      text: "Early morning matcha near Gion alley with mist hanging over cedar rooftops.",
+      isPrivate: true,
+      linkedMomentIds: ["m-2-1"],
+      factsSkeleton: "📍 Gion, Kyoto · 🌤️ 14°C Crisp · 📸 1 moment",
+    });
+
+    expect(entry.id).toBeDefined();
+    expect(entry.mood).toBe("peaceful");
+
+    const fetched = await tripStorage.getDiaryEntry("trip-2", "2025-11-05");
+    expect(fetched).not.toBeNull();
+    expect(fetched.text).toContain("matcha");
+    expect(fetched.isPrivate).toBe(true);
+
+    // Update entry
+    const updated = await tripStorage.saveDiaryEntry({
+      ...entry,
+      mood: "reflective",
+      isPrivate: false,
+    });
+    expect(updated.mood).toBe("reflective");
+    expect(updated.isPrivate).toBe(false);
+
+    // Delete entry
+    await tripStorage.deleteDiaryEntry(entry.id);
+    const afterDelete = await tripStorage.getDiaryEntry("trip-2", "2025-11-05");
+    expect(afterDelete).toBeNull();
   });
 });

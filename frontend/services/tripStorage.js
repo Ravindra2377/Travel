@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const STORAGE_KEYS = {
   TRIPS: "@trip_moments_trips_v1",
   MOMENTS: "@trip_moments_moments_v1",
+  DIARY: "@trip_moments_diary_v1",
   SAVED_PLACES: "@trip_moments_saved_places_v1",
   SETTINGS: "@trip_moments_settings_v1",
 };
@@ -224,6 +225,44 @@ export const INITIAL_MOMENTS = [
   },
 ];
 
+export const DIARY_MOODS = [
+  { id: "adventurous", label: "Adventurous", emoji: "🥾", color: "#16845B" },
+  { id: "peaceful", label: "Peaceful", emoji: "🧘", color: "#0284C7" },
+  { id: "joyful", label: "Joyful", emoji: "😊", color: "#D97706" },
+  { id: "blown_away", label: "Blown Away", emoji: "🤯", color: "#7C3AED" },
+  { id: "exhausted", label: "Exhausted", emoji: "😴", color: "#64748B" },
+  { id: "reflective", label: "Reflective", emoji: "✨", color: "#E11D48" },
+];
+
+export const DIARY_STARTER_PROMPTS = [
+  "🍽️ The best thing I ate today was...",
+  "🤝 Someone memorable I met was...",
+  "✨ Something that completely surprised me was...",
+  "🌅 My favorite quiet moment was...",
+  "🎒 What I learned or discovered today...",
+  "👣 Where my feet wandered when I got lost...",
+];
+
+export const INITIAL_DIARY_ENTRIES = [
+  {
+    id: "diary-1-2026-10-15",
+    tripId: "trip-1",
+    dateKey: "2026-10-15",
+    mood: "blown_away",
+    text:
+      "Woke up at 5:30 AM before the sun cleared the boulder ridge. The temple elephant Lakshmi stepped into the river ghats right as the gopuram caught its first golden ray—a sight that makes you forget time exists.\n\nClimbing Matanga Hill in the late afternoon felt like ascending another planet. Granite boulders balancing on each other for miles, glowing in molten copper light. Met a local flutist playing near the summit pavilion; the melody drifted all the way across the Tungabhadra.",
+    linkedMomentIds: ["m-1-1", "m-1-2", "m-1-3"],
+    isPrivate: true,
+    tags: ["sunrise", "matanga", "peace"],
+    factsSkeleton: "📍 Hampi Bazaar & Matanga Hill · 🌤️ 27°C Golden Hour · 📸 3 moments · 🚶 ~2.8 km traveled",
+    audioUri: null,
+    createdAt: "2026-10-15T19:30:00Z",
+    updatedAt: "2026-10-15T19:30:00Z",
+    deletedAt: null,
+  },
+];
+
+
 // Helper: Calculate great-circle distance between two GPS points in kilometers
 export const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
   if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
@@ -328,6 +367,11 @@ export const tripStorage = {
     const moments = await this.getMoments();
     const updatedMoments = moments.filter((m) => m.tripId !== id);
     await this.saveMoments(updatedMoments);
+
+    // Also delete associated diary entries
+    const diaryEntries = await this.getDiaryEntries();
+    const updatedDiary = diaryEntries.filter((d) => d.tripId !== id);
+    await this.saveDiaryEntries(updatedDiary);
 
     return true;
   },
@@ -463,16 +507,105 @@ export const tripStorage = {
     };
   },
 
+  // Diary Service Methods
+  async getDiaryEntries(tripId = null) {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.DIARY);
+      let entries = INITIAL_DIARY_ENTRIES;
+      if (data) {
+        entries = JSON.parse(data);
+      } else {
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.DIARY,
+          JSON.stringify(INITIAL_DIARY_ENTRIES)
+        );
+      }
+      if (tripId) {
+        return entries.filter((e) => e.tripId === tripId && !e.deletedAt);
+      }
+      return entries.filter((e) => !e.deletedAt);
+    } catch (e) {
+      console.error("[tripStorage] Error loading diary entries", e);
+      return INITIAL_DIARY_ENTRIES;
+    }
+  },
+
+  async getDiaryEntry(tripId, dateKey) {
+    const entries = await this.getDiaryEntries(tripId);
+    return entries.find((e) => e.tripId === tripId && e.dateKey === dateKey && !e.deletedAt) || null;
+  },
+
+  async saveDiaryEntries(entries) {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.DIARY, JSON.stringify(entries));
+      return entries;
+    } catch (e) {
+      console.error("[tripStorage] Error saving diary entries", e);
+      throw e;
+    }
+  },
+
+  async saveDiaryEntry(entry) {
+    const rawData = await AsyncStorage.getItem(STORAGE_KEYS.DIARY);
+    const entries = rawData ? JSON.parse(rawData) : [...INITIAL_DIARY_ENTRIES];
+
+    const existingIndex = entries.findIndex(
+      (e) => (entry.id && e.id === entry.id) || (e.tripId === entry.tripId && e.dateKey === entry.dateKey)
+    );
+
+    let saved;
+    if (existingIndex >= 0) {
+      saved = {
+        ...entries[existingIndex],
+        ...entry,
+        updatedAt: new Date().toISOString(),
+      };
+      entries[existingIndex] = saved;
+    } else {
+      saved = {
+        id: entry.id || `diary-${entry.tripId}-${entry.dateKey}-${Date.now().toString(36)}`,
+        tripId: entry.tripId,
+        dateKey: entry.dateKey,
+        text: entry.text || "",
+        mood: entry.mood || "adventurous",
+        linkedMomentIds: entry.linkedMomentIds || [],
+        isPrivate: entry.isPrivate !== undefined ? entry.isPrivate : true,
+        tags: entry.tags || [],
+        audioUri: entry.audioUri || null,
+        factsSkeleton: entry.factsSkeleton || "",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        deletedAt: null,
+      };
+      entries.unshift(saved);
+    }
+
+    await this.saveDiaryEntries(entries);
+    return saved;
+  },
+
+  async deleteDiaryEntry(id) {
+    const rawData = await AsyncStorage.getItem(STORAGE_KEYS.DIARY);
+    const entries = rawData ? JSON.parse(rawData) : [...INITIAL_DIARY_ENTRIES];
+    const updated = entries.map((e) =>
+      e.id === id ? { ...e, deletedAt: new Date().toISOString() } : e
+    );
+    await this.saveDiaryEntries(updated);
+    return true;
+  },
+
   async exportBackup() {
     const trips = await this.getTrips();
     const moments = await this.getMoments();
+    const diaryEntries = await this.getDiaryEntries();
     return JSON.stringify(
       {
-        version: "1.0",
+        version: "1.1",
         appName: "TripMoments",
         exportedAt: new Date().toISOString(),
         trips,
         moments,
+        diaryEntries,
       },
       null,
       2
@@ -488,6 +621,9 @@ export const tripStorage = {
       if (Array.isArray(data.moments)) {
         await this.saveMoments(data.moments);
       }
+      if (Array.isArray(data.diaryEntries)) {
+        await this.saveDiaryEntries(data.diaryEntries);
+      }
       return true;
     } catch (e) {
       console.error("[tripStorage] Failed to import backup", e);
@@ -498,6 +634,7 @@ export const tripStorage = {
   async resetToDefaults() {
     await AsyncStorage.setItem(STORAGE_KEYS.TRIPS, JSON.stringify(INITIAL_TRIPS));
     await AsyncStorage.setItem(STORAGE_KEYS.MOMENTS, JSON.stringify(INITIAL_MOMENTS));
+    await AsyncStorage.setItem(STORAGE_KEYS.DIARY, JSON.stringify(INITIAL_DIARY_ENTRIES));
     return true;
   },
 };

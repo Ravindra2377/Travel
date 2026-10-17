@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import tripStorage, { INITIAL_TRIPS, INITIAL_MOMENTS } from "../services/tripStorage";
+import tripStorage, {
+  INITIAL_TRIPS,
+  INITIAL_MOMENTS,
+  INITIAL_DIARY_ENTRIES,
+} from "../services/tripStorage";
 
 export const TripContext = createContext(null);
 
@@ -7,6 +11,7 @@ export const TripProvider = ({ children }) => {
   const [trips, setTrips] = useState(INITIAL_TRIPS);
   const [activeTrip, setActiveTrip] = useState(INITIAL_TRIPS[0]);
   const [moments, setMoments] = useState(INITIAL_MOMENTS);
+  const [diaryEntries, setDiaryEntries] = useState(INITIAL_DIARY_ENTRIES);
   const [passportStats, setPassportStats] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -15,10 +20,12 @@ export const TripProvider = ({ children }) => {
       setLoading(true);
       const loadedTrips = await tripStorage.getTrips();
       const loadedMoments = await tripStorage.getMoments();
+      const loadedDiary = await tripStorage.getDiaryEntries();
       const stats = await tripStorage.getPassportStats();
 
       setTrips(loadedTrips);
       setMoments(loadedMoments);
+      setDiaryEntries(loadedDiary);
       setPassportStats(stats);
 
       // Select active trip: either current activeTrip if still exists, or first with status "active", or first trip
@@ -112,6 +119,37 @@ export const TripProvider = ({ children }) => {
     [moments, activeTrip]
   );
 
+  const saveDiaryEntry = async (entryData) => {
+    const saved = await tripStorage.saveDiaryEntry(entryData);
+    await loadAllData();
+    return saved;
+  };
+
+  const deleteDiaryEntry = async (id) => {
+    await tripStorage.deleteDiaryEntry(id);
+    await loadAllData();
+  };
+
+  const getDiaryEntryForDay = useCallback(
+    (tripId, dateKey) => {
+      const id = tripId || activeTrip?.id;
+      return (
+        diaryEntries.find(
+          (d) => d.tripId === id && d.dateKey === dateKey && !d.deletedAt
+        ) || null
+      );
+    },
+    [diaryEntries, activeTrip]
+  );
+
+  const getDiaryEntriesForTrip = useCallback(
+    (tripId) => {
+      const id = tripId || activeTrip?.id;
+      return diaryEntries.filter((d) => d.tripId === id && !d.deletedAt);
+    },
+    [diaryEntries, activeTrip]
+  );
+
   return (
     <TripContext.Provider
       value={{
@@ -119,10 +157,15 @@ export const TripProvider = ({ children }) => {
         activeTrip,
         setActiveTrip,
         moments,
+        diaryEntries,
         passportStats,
         loading,
         refreshData: loadAllData,
         getMomentsForTrip,
+        getDiaryEntryForDay,
+        getDiaryEntriesForTrip,
+        saveDiaryEntry,
+        deleteDiaryEntry,
         addTrip,
         updateTrip,
         deleteTrip,

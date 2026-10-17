@@ -17,13 +17,28 @@ import { FONTS, SPACING, RADIUS, SHADOWS } from "../config/theme";
 import LiquidGlass from "../components/LiquidGlass";
 import GlassCard from "../components/GlassCard";
 import { Ionicons } from "../components/Icon";
+import DiaryEntryCard from "../components/DiaryEntryCard";
+import DiaryEditorModal from "../components/DiaryEditorModal";
 
 const { width } = Dimensions.get("window");
 
 const TripJournalScreen = ({ route, navigation }) => {
   const { tripId } = route.params || {};
   const { themeColors, isDark } = useTheme();
-  const { trips, activeTrip, setActiveTrip, moments, toggleFavoriteMoment } = useTrips();
+  const {
+    trips,
+    activeTrip,
+    setActiveTrip,
+    moments,
+    diaryEntries,
+    getDiaryEntryForDay,
+    saveDiaryEntry,
+    deleteDiaryEntry,
+    toggleFavoriteMoment,
+  } = useTrips();
+
+  const [editorVisible, setEditorVisible] = useState(false);
+  const [activeEditorTarget, setActiveEditorTarget] = useState(null);
 
   const currentTrip = useMemo(() => {
     if (tripId) {
@@ -34,7 +49,7 @@ const TripJournalScreen = ({ route, navigation }) => {
 
   const primaryTint = currentTrip?.themeColor || themeColors.primary;
 
-  // Group moments by day (date key: YYYY-MM-DD)
+  // Group moments and diary entries by day (date key: YYYY-MM-DD)
   const groupedDays = useMemo(() => {
     if (!currentTrip) return [];
 
@@ -58,10 +73,55 @@ const TripJournalScreen = ({ route, navigation }) => {
       dayMap[dateKey].moments.push(moment);
     });
 
+    // Also include any day with a diary entry for this trip
+    if (diaryEntries) {
+      const tripDiaries = diaryEntries.filter(
+        (d) => d.tripId === currentTrip.id && !d.deletedAt
+      );
+      tripDiaries.forEach((diary) => {
+        if (!dayMap[diary.dateKey]) {
+          dayMap[diary.dateKey] = {
+            dateKey: diary.dateKey,
+            dateObj: new Date(diary.dateKey),
+            city: currentTrip.city || "Destination",
+            weather: { temp: 26, condition: "Sunny", icon: "sunny" },
+            moments: [],
+          };
+        }
+      });
+    }
+
     return Object.values(dayMap).sort(
       (a, b) => a.dateObj.getTime() - b.dateObj.getTime()
     );
-  }, [currentTrip, moments]);
+  }, [currentTrip, moments, diaryEntries]);
+
+  // Handle direct navigation to write today's diary
+  React.useEffect(() => {
+    if (route.params?.openDiaryForToday && groupedDays.length > 0) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const matchDay =
+        groupedDays.find((d) => d.dateKey === todayStr) ||
+        groupedDays[groupedDays.length - 1];
+      if (matchDay) {
+        const existing = getDiaryEntryForDay(currentTrip?.id, matchDay.dateKey);
+        const dayIdx = groupedDays.findIndex(
+          (d) => d.dateKey === matchDay.dateKey
+        );
+        setActiveEditorTarget({
+          dayIndex: dayIdx >= 0 ? dayIdx : 0,
+          dateKey: matchDay.dateKey,
+          dateObj: matchDay.dateObj,
+          city: matchDay.city,
+          weather: matchDay.weather,
+          moments: matchDay.moments,
+          existingEntry: existing,
+          initialPrompt: null,
+        });
+        setEditorVisible(true);
+      }
+    }
+  }, [route.params?.openDiaryForToday, groupedDays]);
 
   return (
     <SafeAreaView
@@ -254,6 +314,45 @@ const TripJournalScreen = ({ route, navigation }) => {
                   )}
                 </View>
 
+                {/* Day's Diary Entry Card (Top of day timeline above moments) */}
+                <DiaryEntryCard
+                  entry={getDiaryEntryForDay(currentTrip?.id, day.dateKey)}
+                  dayIndex={dayIndex}
+                  dateKey={day.dateKey}
+                  dateObj={day.dateObj}
+                  city={day.city}
+                  weather={day.weather}
+                  moments={day.moments}
+                  primaryTint={primaryTint}
+                  onWritePress={(starterPrompt) => {
+                    setActiveEditorTarget({
+                      dayIndex,
+                      dateKey: day.dateKey,
+                      dateObj: day.dateObj,
+                      city: day.city,
+                      weather: day.weather,
+                      moments: day.moments,
+                      existingEntry: null,
+                      initialPrompt:
+                        typeof starterPrompt === "string" ? starterPrompt : null,
+                    });
+                    setEditorVisible(true);
+                  }}
+                  onEditPress={(existing) => {
+                    setActiveEditorTarget({
+                      dayIndex,
+                      dateKey: day.dateKey,
+                      dateObj: day.dateObj,
+                      city: day.city,
+                      weather: day.weather,
+                      moments: day.moments,
+                      existingEntry: existing,
+                      initialPrompt: null,
+                    });
+                    setEditorVisible(true);
+                  }}
+                />
+
                 {/* Moments under this Day */}
                 <View style={styles.momentsList}>
                   {day.moments.map((moment, mIndex) => {
@@ -417,6 +516,33 @@ const TripJournalScreen = ({ route, navigation }) => {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Diary Editor Modal */}
+      {activeEditorTarget && (
+        <DiaryEditorModal
+          visible={editorVisible}
+          onClose={() => {
+            setEditorVisible(false);
+            setActiveEditorTarget(null);
+          }}
+          tripId={currentTrip?.id}
+          dayIndex={activeEditorTarget.dayIndex}
+          dateKey={activeEditorTarget.dateKey}
+          dateObj={activeEditorTarget.dateObj}
+          city={activeEditorTarget.city}
+          weather={activeEditorTarget.weather}
+          moments={activeEditorTarget.moments}
+          existingEntry={activeEditorTarget.existingEntry}
+          initialPrompt={activeEditorTarget.initialPrompt}
+          onSave={async (entryData) => {
+            await saveDiaryEntry(entryData);
+          }}
+          onDelete={async (entryId) => {
+            await deleteDiaryEntry(entryId);
+          }}
+          primaryTint={primaryTint}
+        />
+      )}
     </SafeAreaView>
   );
 };

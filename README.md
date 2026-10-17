@@ -18,6 +18,7 @@ Everything revolves around one object: the **Trip**. Each trip has a cover, a ro
 4. **Fast Capture**: One-tap "Trip Mode". Time, place, and weather are filled in automatically via `expo-location` and Open-Meteo, with offline instant saving.
 5. **Recap Reel & 9:16 Cards**: Auto-built Instagram-style story reel of the trip, plus shareable 9:16 story cards.
 6. **Traveler's Passport**: A profile of countries, cities, kilometers, and collectible expedition stamps across all journeys.
+7. **Daily Diary**: A daily narrative entry attached to each day of a trip. Pre-fills day facts (city, weather, moments count, distance walked) with zero AI, fixed starter prompts, mood chips, linked moments, and private-by-default security.
 
 ---
 
@@ -53,4 +54,4 @@ npx expo start -c
 cd frontend
 npm test
 ```
-All 17 test suites (124+ unit tests) validate storage CRUD, distance calculation, theme tokens, and screen mounting.
+All 18 test suites (127 unit tests) validate storage CRUD, diary entries, distance calculation, theme tokens, and screen mounting.

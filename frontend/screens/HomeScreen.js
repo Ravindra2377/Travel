@@ -333,6 +333,96 @@ const HomeScreen = ({ navigation }) => {
                 </View>
               </View>
             </TouchableOpacity>
+
+            {/* Today's Diary Entry Prompt */}
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.navigate("Journal", {
+                  tripId: activeTrip.id,
+                  openDiaryForToday: true,
+                });
+              }}
+              style={[
+                styles.todayDiaryPromptCard,
+                {
+                  backgroundColor: themeColors.surface,
+                  borderColor: isDark
+                    ? "rgba(255, 255, 255, 0.12)"
+                    : "rgba(0, 0, 0, 0.06)",
+                },
+                SHADOWS.sm,
+              ]}
+            >
+              <View style={styles.todayDiaryLeft}>
+                <View
+                  style={[
+                    styles.todayDiaryIconBox,
+                    { backgroundColor: `${themeColors.primary}18` },
+                  ]}
+                >
+                  <Ionicons name="book" size={17} color={themeColors.primary} />
+                </View>
+                <View style={{ marginLeft: 12, flex: 1 }}>
+                  <View style={styles.todayDiaryLabelRow}>
+                    <Text
+                      style={[
+                        FONTS.ticketStamp,
+                        { color: themeColors.primary, fontSize: 10 },
+                      ]}
+                    >
+                      DAILY DIARY
+                    </Text>
+                    <View
+                      style={[
+                        styles.todayDiaryPulseDot,
+                        { backgroundColor: themeColors.primary },
+                      ]}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      FONTS.captionBold,
+                      styles.todayDiaryTitle,
+                      { color: themeColors.ink },
+                    ]}
+                  >
+                    Write today's diary entry
+                  </Text>
+                  <Text
+                    style={[
+                      FONTS.caption,
+                      styles.todayDiarySub,
+                      { color: themeColors.inkSoft },
+                    ]}
+                  >
+                    Capture your mood, food discoveries, and reflections
+                  </Text>
+                </View>
+              </View>
+
+              <View
+                style={[
+                  styles.todayDiaryActionBtn,
+                  { backgroundColor: `${themeColors.primary}18` },
+                ]}
+              >
+                <Text
+                  style={[
+                    FONTS.captionBold,
+                    { color: themeColors.primary, marginRight: 2 },
+                  ]}
+                >
+                  Write
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color={themeColors.primary}
+                />
+              </View>
+            </TouchableOpacity>
           </View>
         ) : null}
 
@@ -1133,6 +1223,55 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontFamily: "InterSemiBold",
     fontSize: 16,
+  },
+  // Diary Prompt Card Styles
+  todayDiaryPromptCard: {
+    marginTop: 12,
+    borderRadius: RADIUS.lg,
+    padding: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  todayDiaryLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    paddingRight: 10,
+  },
+  todayDiaryIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  todayDiaryLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  todayDiaryPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginLeft: 6,
+  },
+  todayDiaryTitle: {
+    fontSize: 14,
+  },
+  todayDiarySub: {
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  todayDiaryActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
   },
 });
 
