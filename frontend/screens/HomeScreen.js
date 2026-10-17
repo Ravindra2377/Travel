@@ -41,7 +41,7 @@ const PRESET_COVERS = [
 ];
 
 const HomeScreen = ({ navigation }) => {
-  const { themeColors, isDark, toggleTheme } = useTheme();
+  const { themeColors, isDark } = useTheme();
   const { trips, activeTrip, setActiveTrip, moments, addTrip } = useTrips();
 
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -135,6 +135,20 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={[
+              styles.newTripBtn,
+              { backgroundColor: themeColors.primary },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setCreateModalVisible(true);
+            }}
+          >
+            <Ionicons name="add" size={18} color="#FFFFFF" />
+            <Text style={styles.newTripBtnText}>New Trip</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
               styles.iconBtn,
               {
                 backgroundColor: isDark
@@ -148,41 +162,6 @@ const HomeScreen = ({ navigation }) => {
             }}
           >
             <Ionicons name="search" size={20} color={themeColors.ink} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.iconBtn,
-              {
-                backgroundColor: isDark
-                  ? "rgba(255,255,255,0.08)"
-                  : "rgba(0,0,0,0.04)",
-              },
-            ]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              toggleTheme();
-            }}
-          >
-            <Ionicons
-              name={isDark ? "sunny" : "moon"}
-              size={20}
-              color={themeColors.ink}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.newTripBtn,
-              { backgroundColor: themeColors.primary },
-            ]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setCreateModalVisible(true);
-            }}
-          >
-            <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.newTripBtnText}>New Trip</Text>
           </TouchableOpacity>
         </View>
       </View>
