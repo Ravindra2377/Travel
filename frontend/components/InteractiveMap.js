@@ -48,7 +48,7 @@ const CITY_COORDINATES = {
  * Detailed Geographic Cartography: Continents, Oceans, Seas, Countries & Landmark Ports
  */
 export const GEO_LABELS = [
-  // ─── CONTINENTS (Bold Ivory Typography) ───────────────────
+  // ─── CONTINENTS (Bold Ivory Typography, Angular Size 1.6) ───────────────────
   { lat: 34.0, lng: 100.0, text: "ASIA", size: 1.6, color: "rgba(255, 255, 255, 0.95)", altitude: 0.015 },
   { lat: 52.0, lng: 20.0, text: "EUROPE", size: 1.4, color: "rgba(255, 255, 255, 0.95)", altitude: 0.015 },
   { lat: 4.0, lng: 21.0, text: "AFRICA", size: 1.6, color: "rgba(255, 255, 255, 0.95)", altitude: 0.015 },
@@ -57,7 +57,7 @@ export const GEO_LABELS = [
   { lat: -24.0, lng: 134.0, text: "AUSTRALIA", size: 1.4, color: "rgba(255, 255, 255, 0.95)", altitude: 0.015 },
   { lat: -78.0, lng: 0.0, text: "ANTARCTICA", size: 1.4, color: "rgba(224, 242, 254, 0.85)", altitude: 0.015 },
 
-  // ─── OCEANS (Deep Sky Blue / Aquamarine) ───────────────────
+  // ─── OCEANS (Deep Sky Blue / Aquamarine, Angular Size 1.1 - 1.4) ────────────
   { lat: 20.0, lng: 165.0, text: "PACIFIC OCEAN", size: 1.35, color: "rgba(147, 197, 253, 0.85)", altitude: 0.012 },
   { lat: 32.0, lng: -150.0, text: "NORTH PACIFIC", size: 1.25, color: "rgba(147, 197, 253, 0.80)", altitude: 0.012 },
   { lat: -18.0, lng: -135.0, text: "SOUTH PACIFIC", size: 1.25, color: "rgba(147, 197, 253, 0.80)", altitude: 0.012 },
@@ -68,22 +68,36 @@ export const GEO_LABELS = [
   { lat: 82.0, lng: 0.0, text: "ARCTIC OCEAN", size: 1.15, color: "rgba(186, 230, 253, 0.85)", altitude: 0.012 },
   { lat: -60.0, lng: 60.0, text: "SOUTHERN OCEAN", size: 1.15, color: "rgba(186, 230, 253, 0.85)", altitude: 0.012 },
 
-  // ─── SEAS, GULFS & BAYS (Cyan / Turquoise) ────────────────
+  // ─── SEAS, GULFS, BAYS & CHANNELS (Cyan / Turquoise, Size 0.55 - 0.75) ─────
   { lat: 35.5, lng: 18.0, text: "Mediterranean Sea", size: 0.72, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
   { lat: 40.0, lng: 12.0, text: "Tyrrhenian Sea", size: 0.60, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
   { lat: 42.5, lng: 16.0, text: "Adriatic Sea", size: 0.60, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
   { lat: 38.0, lng: 25.0, text: "Aegean Sea", size: 0.60, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
+  { lat: 38.0, lng: 18.5, text: "Ionian Sea", size: 0.58, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
+  { lat: 40.0, lng: 1.5, text: "Balearic Sea", size: 0.58, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
+  { lat: 43.5, lng: 9.0, text: "Ligurian Sea", size: 0.58, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
   { lat: 15.0, lng: 65.0, text: "Arabian Sea", size: 0.72, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
   { lat: 15.0, lng: 88.0, text: "Bay of Bengal", size: 0.72, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
   { lat: 10.5, lng: 96.0, text: "Andaman Sea", size: 0.62, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
+  { lat: 9.0, lng: 74.5, text: "Laccadive Sea", size: 0.58, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
   { lat: 12.0, lng: 114.0, text: "South China Sea", size: 0.72, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
   { lat: 29.0, lng: 125.0, text: "East China Sea", size: 0.65, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
+  { lat: 35.0, lng: 123.0, text: "Yellow Sea", size: 0.62, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
   { lat: 40.0, lng: 134.0, text: "Sea of Japan", size: 0.68, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
   { lat: 18.0, lng: 132.0, text: "Philippine Sea", size: 0.68, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
+  { lat: -5.0, lng: 112.0, text: "Java Sea", size: 0.62, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
+  { lat: 8.5, lng: 120.0, text: "Sulu Sea", size: 0.58, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
+  { lat: 3.5, lng: 122.0, text: "Celebes Sea", size: 0.58, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
+  { lat: -4.5, lng: 127.5, text: "Banda Sea", size: 0.58, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
+  { lat: -9.0, lng: 135.0, text: "Arafura Sea", size: 0.60, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
+  { lat: -10.5, lng: 126.0, text: "Timor Sea", size: 0.60, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
   { lat: 15.0, lng: -75.0, text: "Caribbean Sea", size: 0.72, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
   { lat: 25.0, lng: -90.0, text: "Gulf of Mexico", size: 0.68, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
+  { lat: 26.0, lng: -55.0, text: "Sargasso Sea", size: 0.65, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
   { lat: 22.0, lng: 38.0, text: "Red Sea", size: 0.65, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
   { lat: 26.5, lng: 52.0, text: "Persian Gulf", size: 0.65, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
+  { lat: 24.5, lng: 58.5, text: "Gulf of Oman", size: 0.60, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
+  { lat: 12.5, lng: 48.0, text: "Gulf of Aden", size: 0.60, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
   { lat: 56.5, lng: 3.5, text: "North Sea", size: 0.65, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
   { lat: 58.5, lng: 20.0, text: "Baltic Sea", size: 0.65, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
   { lat: 67.0, lng: 2.0, text: "Norwegian Sea", size: 0.65, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
@@ -94,29 +108,54 @@ export const GEO_LABELS = [
   { lat: -38.0, lng: 160.0, text: "Tasman Sea", size: 0.68, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
   { lat: 74.0, lng: 40.0, text: "Barents Sea", size: 0.62, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
   { lat: 53.0, lng: 150.0, text: "Sea of Okhotsk", size: 0.65, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
+  { lat: 56.0, lng: -55.0, text: "Labrador Sea", size: 0.65, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
+  { lat: 60.0, lng: -85.0, text: "Hudson Bay", size: 0.65, color: "rgba(125, 211, 252, 0.88)", altitude: 0.01 },
+  { lat: -58.0, lng: -65.0, text: "Drake Passage", size: 0.60, color: "rgba(125, 211, 252, 0.85)", altitude: 0.01 },
 
-  // ─── COUNTRIES (Crisp Pearl White & Location Dots) ───────
-  // Asia
-  { lat: 22.5, lng: 79.0, text: "India", size: 0.85, color: "#FFFFFF", dotRadius: 0.28, altitude: 0.01 },
+  // ─── MOUNTAINS & DESERTS (Earthy Gold Accent, Size 0.55 - 0.70) ───────────
+  { lat: 28.0, lng: 86.0, text: "Himalayas", size: 0.65, color: "#E0E7FF", dotRadius: 0.20, altitude: 0.01 },
+  { lat: 46.5, lng: 10.0, text: "Alps", size: 0.60, color: "#E0E7FF", dotRadius: 0.18, altitude: 0.01 },
+  { lat: -20.0, lng: -68.0, text: "Andes", size: 0.65, color: "#E0E7FF", dotRadius: 0.20, altitude: 0.01 },
+  { lat: 44.0, lng: -110.0, text: "Rocky Mountains", size: 0.65, color: "#E0E7FF", dotRadius: 0.20, altitude: 0.01 },
+  { lat: 23.0, lng: 13.0, text: "Sahara Desert", size: 0.70, color: "#FDE68A", dotRadius: 0.20, altitude: 0.01 },
+  { lat: 44.0, lng: 105.0, text: "Gobi Desert", size: 0.65, color: "#FDE68A", dotRadius: 0.20, altitude: 0.01 },
+
+  // ─── COUNTRIES (Pearl White & Location Dots, Size 0.62 - 0.95) ─────────────
+  // Asia & Middle East
+  { lat: 22.5, lng: 79.0, text: "India", size: 0.88, color: "#FFFFFF", dotRadius: 0.28, altitude: 0.01 },
   { lat: 36.2, lng: 138.2, text: "Japan", size: 0.75, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: 35.8, lng: 104.1, text: "China", size: 0.90, color: "#FFFFFF", dotRadius: 0.30, altitude: 0.01 },
+  { lat: 35.8, lng: 104.1, text: "China", size: 0.92, color: "#FFFFFF", dotRadius: 0.30, altitude: 0.01 },
   { lat: 36.5, lng: 127.8, text: "South Korea", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 23.7, lng: 121.0, text: "Taiwan", size: 0.62, color: "#FFFFFF", dotRadius: 0.20, altitude: 0.01 },
   { lat: 15.8, lng: 101.0, text: "Thailand", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
   { lat: 14.0, lng: 108.2, text: "Vietnam", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
-  { lat: -0.7, lng: 114.0, text: "Indonesia", size: 0.78, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 12.5, lng: 105.0, text: "Cambodia", size: 0.62, color: "#FFFFFF", dotRadius: 0.20, altitude: 0.01 },
+  { lat: 18.0, lng: 103.0, text: "Laos", size: 0.62, color: "#FFFFFF", dotRadius: 0.20, altitude: 0.01 },
+  { lat: 21.0, lng: 96.0, text: "Myanmar", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: -0.7, lng: 114.0, text: "Indonesia", size: 0.80, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
   { lat: 4.2, lng: 102.0, text: "Malaysia", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
   { lat: 1.35, lng: 103.8, text: "Singapore", size: 0.62, color: "#FDE68A", dotRadius: 0.22, altitude: 0.01 },
-  { lat: 12.8, lng: 121.7, text: "Philippines", size: 0.70, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 12.8, lng: 121.7, text: "Philippines", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
   { lat: 7.8, lng: 80.7, text: "Sri Lanka", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
   { lat: 28.3, lng: 84.1, text: "Nepal", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 27.5, lng: 90.4, text: "Bhutan", size: 0.60, color: "#FFFFFF", dotRadius: 0.20, altitude: 0.01 },
+  { lat: 23.7, lng: 90.3, text: "Bangladesh", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 30.0, lng: 70.0, text: "Pakistan", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 33.0, lng: 65.0, text: "Afghanistan", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
   { lat: 3.2, lng: 73.2, text: "Maldives", size: 0.58, color: "#FDE68A", dotRadius: 0.20, altitude: 0.01 },
-  { lat: 24.0, lng: 45.0, text: "Saudi Arabia", size: 0.75, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 24.0, lng: 45.0, text: "Saudi Arabia", size: 0.78, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
   { lat: 23.8, lng: 54.0, text: "UAE", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
-  { lat: 39.0, lng: 35.2, text: "Turkey", size: 0.75, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: 32.4, lng: 53.6, text: "Iran", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: 48.0, lng: 66.9, text: "Kazakhstan", size: 0.75, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: 46.8, lng: 103.8, text: "Mongolia", size: 0.70, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: 60.0, lng: 95.0, text: "Russia", size: 0.95, color: "#FFFFFF", dotRadius: 0.30, altitude: 0.01 },
+  { lat: 21.5, lng: 57.0, text: "Oman", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 25.3, lng: 51.2, text: "Qatar", size: 0.60, color: "#FFFFFF", dotRadius: 0.20, altitude: 0.01 },
+  { lat: 39.0, lng: 35.2, text: "Turkey", size: 0.76, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 32.4, lng: 53.6, text: "Iran", size: 0.75, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 33.0, lng: 44.0, text: "Iraq", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 31.2, lng: 36.5, text: "Jordan", size: 0.62, color: "#FFFFFF", dotRadius: 0.20, altitude: 0.01 },
+  { lat: 31.0, lng: 35.0, text: "Israel", size: 0.62, color: "#FFFFFF", dotRadius: 0.20, altitude: 0.01 },
+  { lat: 48.0, lng: 66.9, text: "Kazakhstan", size: 0.78, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 41.3, lng: 64.5, text: "Uzbekistan", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 46.8, lng: 103.8, text: "Mongolia", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 60.0, lng: 95.0, text: "Russia", size: 0.98, color: "#FFFFFF", dotRadius: 0.32, altitude: 0.01 },
 
   // Europe
   { lat: 42.5, lng: 12.5, text: "Italy", size: 0.75, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
@@ -124,45 +163,59 @@ export const GEO_LABELS = [
   { lat: 40.2, lng: -3.7, text: "Spain", size: 0.75, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
   { lat: 39.5, lng: -8.0, text: "Portugal", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
   { lat: 51.1, lng: 10.4, text: "Germany", size: 0.75, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: 54.5, lng: -3.0, text: "United Kingdom", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 54.5, lng: -3.0, text: "United Kingdom", size: 0.74, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
   { lat: 53.4, lng: -8.0, text: "Ireland", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
   { lat: 46.8, lng: 8.2, text: "Switzerland", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
   { lat: 47.5, lng: 14.5, text: "Austria", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
   { lat: 39.0, lng: 22.0, text: "Greece", size: 0.70, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
   { lat: 52.2, lng: 5.3, text: "Netherlands", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
-  { lat: 61.0, lng: 8.5, text: "Norway", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: 61.0, lng: 16.0, text: "Sweden", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 50.8, lng: 4.5, text: "Belgium", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 61.0, lng: 8.5, text: "Norway", size: 0.74, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 61.0, lng: 16.0, text: "Sweden", size: 0.74, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
   { lat: 63.0, lng: 26.0, text: "Finland", size: 0.70, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
-  { lat: 52.0, lng: 19.0, text: "Poland", size: 0.70, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 56.0, lng: 9.5, text: "Denmark", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 52.0, lng: 19.0, text: "Poland", size: 0.72, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 49.8, lng: 15.5, text: "Czech Republic", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 47.1, lng: 19.5, text: "Hungary", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
   { lat: 45.1, lng: 15.2, text: "Croatia", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 45.9, lng: 24.9, text: "Romania", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
   { lat: 64.9, lng: -18.5, text: "Iceland", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
 
   // Americas
-  { lat: 38.0, lng: -97.0, text: "United States", size: 0.90, color: "#FFFFFF", dotRadius: 0.30, altitude: 0.01 },
-  { lat: 56.0, lng: -106.0, text: "Canada", size: 0.90, color: "#FFFFFF", dotRadius: 0.30, altitude: 0.01 },
-  { lat: 23.6, lng: -102.5, text: "Mexico", size: 0.80, color: "#FFFFFF", dotRadius: 0.28, altitude: 0.01 },
-  { lat: -14.2, lng: -51.9, text: "Brazil", size: 0.90, color: "#FFFFFF", dotRadius: 0.30, altitude: 0.01 },
-  { lat: -38.4, lng: -63.6, text: "Argentina", size: 0.80, color: "#FFFFFF", dotRadius: 0.28, altitude: 0.01 },
-  { lat: -35.6, lng: -71.5, text: "Chile", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: -9.1, lng: -75.0, text: "Peru", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: 4.5, lng: -74.2, text: "Colombia", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 38.0, lng: -97.0, text: "United States", size: 0.92, color: "#FFFFFF", dotRadius: 0.30, altitude: 0.01 },
+  { lat: 56.0, lng: -106.0, text: "Canada", size: 0.92, color: "#FFFFFF", dotRadius: 0.30, altitude: 0.01 },
+  { lat: 23.6, lng: -102.5, text: "Mexico", size: 0.82, color: "#FFFFFF", dotRadius: 0.28, altitude: 0.01 },
+  { lat: 15.0, lng: -90.2, text: "Guatemala", size: 0.62, color: "#FFFFFF", dotRadius: 0.20, altitude: 0.01 },
   { lat: 9.7, lng: -83.7, text: "Costa Rica", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 8.5, lng: -80.0, text: "Panama", size: 0.62, color: "#FFFFFF", dotRadius: 0.20, altitude: 0.01 },
   { lat: 21.5, lng: -77.7, text: "Cuba", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: -14.2, lng: -51.9, text: "Brazil", size: 0.92, color: "#FFFFFF", dotRadius: 0.30, altitude: 0.01 },
+  { lat: -38.4, lng: -63.6, text: "Argentina", size: 0.82, color: "#FFFFFF", dotRadius: 0.28, altitude: 0.01 },
+  { lat: -35.6, lng: -71.5, text: "Chile", size: 0.74, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: -9.1, lng: -75.0, text: "Peru", size: 0.74, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 4.5, lng: -74.2, text: "Colombia", size: 0.74, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: -1.8, lng: -78.1, text: "Ecuador", size: 0.65, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: -16.2, lng: -63.5, text: "Bolivia", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
 
   // Africa
-  { lat: 26.8, lng: 30.8, text: "Egypt", size: 0.75, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: 31.7, lng: -7.0, text: "Morocco", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: -30.5, lng: 23.0, text: "South Africa", size: 0.78, color: "#FFFFFF", dotRadius: 0.28, altitude: 0.01 },
-  { lat: 0.0, lng: 37.9, text: "Kenya", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: -6.3, lng: 34.8, text: "Tanzania", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: 9.0, lng: 8.6, text: "Nigeria", size: 0.75, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
-  { lat: -18.7, lng: 46.8, text: "Madagascar", size: 0.70, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 26.8, lng: 30.8, text: "Egypt", size: 0.76, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 31.7, lng: -7.0, text: "Morocco", size: 0.74, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 28.0, lng: 3.0, text: "Algeria", size: 0.76, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: -30.5, lng: 23.0, text: "South Africa", size: 0.80, color: "#FFFFFF", dotRadius: 0.28, altitude: 0.01 },
+  { lat: -22.5, lng: 17.0, text: "Namibia", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: 0.0, lng: 37.9, text: "Kenya", size: 0.74, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: -6.3, lng: 34.8, text: "Tanzania", size: 0.74, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 9.0, lng: 8.6, text: "Nigeria", size: 0.76, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 9.1, lng: 40.4, text: "Ethiopia", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: 7.9, lng: -1.0, text: "Ghana", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
+  { lat: -18.7, lng: 46.8, text: "Madagascar", size: 0.72, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
   { lat: -4.6, lng: 55.4, text: "Seychelles", size: 0.58, color: "#FDE68A", dotRadius: 0.20, altitude: 0.01 },
   { lat: -20.3, lng: 57.5, text: "Mauritius", size: 0.58, color: "#FDE68A", dotRadius: 0.20, altitude: 0.01 },
 
   // Oceania
-  { lat: -25.2, lng: 133.7, text: "Australia", size: 0.88, color: "#FFFFFF", dotRadius: 0.30, altitude: 0.01 },
-  { lat: -40.9, lng: 174.8, text: "New Zealand", size: 0.75, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: -25.2, lng: 133.7, text: "Australia", size: 0.90, color: "#FFFFFF", dotRadius: 0.30, altitude: 0.01 },
+  { lat: -40.9, lng: 174.8, text: "New Zealand", size: 0.76, color: "#FFFFFF", dotRadius: 0.25, altitude: 0.01 },
+  { lat: -6.3, lng: 143.9, text: "Papua New Guinea", size: 0.68, color: "#FFFFFF", dotRadius: 0.22, altitude: 0.01 },
   { lat: -17.7, lng: 178.0, text: "Fiji", size: 0.62, color: "#FDE68A", dotRadius: 0.22, altitude: 0.01 },
   { lat: -17.6, lng: -149.4, text: "Tahiti", size: 0.60, color: "#FDE68A", dotRadius: 0.20, altitude: 0.01 },
   { lat: 20.7, lng: -156.3, text: "Hawaii", size: 0.62, color: "#FDE68A", dotRadius: 0.22, altitude: 0.01 },
@@ -234,6 +287,7 @@ export const InteractiveMap = ({
 
   // Default to 3D Globe for trip overview, and 2D Flat Map for moments/route detail
   const [mapType, setMapType] = useState(mode === "trips" ? "globe" : "flat");
+  const [globeDetail, setGlobeDetail] = useState("detailed"); // "detailed" | "satellite"
 
   // Synchronize mapType if mode changes externally
   useEffect(() => {
@@ -241,6 +295,21 @@ export const InteractiveMap = ({
       setMapType("flat");
     }
   }, [mode]);
+
+  // Synchronize globeDetail theme with WebView
+  useEffect(() => {
+    if (mapType === "globe") {
+      const msg = { type: "SET_GLOBE_THEME", theme: globeDetail };
+      if (Platform.OS === "web") {
+        const iframe = document.getElementById("travel-map-iframe");
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage(JSON.stringify(msg), "*");
+        }
+      } else if (webViewRef.current) {
+        webViewRef.current.postMessage(JSON.stringify(msg));
+      }
+    }
+  }, [globeDetail, mapType]);
 
   const preparedTrips = useMemo(() => {
     return trips.map((t) => {
@@ -386,11 +455,16 @@ export const InteractiveMap = ({
 
     const globe = Globe()
       .globeImageUrl('https://unpkg.com/three-globe@2.45.6/example/img/earth-blue-marble.jpg')
+      .globeTileEngineUrl((x, y, l) => {
+        if (Array.isArray(x)) { l = x[2]; y = x[1]; x = x[0]; }
+        return 'https://basemaps.cartocdn.com/rastertiles/voyager/' + l + '/' + x + '/' + y + '.png';
+      })
       .bumpImageUrl('https://unpkg.com/three-globe@2.45.6/example/img/earth-topology.png')
-      .backgroundColor('rgba(11, 19, 14, 1)')
+      .backgroundImageUrl('https://unpkg.com/three-globe@2.45.6/example/img/night-sky.png')
       .showAtmosphere(true)
-      .atmosphereColor('#6EE7B7')
-      .atmosphereAltitude(0.18)
+      .atmosphereColor('#38BDF8')
+      .atmosphereAltitude(0.20)
+      .showGraticules(true)
       .arcsData(arcs)
       .arcColor(d => [d.color || '#F59E0B', '#34D399'])
       .arcAltitude(0.24)
@@ -484,7 +558,18 @@ export const InteractiveMap = ({
     window.addEventListener('message', (event) => {
       try {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (data.type === 'FLY_TO_TRIP') {
+        if (data.type === 'SET_GLOBE_THEME') {
+          if (data.theme === 'satellite') {
+            globe.globeTileEngineUrl(null);
+            globe.globeImageUrl('https://unpkg.com/three-globe@2.45.6/example/img/earth-blue-marble.jpg');
+            globe.bumpImageUrl('https://unpkg.com/three-globe@2.45.6/example/img/earth-topology.png');
+          } else {
+            globe.globeTileEngineUrl((x, y, l) => {
+              if (Array.isArray(x)) { l = x[2]; y = x[1]; x = x[0]; }
+              return 'https://basemaps.cartocdn.com/rastertiles/voyager/' + l + '/' + x + '/' + y + '.png';
+            });
+          }
+        } else if (data.type === 'FLY_TO_TRIP') {
           const target = trips.find(t => t.id === data.tripId);
           if (target) selectPin(target.id, target.latitude, target.longitude);
         } else if (data.type === 'FLY_TO_COORDS' && data.latitude && data.longitude) {
@@ -495,7 +580,7 @@ export const InteractiveMap = ({
   </script>
 </body>
 </html>`;
-  }, [preparedTrips, activeTripId, themeColor]);
+  }, [preparedTrips, activeTripId, themeColor, globeDetail]);
 
   // Generate 2D Flat Map HTML (Leaflet with noWrap)
   const flatHtml = useMemo(() => {
@@ -885,42 +970,85 @@ export const InteractiveMap = ({
         />
       )}
 
-      {/* Floating 3D Globe / 2D Map Switcher Pill */}
+      {/* Floating 3D Globe / 2D Map & Detail Switcher Controls */}
       {mode === "trips" && (
         <View style={styles.togglePillContainer} pointerEvents="box-none">
-          <TouchableOpacity
-            style={[
-              styles.togglePill,
-              {
-                backgroundColor: isDark
-                  ? "rgba(18, 26, 22, 0.88)"
-                  : "rgba(255, 255, 255, 0.92)",
-                borderColor: isDark
-                  ? "rgba(255, 255, 255, 0.15)"
-                  : "rgba(0, 0, 0, 0.08)",
-              },
-              SHADOWS.md,
-            ]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setMapType((prev) => (prev === "globe" ? "flat" : "globe"));
-            }}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name={mapType === "globe" ? "globe" : "map"}
-              size={14}
-              color={themeColor}
-            />
-            <Text
+          <View style={styles.togglePillRow}>
+            {/* 3D Globe vs 2D Map Toggle */}
+            <TouchableOpacity
               style={[
-                FONTS.captionBold,
-                { color: themeColor, fontSize: 11, marginLeft: 5 },
+                styles.togglePill,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(18, 26, 22, 0.92)"
+                    : "rgba(255, 255, 255, 0.94)",
+                  borderColor: isDark
+                    ? "rgba(255, 255, 255, 0.15)"
+                    : "rgba(0, 0, 0, 0.08)",
+                },
+                SHADOWS.md,
               ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setMapType((prev) => (prev === "globe" ? "flat" : "globe"));
+              }}
+              activeOpacity={0.85}
             >
-              {mapType === "globe" ? "3D Globe" : "2D Map"}
-            </Text>
-          </TouchableOpacity>
+              <Ionicons
+                name={mapType === "globe" ? "globe" : "map"}
+                size={14}
+                color={themeColor}
+              />
+              <Text
+                style={[
+                  FONTS.captionBold,
+                  { color: themeColor, fontSize: 11, marginLeft: 5 },
+                ]}
+              >
+                {mapType === "globe" ? "3D Globe" : "2D Map"}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Detailed Cartography vs Satellite Toggle */}
+            {mapType === "globe" && (
+              <TouchableOpacity
+                style={[
+                  styles.togglePill,
+                  {
+                    marginLeft: 8,
+                    backgroundColor: isDark
+                      ? "rgba(18, 26, 22, 0.92)"
+                      : "rgba(255, 255, 255, 0.94)",
+                    borderColor: isDark
+                      ? "rgba(255, 255, 255, 0.15)"
+                      : "rgba(0, 0, 0, 0.08)",
+                  },
+                  SHADOWS.md,
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setGlobeDetail((prev) =>
+                    prev === "detailed" ? "satellite" : "detailed"
+                  );
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name={globeDetail === "detailed" ? "layers" : "planet"}
+                  size={14}
+                  color={themeColor}
+                />
+                <Text
+                  style={[
+                    FONTS.captionBold,
+                    { color: themeColor, fontSize: 11, marginLeft: 5 },
+                  ]}
+                >
+                  {globeDetail === "detailed" ? "Detailed" : "Satellite"}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
     </View>
@@ -948,13 +1076,17 @@ const styles = StyleSheet.create({
   togglePillContainer: {
     position: "absolute",
     top: Platform.OS === "ios" ? 116 : 96,
-    right: 18,
+    right: 16,
     zIndex: 40,
+  },
+  togglePillRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   togglePill: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
