@@ -5,10 +5,6 @@
     "version": "1.0.2",
     "icon": "./assets/icon_new.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "backgroundColor": "#F7F8F7"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.panviravindra.comparez",
@@ -26,7 +22,6 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.panviravindra.comparez",
-      "usesCleartextTraffic": true,
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
@@ -50,7 +45,8 @@
         {
           "android": {
             "enableMinifyInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "usesCleartextTraffic": true
           }
         }
       ],
