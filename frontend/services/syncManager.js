@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import photoStorage from "./photoStorage";
 
 const OUTBOX_STORAGE_KEY = "@trip_moments_sync_outbox_v1";
 
@@ -102,13 +103,46 @@ class SyncManager {
             ? setTimeout(() => controller.abort(), 4000)
             : null;
 
+          // Upload local file:// photos to server before pushing moments/trips
+          const uploadPhotoSafe = async (uri) => {
+            if (typeof uri === "string" && uri.startsWith("file://")) {
+              try {
+                return await photoStorage.uploadPhoto(uri, null, syncKey);
+              } catch (e) {
+                return uri;
+              }
+            }
+            return uri;
+          };
+
+          const preparedQueue = await Promise.all(
+            queue.map(async (item) => {
+              if (!item.payload) return item;
+              const payload = { ...item.payload };
+
+              if (item.entityType === "moment") {
+                if (payload.photoUri) {
+                  payload.photoUri = await uploadPhotoSafe(payload.photoUri);
+                }
+                if (Array.isArray(payload.photos)) {
+                  payload.photos = await Promise.all(payload.photos.map(uploadPhotoSafe));
+                }
+              } else if (item.entityType === "trip") {
+                if (payload.coverUri) {
+                  payload.coverUri = await uploadPhotoSafe(payload.coverUri);
+                }
+              }
+              return { ...item, payload };
+            })
+          );
+
           const response = await fetch(targetUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${syncKey}`,
             },
-            body: JSON.stringify({ queue }),
+            body: JSON.stringify({ queue: preparedQueue }),
             signal: controller ? controller.signal : undefined,
           });
 

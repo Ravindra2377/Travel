@@ -354,9 +354,26 @@ export const tripStorage = {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
+
+    let latitude = typeof trip?.latitude === "number" && !isNaN(trip.latitude) ? trip.latitude : null;
+    let longitude = typeof trip?.longitude === "number" && !isNaN(trip.longitude) ? trip.longitude : null;
+
+    if (latitude === null || longitude === null) {
+      try {
+        const { getTripCoordinates } = require("../components/InteractiveMap");
+        const coords = getTripCoordinates(trip);
+        if (coords) {
+          latitude = coords.lat;
+          longitude = coords.lng;
+        }
+      } catch (err) {}
+    }
+
     const newTrip = {
       ...trip,
       id: trip?.id || `trip-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      latitude: latitude ?? 15.3350,
+      longitude: longitude ?? 76.4600,
       privacy: trip?.privacy || "link_only",
       shareSlug: trip?.shareSlug || `${cleanTitle}-${Math.random().toString(36).substring(2, 6)}`,
       status: trip?.status || "active",

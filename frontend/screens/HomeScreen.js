@@ -27,6 +27,7 @@ import InteractiveMap, { getTripCoordinates } from "../components/InteractiveMap
 import BottomSheet from "../components/BottomSheet";
 import TripCreateModal from "../components/TripCreateModal";
 import PermissionPrePrompt from "../components/PermissionPrePrompt";
+import trackingService from "../services/trackingService";
 
 const { width, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -109,8 +110,18 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  const handlePermissionAccepted = () => {
+  const handlePermissionAccepted = async () => {
     setPermissionPromptVisible(false);
+    try {
+      if (permissionType === "location") {
+        await trackingService.requestPermissions();
+      } else if (permissionType === "camera") {
+        const ImagePicker = require("expo-image-picker");
+        await ImagePicker.requestCameraPermissionsAsync();
+      }
+    } catch (e) {
+      console.warn("[HomeScreen] Permission request error:", e);
+    }
   };
 
   return (
