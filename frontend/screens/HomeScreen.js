@@ -153,18 +153,18 @@ const HomeScreen = ({ navigation }) => {
           <View style={{ flex: 1 }}>
             <Text
               style={[
-                FONTS.captionBold,
+                FONTS.eyebrow,
                 styles.subtitle,
-                { color: themeColors.primary },
+                { color: themeColors.primary, fontSize: 10, letterSpacing: 1.5 },
               ]}
             >
               {t("journalDiscovery")}
             </Text>
             <Text
               style={[
-                FONTS.h1,
+                FONTS.h2,
                 styles.headerTitle,
-                { color: themeColors.ink },
+                { color: themeColors.ink, fontSize: 21 },
               ]}
               numberOfLines={1}
             >
@@ -233,11 +233,14 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Floating Sync Status Pill */}
-        <View style={styles.syncStatusRowFloating}>
-          <TouchableOpacity
-            onPress={handleManualSync}
-            activeOpacity={0.8}
+        {/* Floating Sync Status Pill - Only visible when syncing or pending offline changes */}
+        {(syncState.pendingCount > 0 ||
+          syncState.status === SYNC_STATUS.SYNCING ||
+          syncState.status === SYNC_STATUS.ERROR) && (
+          <View style={styles.syncStatusRowFloating}>
+            <TouchableOpacity
+              onPress={handleManualSync}
+              activeOpacity={0.8}
             style={[
               styles.syncStatusPill,
               {
@@ -305,6 +308,7 @@ const HomeScreen = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
         </View>
+        )}
       </SafeAreaView>
 
       {/* ── FOREGROUND: SPRING-DRIVEN TRIPS BOTTOM SHEET ────────────── */}
@@ -482,45 +486,20 @@ const HomeScreen = ({ navigation }) => {
                   </Text>
                 ) : null}
 
-                {/* Bottom Action Strip */}
-                <View style={styles.heroActionsRow}>
-                  <TouchableOpacity
+                {/* Single Clear Primary Action */}
+                <View style={styles.heroActionSingleRow}>
+                  <View
                     style={[
-                      styles.heroActionBtn,
+                      styles.heroPrimaryPill,
                       { backgroundColor: themeColors.primary },
                     ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      navigation.navigate("Journal", {
-                        tripId: activeTrip.id,
-                      });
-                    }}
                   >
-                    <Ionicons name="journal" size={16} color="#FFFFFF" />
-                    <Text style={styles.heroActionBtnText}>{t("viewJournal")}</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.heroActionGhostBtn}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      navigation.navigate("Map", { tripId: activeTrip.id });
-                    }}
-                  >
-                    <Ionicons name="map-outline" size={16} color="#FFFFFF" />
-                    <Text style={styles.heroActionGhostText}>{t("routeMap")}</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.heroActionGhostBtn, { backgroundColor: "rgba(245, 158, 11, 0.25)" }]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      navigation.navigate("TripRecap", { tripId: activeTrip.id });
-                    }}
-                  >
-                    <Ionicons name="sparkles" size={16} color="#F59E0B" />
-                    <Text style={[styles.heroActionGhostText, { color: "#F59E0B" }]}>Story</Text>
-                  </TouchableOpacity>
+                    <Ionicons name="journal-outline" size={15} color="#FFFFFF" />
+                    <Text style={styles.heroPrimaryPillText}>
+                      {t("viewJournal")}
+                    </Text>
+                    <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+                  </View>
                 </View>
               </View>
             </TouchableOpacity>
@@ -1069,6 +1048,25 @@ const styles = StyleSheet.create({
   heroActionGhostText: {
     color: "#FFFFFF",
     fontFamily: "InterMedium",
+    fontSize: 13,
+  },
+  heroActionSingleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginTop: 12,
+  },
+  heroPrimaryPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 16,
+  },
+  heroPrimaryPillText: {
+    color: "#FFFFFF",
+    fontFamily: "InterBold",
     fontSize: 13,
   },
   memoryCard: {
