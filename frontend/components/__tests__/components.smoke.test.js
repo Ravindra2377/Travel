@@ -6,6 +6,8 @@ import DiaryEditorModal from "../DiaryEditorModal";
 import SearchBar from "../SearchBar";
 import WhatsAppShareModal from "../WhatsAppShareModal";
 import InteractiveMap from "../InteractiveMap";
+import BottomSheet from "../BottomSheet";
+import { SkeletonBox, SkeletonTripCard } from "../SkeletonLoader";
 import {
   SurfaceCard,
   AppButton,
@@ -27,6 +29,9 @@ describe("Component module exports", () => {
     expect(SearchBar).toBeDefined();
     expect(WhatsAppShareModal).toBeDefined();
     expect(InteractiveMap).toBeDefined();
+    expect(BottomSheet).toBeDefined();
+    expect(SkeletonBox).toBeDefined();
+    expect(SkeletonTripCard).toBeDefined();
   });
 
   it("shared UI named exports are defined", () => {

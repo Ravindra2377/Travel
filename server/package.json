@@ -4,7 +4,8 @@
   "description": "Backend API, cloud sync, and hosted public share page for Trip Moments",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node --test"
   },
   "dependencies": {
     "cors": "^2.8.5",

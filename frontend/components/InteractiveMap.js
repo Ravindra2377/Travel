@@ -3,17 +3,58 @@ import { View, StyleSheet, Platform, ActivityIndicator } from "react-native";
 import { WebView } from "react-native-webview";
 
 /**
+ * City coordinates lookup table for trips without explicit GPS coordinates
+ */
+const CITY_COORDINATES = {
+  hampi: { lat: 15.3350, lng: 76.4600 },
+  kyoto: { lat: 35.0116, lng: 135.7680 },
+  tokyo: { lat: 35.6762, lng: 139.6503 },
+  goa: { lat: 15.2993, lng: 74.1240 },
+  manali: { lat: 32.2432, lng: 77.1892 },
+  ladakh: { lat: 34.1526, lng: 77.5771 },
+  leh: { lat: 34.1526, lng: 77.5771 },
+  jaipur: { lat: 26.9124, lng: 75.7873 },
+  udaipur: { lat: 24.5854, lng: 73.7125 },
+  varanasi: { lat: 25.3176, lng: 82.9739 },
+  kerala: { lat: 9.9312, lng: 76.2673 },
+  paris: { lat: 48.8566, lng: 2.3522 },
+  rome: { lat: 41.9028, lng: 12.4964 },
+};
+
+export function getTripCoordinates(trip) {
+  if (typeof trip?.latitude === "number" && typeof trip?.longitude === "number") {
+    return { lat: trip.latitude, lng: trip.longitude };
+  }
+  const cityKey = (trip?.city || "").trim().toLowerCase();
+  if (CITY_COORDINATES[cityKey]) {
+    return CITY_COORDINATES[cityKey];
+  }
+  // Fallback defaults
+  return { lat: 15.3350, lng: 76.4600 };
+}
+
+/**
  * InteractiveMap
- * High-performance real geographic map using Leaflet and Carto Voyager / OpenStreetMap tiles.
- * Works seamlessly across Web (via iframe / WebView) and iOS/Android.
+ * High-performance real geographic tile map using Leaflet.
+ * Features:
+ * - Camera flyTo animations with smooth easing
+ * - Progressive animated route drawing
+ * - Bouncing pin drop animations
+ * - Dual mode: Trip Expedition Pins (Home) or Moment Stops & Route (Detail)
+ * - Multi-layer tiles (Carto Voyager, OpenStreetMap, Esri Satellite)
  */
 export const InteractiveMap = ({
   moments = [],
   breadcrumbs = [],
+  trips = [],
+  mode = "moments", // "moments" | "trips"
   selectedIndex = 0,
+  activeTripId = null,
   onSelectMoment,
+  onSelectTrip,
   themeColor = "#16845B",
   tileStyle = "voyager", // "voyager" | "osm" | "satellite"
+  flyToLocation = null,  // { latitude, longitude, zoom }
   style,
 }) => {
   const webViewRef = useRef(null);
@@ -36,8 +77,23 @@ export const InteractiveMap = ({
         !isNaN(b.longitude)
     );
 
+    const preparedTrips = trips.map((t) => {
+      const coords = getTripCoordinates(t);
+      return {
+        id: t.id,
+        title: t.title,
+        city: t.city,
+        country: t.country,
+        coverUri: t.coverUri,
+        themeColor: t.themeColor || themeColor,
+        latitude: coords.lat,
+        longitude: coords.lng,
+      };
+    });
+
     const momentsJson = JSON.stringify(validMoments);
     const breadcrumbsJson = JSON.stringify(validBreadcrumbs);
+    const tripsJson = JSON.stringify(preparedTrips);
 
     const tileUrls = {
       voyager:
@@ -54,7 +110,8 @@ export const InteractiveMap = ({
     };
 
     const activeTileUrl = tileUrls[tileStyle] || tileUrls.voyager;
-    const activeAttribution = tileAttributions[tileStyle] || tileAttributions.voyager;
+    const activeAttribution =
+      tileAttributions[tileStyle] || tileAttributions.voyager;
 
     return `<!DOCTYPE html>
 <html>
@@ -74,22 +131,39 @@ export const InteractiveMap = ({
     .custom-pin {
       position: relative;
       cursor: pointer;
+      animation: pinDrop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    }
+    @keyframes pinDrop {
+      0% { transform: translateY(-28px); opacity: 0; }
+      70% { transform: translateY(3px); }
+      100% { transform: translateY(0); opacity: 1; }
     }
     .pin-bubble {
       width: 38px;
       height: 38px;
       border-radius: 19px;
       border: 3px solid #FFFFFF;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.35);
       background-size: cover;
       background-position: center;
       background-color: ${themeColor};
       transition: transform 0.25s ease, border-color 0.25s ease;
     }
-    .pin-selected .pin-bubble {
+    .trip-pin-bubble {
+      width: 44px;
+      height: 44px;
+      border-radius: 22px;
+      border: 3px solid #FFFFFF;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.40);
+      background-size: cover;
+      background-position: center;
+      background-color: ${themeColor};
+    }
+    .pin-selected .pin-bubble,
+    .pin-selected .trip-pin-bubble {
       transform: scale(1.22);
       border-color: ${themeColor};
-      box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.50);
     }
     .pulse-ring {
       position: absolute;
@@ -119,26 +193,21 @@ export const InteractiveMap = ({
       color: #FFF;
       font-size: 10px;
       font-weight: 600;
-      padding: 2px 6px;
-      border-radius: 4px;
+      padding: 2px 7px;
+      border-radius: 6px;
       white-space: nowrap;
       pointer-events: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     }
-    .leaflet-popup-content-wrapper {
-      border-radius: 12px;
-      padding: 4px;
+    /* Animated progressive route line */
+    .animated-route-line {
+      stroke-dasharray: 10, 10;
+      animation: dash 20s linear infinite;
     }
-    .popup-card {
-      font-size: 12px;
-    }
-    .popup-title {
-      font-weight: 700;
-      color: #0F172A;
-      margin-bottom: 2px;
-    }
-    .popup-meta {
-      color: #64748B;
-      font-size: 10px;
+    @keyframes dash {
+      to {
+        stroke-dashoffset: -1000;
+      }
     }
   </style>
 </head>
@@ -146,14 +215,17 @@ export const InteractiveMap = ({
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
+    const isTripsMode = "${mode}" === "trips";
     const moments = ${momentsJson};
     const breadcrumbs = ${breadcrumbsJson};
+    const trips = ${tripsJson};
     const themeColor = "${themeColor}";
     let initialIndex = ${selectedIndex};
+    let activeTripId = "${activeTripId || ""}";
 
     // Initialize Map
     const map = L.map('map', {
-      zoomControl: true,
+      zoomControl: false,
       attributionControl: false
     });
 
@@ -166,68 +238,98 @@ export const InteractiveMap = ({
     const markers = [];
     const latLngs = [];
 
-    // Add GPS Breadcrumb trail if available (continuous recorder route)
-    if (breadcrumbs && breadcrumbs.length > 1) {
-      const trailPoints = breadcrumbs.map(b => [b.latitude, b.longitude]);
-      L.polyline(trailPoints, {
-        color: '#F59E0B',
-        weight: 3,
-        opacity: 0.85,
-        dashArray: '6, 6'
-      }).addTo(map);
-    }
+    if (isTripsMode) {
+      // ── TRIPS MAP SHELL MODE ──────────────────────────────────────────
+      trips.forEach((t, idx) => {
+        const pos = [t.latitude, t.longitude];
+        latLngs.push(pos);
 
-    // Connect moments with a styled polyline
-    validMoments = moments.filter(m => m.latitude && m.longitude);
-    validMoments.forEach((m, idx) => {
-      const pos = [m.latitude, m.longitude];
-      latLngs.push(pos);
+        const isSelected = t.id === activeTripId || (idx === 0 && !activeTripId);
+        const bgImg = t.coverUri ? 'background-image: url(' + t.coverUri + ');' : '';
+        const pinHtml = '<div class="custom-pin ' + (isSelected ? 'pin-selected' : '') + '" id="trip-pin-' + t.id + '" style="animation-delay: ' + (idx * 0.08) + 's;">' +
+          '<div class="pulse-ring" style="border-color: ' + t.themeColor + ';"></div>' +
+          '<div class="trip-pin-bubble" style="' + bgImg + '"></div>' +
+          '<div class="pin-label">' + t.title + '</div>' +
+          '</div>';
 
-      // Create Custom HTML Pin
-      const bgImg = m.mediaUri ? 'background-image: url(' + m.mediaUri + ');' : '';
-      const pinHtml = '<div class="custom-pin ' + (idx === initialIndex ? 'pin-selected' : '') + '" id="pin-' + idx + '">' +
-        '<div class="pulse-ring"></div>' +
-        '<div class="pin-bubble" style="' + bgImg + '"></div>' +
-        '<div class="pin-label">' + (m.placeName || m.city || 'Stop ' + (idx + 1)) + '</div>' +
-        '</div>';
+        const icon = L.divIcon({
+          className: '',
+          html: pinHtml,
+          iconSize: [44, 44],
+          iconAnchor: [22, 22]
+        });
 
-      const icon = L.divIcon({
-        className: '',
-        html: pinHtml,
-        iconSize: [38, 38],
-        iconAnchor: [19, 19]
+        const marker = L.marker(pos, { icon: icon }).addTo(map);
+        marker.on('click', () => {
+          selectTripPin(t.id, pos);
+          postToApp({ type: 'SELECT_TRIP', tripId: t.id });
+        });
+        markers.push({ id: t.id, marker: marker, pos: pos });
       });
 
-      const marker = L.marker(pos, { icon: icon }).addTo(map);
-      marker.on('click', () => {
-        selectPin(idx);
-        if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SELECT_MOMENT', index: idx }));
-        } else if (window.parent) {
-          window.parent.postMessage(JSON.stringify({ type: 'SELECT_MOMENT', index: idx }), '*');
-        }
-      });
-      markers.push(marker);
-    });
-
-    if (latLngs.length > 1) {
-      // Smooth connecting route line
-      L.polyline(latLngs, {
-        color: themeColor,
-        weight: 4,
-        opacity: 0.85,
-        smoothFactor: 1
-      }).addTo(map);
-    }
-
-    // Fit map bounds
-    if (latLngs.length > 0) {
-      map.fitBounds(L.latLngBounds(latLngs), { padding: [50, 50], maxZoom: 15 });
+      if (latLngs.length > 1) {
+        map.fitBounds(L.latLngBounds(latLngs), { padding: [80, 80], maxZoom: 12 });
+      } else if (latLngs.length === 1) {
+        map.setView(latLngs[0], 11);
+      } else {
+        map.setView([20.5937, 78.9629], 5);
+      }
     } else {
-      map.setView([15.3350, 76.4600], 12);
+      // ── MOMENTS & ROUTE DETAIL MODE ──────────────────────────────────
+      if (breadcrumbs && breadcrumbs.length > 1) {
+        const trailPoints = breadcrumbs.map(b => [b.latitude, b.longitude]);
+        L.polyline(trailPoints, {
+          color: '#F59E0B',
+          weight: 3,
+          opacity: 0.85,
+          dashArray: '6, 6'
+        }).addTo(map);
+      }
+
+      moments.forEach((m, idx) => {
+        const pos = [m.latitude, m.longitude];
+        latLngs.push(pos);
+
+        const bgImg = m.mediaUri ? 'background-image: url(' + m.mediaUri + ');' : '';
+        const pinHtml = '<div class="custom-pin ' + (idx === initialIndex ? 'pin-selected' : '') + '" id="pin-' + idx + '" style="animation-delay: ' + (idx * 0.06) + 's;">' +
+          '<div class="pulse-ring"></div>' +
+          '<div class="pin-bubble" style="' + bgImg + '"></div>' +
+          '<div class="pin-label">' + (m.placeName || m.city || 'Stop ' + (idx + 1)) + '</div>' +
+          '</div>';
+
+        const icon = L.divIcon({
+          className: '',
+          html: pinHtml,
+          iconSize: [38, 38],
+          iconAnchor: [19, 19]
+        });
+
+        const marker = L.marker(pos, { icon: icon }).addTo(map);
+        marker.on('click', () => {
+          selectMomentPin(idx);
+          postToApp({ type: 'SELECT_MOMENT', index: idx });
+        });
+        markers.push(marker);
+      });
+
+      if (latLngs.length > 1) {
+        // Smooth animated route polyline
+        const poly = L.polyline(latLngs, {
+          color: themeColor,
+          weight: 4.5,
+          opacity: 0.9,
+          className: 'animated-route-line',
+          smoothFactor: 1
+        }).addTo(map);
+        map.fitBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: 15 });
+      } else if (latLngs.length === 1) {
+        map.setView(latLngs[0], 13);
+      } else {
+        map.setView([15.3350, 76.4600], 12);
+      }
     }
 
-    function selectPin(idx) {
+    function selectMomentPin(idx) {
       markers.forEach((m, i) => {
         const el = document.getElementById('pin-' + i);
         if (el) {
@@ -238,10 +340,35 @@ export const InteractiveMap = ({
           }
         }
       });
-      if (markers[idx]) {
+      if (markers[idx] && markers[idx].getLatLng) {
         map.flyTo(markers[idx].getLatLng(), Math.max(map.getZoom(), 14), {
-          duration: 0.8
+          duration: 1.0,
+          easeLinearity: 0.25
         });
+      }
+    }
+
+    function selectTripPin(tripId, pos) {
+      trips.forEach(t => {
+        const el = document.getElementById('trip-pin-' + t.id);
+        if (el) {
+          if (t.id === tripId) {
+            el.classList.add('pin-selected');
+          } else {
+            el.classList.remove('pin-selected');
+          }
+        }
+      });
+      if (pos) {
+        map.flyTo(pos, 11, { duration: 1.2 });
+      }
+    }
+
+    function postToApp(msg) {
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+      } else if (window.parent) {
+        window.parent.postMessage(JSON.stringify(msg), '*');
       }
     }
 
@@ -250,32 +377,42 @@ export const InteractiveMap = ({
       try {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         if (data.type === 'FLY_TO_INDEX') {
-          selectPin(data.index);
+          selectMomentPin(data.index);
+        } else if (data.type === 'FLY_TO_TRIP') {
+          const target = markers.find(m => m.id === data.tripId);
+          if (target) selectTripPin(data.tripId, target.pos);
+        } else if (data.type === 'FLY_TO_COORDS' && data.latitude && data.longitude) {
+          map.flyTo([data.latitude, data.longitude], data.zoom || 11, { duration: 1.2 });
         }
       } catch (err) {}
     });
   </script>
 </body>
 </html>`;
-  }, [moments, breadcrumbs, themeColor, tileStyle, selectedIndex]);
+  }, [moments, breadcrumbs, trips, mode, themeColor, tileStyle, selectedIndex, activeTripId]);
 
-  // When selectedIndex updates from parent (e.g. carousel scrub), inform webview
+  // Two-way sync: Notify Leaflet map when selection or flyTo updates
   useEffect(() => {
+    const msg =
+      mode === "trips"
+        ? activeTripId
+          ? { type: "FLY_TO_TRIP", tripId: activeTripId }
+          : flyToLocation
+          ? { type: "FLY_TO_COORDS", ...flyToLocation }
+          : null
+        : { type: "FLY_TO_INDEX", index: selectedIndex };
+
+    if (!msg) return;
+
     if (Platform.OS === "web") {
-      // In web iframe, post message
       const iframe = document.getElementById("leaflet-map-iframe");
       if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.postMessage(
-          JSON.stringify({ type: "FLY_TO_INDEX", index: selectedIndex }),
-          "*"
-        );
+        iframe.contentWindow.postMessage(JSON.stringify(msg), "*");
       }
     } else if (webViewRef.current) {
-      webViewRef.current.postMessage(
-        JSON.stringify({ type: "FLY_TO_INDEX", index: selectedIndex })
-      );
+      webViewRef.current.postMessage(JSON.stringify(msg));
     }
-  }, [selectedIndex]);
+  }, [selectedIndex, activeTripId, flyToLocation, mode]);
 
   // Listen for message on Web
   useEffect(() => {
@@ -285,21 +422,27 @@ export const InteractiveMap = ({
           const data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
           if (data && data.type === "SELECT_MOMENT" && typeof data.index === "number") {
             onSelectMoment && onSelectMoment(data.index);
+          } else if (data && data.type === "SELECT_TRIP" && data.tripId) {
+            onSelectTrip && onSelectTrip(data.tripId);
           }
         } catch (err) {}
       };
       window.addEventListener("message", handleWebMessage);
       return () => window.removeEventListener("message", handleWebMessage);
     }
-  }, [onSelectMoment]);
+  }, [onSelectMoment, onSelectTrip]);
 
   const handleNativeMessage = (event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === "SELECT_MOMENT" && typeof data.index === "number") {
         onSelectMoment && onSelectMoment(data.index);
+      } else if (data.type === "SELECT_TRIP" && data.tripId) {
+        onSelectTrip && onSelectTrip(data.tripId);
       }
-    } catch (e) {}
+    } catch (err) {
+      console.warn("[InteractiveMap] Native message parse error:", err);
+    }
   };
 
   if (Platform.OS === "web") {
@@ -307,13 +450,13 @@ export const InteractiveMap = ({
       <View style={[styles.container, style]}>
         <iframe
           id="leaflet-map-iframe"
-          title="Trip Route Map"
+          title="Interactive Travel Map"
           srcDoc={mapHtml}
           style={{
             width: "100%",
             height: "100%",
             border: "none",
-            borderRadius: 16,
+            display: "block",
           }}
         />
       </View>
@@ -326,16 +469,17 @@ export const InteractiveMap = ({
         ref={webViewRef}
         originWhitelist={["*"]}
         source={{ html: mapHtml }}
-        onMessage={handleNativeMessage}
-        style={styles.webview}
+        style={styles.webView}
         javaScriptEnabled
         domStorageEnabled
-        startInLoadingState
+        scrollEnabled={false}
+        onMessage={handleNativeMessage}
         renderLoading={() => (
-          <View style={styles.loadingBox}>
+          <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color={themeColor} />
           </View>
         )}
+        startInLoadingState
       />
     </View>
   );
@@ -344,23 +488,19 @@ export const InteractiveMap = ({
 const styles = StyleSheet.create({
   container: {
     width: "100%",
-    height: 380,
-    borderRadius: 16,
-    overflow: "hidden",
+    height: "100%",
     backgroundColor: "#E8ECE9",
+    overflow: "hidden",
   },
-  webview: {
+  webView: {
     flex: 1,
     backgroundColor: "transparent",
   },
-  loadingBox: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  loadingContainer: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#E8ECE9",
   },
 });
 

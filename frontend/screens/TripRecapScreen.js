@@ -7,10 +7,18 @@ import {
   Dimensions,
   Share,
   StatusBar,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+  cancelAnimation,
+} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "../context/ThemeContext";
 import { useTrips } from "../context/TripContext";
@@ -19,13 +27,13 @@ import LiquidGlass from "../components/LiquidGlass";
 import { Ionicons } from "../components/Icon";
 
 const { width, height } = Dimensions.get("window");
-const SLIDE_DURATION_MS = 4500;
+const SLIDE_DURATION_MS = 5000;
 
-const TripRecapScreen = ({ route, navigation }) => {
+export default function TripRecapScreen({ route, navigation }) {
   const { tripId } = route.params || {};
   const insets = useSafeAreaInsets();
   const { themeColors } = useTheme();
-  const { trips, activeTrip, moments } = useTrips();
+  const { trips, activeTrip, moments, toggleFavoriteMoment } = useTrips();
 
   const currentTrip = useMemo(() => {
     if (tripId) {
@@ -42,51 +50,124 @@ const TripRecapScreen = ({ route, navigation }) => {
     const tripMoments = moments.filter((m) => m.tripId === currentTrip.id);
     if (tripMoments.length === 0) return [];
 
-    // Sort: favorites first, then chronological
-    const sorted = [...tripMoments].sort((a, b) => {
+    return [...tripMoments].sort((a, b) => {
       if (a.isFavorite && !b.isFavorite) return -1;
       if (!a.isFavorite && b.isFavorite) return 1;
       return new Date(a.takenAt) - new Date(b.takenAt);
     });
-
-    return sorted.slice(0, 6);
   }, [currentTrip, moments]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isShareCardMode, setIsShareCardMode] = useState(false);
+  const [isHolding, setIsHolding] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
 
-  // Auto-advance timer
+  // Reanimated shared values
+  const progressAnim = useSharedValue(0);
+  const kenBurnsScale = useSharedValue(1.0);
+  const overlayOpacity = useSharedValue(1.0);
+
+  // Reset animations when moment index changes
   useEffect(() => {
-    if (!isPlaying || recapMoments.length <= 1 || isShareCardMode) return;
+    if (isFinished || !isPlaying || isHolding || recapMoments.length === 0) {
+      return;
+    }
+
+    // Reset progress
+    progressAnim.value = 0;
+    progressAnim.value = withTiming(1, {
+      duration: SLIDE_DURATION_MS,
+      easing: Easing.linear,
+    });
+
+    // Ken Burns subtle zoom
+    kenBurnsScale.value = 1.0;
+    kenBurnsScale.value = withTiming(1.07, {
+      duration: SLIDE_DURATION_MS,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1.0),
+    });
 
     const timer = setTimeout(() => {
-      setCurrentIndex((prev) => (prev + 1) % recapMoments.length);
+      handleNext();
     }, SLIDE_DURATION_MS);
 
-    return () => clearTimeout(timer);
-  }, [currentIndex, isPlaying, recapMoments.length, isShareCardMode]);
+    return () => {
+      clearTimeout(timer);
+      cancelAnimation(progressAnim);
+      cancelAnimation(kenBurnsScale);
+    };
+  }, [currentIndex, isPlaying, isHolding, isFinished, recapMoments.length]);
 
   const handleNext = () => {
+    if (currentIndex >= recapMoments.length - 1) {
+      setIsFinished(true);
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCurrentIndex((prev) => (prev + 1) % recapMoments.length);
+    setCurrentIndex((prev) => prev + 1);
   };
 
   const handlePrev = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCurrentIndex((prev) => (prev - 1 + recapMoments.length) % recapMoments.length);
+    if (isFinished) {
+      setIsFinished(false);
+      setCurrentIndex(recapMoments.length - 1);
+      return;
+    }
+    if (currentIndex > 0) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setCurrentIndex((prev) => prev - 1);
+    }
+  };
+
+  const handlePressIn = () => {
+    setIsHolding(true);
+    cancelAnimation(progressAnim);
+    cancelAnimation(kenBurnsScale);
+    overlayOpacity.value = withTiming(0.1, { duration: 200 });
+  };
+
+  const handlePressOut = () => {
+    setIsHolding(false);
+    overlayOpacity.value = withTiming(1.0, { duration: 200 });
+  };
+
+  const handleToggleFavorite = async () => {
+    const moment = recapMoments[currentIndex];
+    if (moment) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await toggleFavoriteMoment(moment.id);
+    }
   };
 
   const handleShareStory = async () => {
     try {
+      const moment = recapMoments[currentIndex];
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await Share.share({
-        message: `Reliving ${currentTrip?.title}: "${currentMoment?.title}" in ${currentMoment?.city} · Captured on Trip Moments`,
+        message: `Reliving ${currentTrip?.title}: "${moment?.title}" in ${moment?.city} · Captured on Trip Moments`,
       });
     } catch (e) {}
   };
 
   const currentMoment = recapMoments[currentIndex] || recapMoments[0];
+
+  const animatedImageStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: kenBurnsScale.value }],
+    };
+  });
+
+  const animatedOverlayStyle = useAnimatedStyle(() => {
+    return {
+      opacity: overlayOpacity.value,
+    };
+  });
+
+  const animatedProgressStyle = useAnimatedStyle(() => {
+    return {
+      width: `${progressAnim.value * 100}%`,
+    };
+  });
 
   if (!currentTrip || recapMoments.length === 0) {
     return (
@@ -107,26 +188,98 @@ const TripRecapScreen = ({ route, navigation }) => {
     );
   }
 
+  // Finished summary card
+  if (isFinished) {
+    return (
+      <View style={[styles.container, { backgroundColor: "#0B1511" }]}>
+        <StatusBar barStyle="light-content" />
+        <Image
+          source={{ uri: currentTrip.coverUri }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+        />
+        <LinearGradient
+          colors={["rgba(0,0,0,0.6)", "rgba(11,21,17,0.95)"]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        <View style={[styles.finishedCard, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 30 }]}>
+          <View style={styles.crestCircle}>
+            <Ionicons name="sparkles" size={32} color="#F59E0B" />
+          </View>
+          <Text style={[FONTS.captionBold, styles.finishedSubtitle, { color: primaryTint }]}>
+            EXPEDITION RECAP COMPLETE
+          </Text>
+          <Text style={[FONTS.h1, styles.finishedTitle]}>
+            {currentTrip.title}
+          </Text>
+          <Text style={styles.finishedLocation}>
+            {currentTrip.city}, {currentTrip.country}
+          </Text>
+
+          {/* Stats Grid */}
+          <View style={styles.statsSummaryGrid}>
+            <View style={styles.statSummaryBox}>
+              <Text style={styles.statNumber}>{recapMoments.length}</Text>
+              <Text style={styles.statLabel}>MOMENTS</Text>
+            </View>
+            <View style={styles.statSummaryBox}>
+              <Text style={styles.statNumber}>
+                {new Set(recapMoments.map((m) => m.placeName || m.city)).size}
+              </Text>
+              <Text style={styles.statLabel}>STOPS</Text>
+            </View>
+            <View style={styles.statSummaryBox}>
+              <Text style={styles.statNumber}>
+                {currentTrip.id === "trip-1" ? "42" : currentTrip.id === "trip-2" ? "318" : "75"}
+              </Text>
+              <Text style={styles.statLabel}>KM LOGGED</Text>
+            </View>
+          </View>
+
+          <View style={styles.finishedActions}>
+            <TouchableOpacity
+              style={[styles.replayBtn, { backgroundColor: primaryTint }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setIsFinished(false);
+                setCurrentIndex(0);
+              }}
+            >
+              <Ionicons name="refresh" size={18} color="#FFF" />
+              <Text style={styles.replayBtnText}>Replay Journey</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.closeSummaryBtn}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.closeSummaryBtnText}>Back to Trip Journal</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: "#000000" }]}>
       <StatusBar barStyle="light-content" hidden={false} />
 
-      {/* Main Fullscreen Story Image */}
-      <View
-        style={[
-          styles.slideWrapper,
-          isShareCardMode && styles.shareCardModeWrapper,
-        ]}
-      >
-        <Image
-          source={{ uri: currentMoment.mediaUri }}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          transition={300}
-        />
+      {/* Main Fullscreen Story Image with Ken Burns zoom */}
+      <View style={styles.slideWrapper}>
+        <Animated.View style={[StyleSheet.absoluteFill, animatedImageStyle]}>
+          <Image
+            source={{ uri: currentMoment.mediaUri }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={300}
+          />
+        </Animated.View>
+
         <LinearGradient
           colors={[
-            "rgba(0,0,0,0.60)",
+            "rgba(0,0,0,0.65)",
             "transparent",
             "rgba(0,0,0,0.30)",
             "rgba(0,0,0,0.92)",
@@ -135,24 +288,41 @@ const TripRecapScreen = ({ route, navigation }) => {
         />
 
         {/* Top Story Progress Bars */}
-        <View style={[styles.progressBarsRow, { paddingTop: insets.top + 8 }]}>
+        <Animated.View
+          style={[
+            styles.progressBarsRow,
+            { paddingTop: insets.top + 8 },
+            animatedOverlayStyle,
+          ]}
+        >
           {recapMoments.map((_, idx) => (
             <View key={idx} style={styles.progressBarTrack}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  {
-                    width: idx <= currentIndex ? "100%" : "0%",
-                    backgroundColor: idx === currentIndex ? primaryTint : "#FFFFFF",
-                  },
-                ]}
-              />
+              {idx < currentIndex && (
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: "100%", backgroundColor: primaryTint },
+                  ]}
+                />
+              )}
+              {idx === currentIndex && (
+                <Animated.View
+                  style={[
+                    styles.progressBarFill,
+                    { backgroundColor: primaryTint },
+                    animatedProgressStyle,
+                  ]}
+                />
+              )}
+              {idx > currentIndex && (
+                <View style={[styles.progressBarFill, { width: "0%" }]} />
+              )}
             </View>
           ))}
-        </View>
+        </Animated.View>
 
         {/* Top Navigation Controls */}
-        <View style={styles.topControls}>
+        <Animated.View style={[styles.topControls, animatedOverlayStyle]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.storyIconBtn}
@@ -173,42 +343,51 @@ const TripRecapScreen = ({ route, navigation }) => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setIsShareCardMode(!isShareCardMode)}
-              style={[
-                styles.storyModePill,
-                isShareCardMode && { backgroundColor: primaryTint },
-              ]}
+              onPress={handleToggleFavorite}
+              style={styles.storyIconBtn}
             >
-              <Ionicons name="sparkles" size={14} color="#FFFFFF" />
-              <Text style={styles.storyModePillText}>
-                {isShareCardMode ? "9:16 Card" : "Card View"}
-              </Text>
+              <Ionicons
+                name={currentMoment.isFavorite ? "heart" : "heart-outline"}
+                size={22}
+                color={currentMoment.isFavorite ? "#EF4444" : "#FFFFFF"}
+              />
             </TouchableOpacity>
           </View>
+        </Animated.View>
+
+        {/* Story Tap Touch Zones: Left (30%) & Right (70%), with PressIn/PressOut for hold-to-pause */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          <TouchableWithoutFeedback
+            onPress={handlePrev}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+          >
+            <View style={styles.touchLeft} />
+          </TouchableWithoutFeedback>
+
+          <TouchableWithoutFeedback
+            onPress={handleNext}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+          >
+            <View style={styles.touchRight} />
+          </TouchableWithoutFeedback>
         </View>
 
-        {/* Story Tap Touch Zones (Left & Right) */}
-        {!isShareCardMode && (
-          <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-            <TouchableOpacity
-              style={styles.touchLeft}
-              onPress={handlePrev}
-              activeOpacity={1}
-            />
-            <TouchableOpacity
-              style={styles.touchRight}
-              onPress={handleNext}
-              activeOpacity={1}
-            />
-          </View>
-        )}
-
         {/* Story Bottom Content Overlay */}
-        <View style={[styles.bottomContent, { paddingBottom: insets.bottom + 20 }]}>
+        <Animated.View
+          style={[
+            styles.bottomContent,
+            { paddingBottom: insets.bottom + 20 },
+            animatedOverlayStyle,
+          ]}
+          pointerEvents="box-none"
+        >
           <View style={styles.badgeRow}>
             <LiquidGlass radius={12} intensity={40} style={styles.storyGlassBadge}>
+              <Ionicons name="location-sharp" size={12} color="#10B981" />
               <Text style={styles.storyBadgeText}>
-                {currentMoment.city?.toUpperCase()} ·{" "}
+                {currentMoment.placeName || currentMoment.city} ·{" "}
                 {new Date(currentMoment.takenAt).toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
@@ -221,10 +400,19 @@ const TripRecapScreen = ({ route, navigation }) => {
                 <Ionicons
                   name={currentMoment.weather.icon || "sunny"}
                   size={12}
-                  color="#FFFFFF"
+                  color="#F59E0B"
                 />
                 <Text style={[styles.storyBadgeText, { marginLeft: 4 }]}>
                   {currentMoment.weather.temp}°C
+                </Text>
+              </LiquidGlass>
+            )}
+
+            {currentMoment.latitude && currentMoment.longitude && (
+              <LiquidGlass radius={12} intensity={40} style={styles.storyGlassBadge}>
+                <Ionicons name="compass-outline" size={12} color="#60A5FA" />
+                <Text style={[styles.storyBadgeText, { marginLeft: 4 }]}>
+                  {currentMoment.latitude.toFixed(2)}°, {currentMoment.longitude.toFixed(2)}°
                 </Text>
               </LiquidGlass>
             )}
@@ -246,14 +434,14 @@ const TripRecapScreen = ({ route, navigation }) => {
               onPress={handleShareStory}
             >
               <Ionicons name="share-social" size={18} color="#FFFFFF" />
-              <Text style={styles.shareActionText}>Share Story Card</Text>
+              <Text style={styles.shareActionText}>Share Moment Card</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -264,31 +452,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 24,
   },
-  backHomeBtn: {
-    marginTop: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 18,
-  },
   slideWrapper: {
     flex: 1,
-    width: "100%",
-    justifyContent: "space-between",
-    position: "relative",
-  },
-  shareCardModeWrapper: {
-    marginVertical: 40,
-    marginHorizontal: 20,
-    width: width - 40,
-    borderRadius: 32,
     overflow: "hidden",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.20)",
   },
   progressBarsRow: {
     flexDirection: "row",
+    gap: 4,
     paddingHorizontal: 16,
-    gap: 6,
     zIndex: 10,
   },
   progressBarTrack: {
@@ -300,64 +471,58 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: "100%",
+    borderRadius: 2,
   },
   topControls: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    alignItems: "center",
+    paddingHorizontal: 16,
     marginTop: 10,
     zIndex: 10,
   },
   topRightControls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
   storyIconBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "rgba(0,0,0,0.50)",
-    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center",
-  },
-  storyModePill: {
-    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.50)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    gap: 6,
-  },
-  storyModePillText: {
-    color: "#FFFFFF",
-    fontFamily: "InterSemiBold",
-    fontSize: 12,
   },
   touchLeft: {
     position: "absolute",
     left: 0,
-    top: 80,
-    bottom: 160,
-    width: width * 0.35,
+    top: 60,
+    bottom: 120,
+    width: "35%",
+    zIndex: 5,
   },
   touchRight: {
     position: "absolute",
     right: 0,
-    top: 80,
-    bottom: 160,
-    width: width * 0.65,
+    top: 60,
+    bottom: 120,
+    width: "65%",
+    zIndex: 5,
   },
   bottomContent: {
-    paddingHorizontal: 24,
-    gap: 8,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
     zIndex: 10,
   },
   badgeRow: {
     flexDirection: "row",
     gap: 8,
+    marginBottom: 10,
+    flexWrap: "wrap",
   },
   storyGlassBadge: {
     flexDirection: "row",
@@ -367,47 +532,137 @@ const styles = StyleSheet.create({
   },
   storyBadgeText: {
     color: "#FFFFFF",
-    fontFamily: "IBMPlexMonoSemiBold",
+    fontFamily: "InterMedium",
     fontSize: 11,
-    letterSpacing: 0.5,
+    marginLeft: 3,
   },
   storyTripName: {
-    color: "rgba(255,255,255,0.70)",
-    fontFamily: "IBMPlexMono",
-    fontSize: 12,
-    letterSpacing: 1,
+    color: "rgba(255,255,255,0.75)",
+    fontFamily: "InterSemiBold",
+    fontSize: 13,
+    letterSpacing: 0.8,
     textTransform: "uppercase",
   },
   storyMomentTitle: {
     color: "#FFFFFF",
     fontFamily: "FrauncesBold",
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 26,
+    lineHeight: 32,
+    marginVertical: 4,
   },
   storyQuote: {
-    color: "rgba(255,255,255,0.85)",
-    fontFamily: "Inter",
+    color: "rgba(255,255,255,0.9)",
+    fontFamily: "InterRegular",
     fontSize: 14,
-    lineHeight: 22,
+    lineHeight: 20,
     fontStyle: "italic",
-    marginTop: 2,
+    marginTop: 4,
   },
   shareRow: {
-    marginTop: 12,
+    marginTop: 16,
   },
   shareActionBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 13,
-    borderRadius: 18,
     gap: 8,
+    paddingVertical: 12,
+    borderRadius: RADIUS.lg,
   },
   shareActionText: {
     color: "#FFFFFF",
+    fontFamily: "InterBold",
+    fontSize: 14,
+  },
+  backHomeBtn: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: RADIUS.md,
+  },
+  finishedCard: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+  crestCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(245,158,11,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  finishedSubtitle: {
+    letterSpacing: 1.5,
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  finishedTitle: {
+    color: "#FFFFFF",
+    fontSize: 28,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  finishedLocation: {
+    color: "rgba(255,255,255,0.75)",
+    fontFamily: "InterMedium",
+    fontSize: 14,
+    marginBottom: 28,
+  },
+  statsSummaryGrid: {
+    flexDirection: "row",
+    gap: 16,
+    width: "100%",
+    marginBottom: 32,
+  },
+  statSummaryBox: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: RADIUS.lg,
+    paddingVertical: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  statNumber: {
+    color: "#FFFFFF",
+    fontFamily: "FrauncesBold",
+    fontSize: 24,
+  },
+  statLabel: {
+    color: "rgba(255,255,255,0.65)",
     fontFamily: "InterSemiBold",
+    fontSize: 10,
+    letterSpacing: 0.8,
+    marginTop: 4,
+  },
+  finishedActions: {
+    width: "100%",
+    gap: 12,
+  },
+  replayBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: RADIUS.lg,
+  },
+  replayBtnText: {
+    color: "#FFFFFF",
+    fontFamily: "InterBold",
+    fontSize: 15,
+  },
+  closeSummaryBtn: {
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  closeSummaryBtnText: {
+    color: "rgba(255,255,255,0.7)",
+    fontFamily: "InterMedium",
     fontSize: 14,
   },
 });
-
-export default TripRecapScreen;

@@ -5,19 +5,107 @@ const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const DATA_FILE = path.join(__dirname, "data", "db.json");
+const DATA_DIR = path.join(__dirname, "data");
+const DATA_FILE = path.join(DATA_DIR, "db.json");
+const SEED_FILE = path.join(DATA_DIR, "db.seed.json");
+const UPLOADS_DIR = path.join(__dirname, "uploads");
 
-app.use(cors());
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true }));
+// Authentication key for syncing mutations
+const SYNC_API_KEY = process.env.SYNC_API_KEY || "dev-sync-token-secret";
 
-// Ensure data directory exists
-if (!fs.existsSync(path.join(__dirname, "data"))) {
-  fs.mkdirSync(path.join(__dirname, "data"), { recursive: true });
+// Rate limiting: simple in-memory window limiter
+const rateLimitMap = new Map();
+function rateLimiter(windowMs = 60000, maxRequests = 200) {
+  return (req, res, next) => {
+    const ip = req.ip || req.socket.remoteAddress || "127.0.0.1";
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip) || { count: 0, resetTime: now + windowMs };
+
+    if (now > entry.resetTime) {
+      entry.count = 1;
+      entry.resetTime = now + windowMs;
+    } else {
+      entry.count += 1;
+    }
+    rateLimitMap.set(ip, entry);
+
+    if (entry.count > maxRequests) {
+      return res.status(429).json({ error: "Too many requests. Please try again later." });
+    }
+    next();
+  };
 }
 
-// Initial seed data
-const SEED_DATA = {
+// Security: HTML entity escaping to eliminate XSS
+function escapeHtml(str) {
+  if (typeof str !== "string") return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// Security: JSON serialization that prevents script tag breakout
+function safeJsonStringify(obj) {
+  return JSON.stringify(obj)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
+// Security: Auth middleware for sync mutations
+function authenticateSync(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ error: "Unauthorized: Missing Authorization header" });
+  }
+
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : authHeader.trim();
+
+  if (token !== SYNC_API_KEY) {
+    return res.status(401).json({ error: "Unauthorized: Invalid sync authorization token" });
+  }
+  next();
+}
+
+function isCallerAuthenticated(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return false;
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : authHeader.trim();
+  return token === SYNC_API_KEY;
+}
+
+// Middleware setup
+app.use(rateLimiter(60000, 250));
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",")
+    : true,
+  methods: ["GET", "POST", "OPTIONS"],
+}));
+app.use(express.json({ limit: "5mb" }));
+app.use(express.urlencoded({ extended: true, limit: "5mb" }));
+
+// Ensure data & upload directories exist
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+// Static route for uploaded photos
+app.use("/uploads", express.static(UPLOADS_DIR));
+
+// Initial seed data fallback
+const FALLBACK_SEED = {
   trips: [
     {
       id: "trip-1",
@@ -27,125 +115,45 @@ const SEED_DATA = {
       status: "active",
       privacy: "link_only",
       shareSlug: "hampi-golden-sunrise-2026",
-      coverUri:
-        "https://images.unsplash.com/photo-1600100397608-f010f4439c2e?q=80&w=1200&auto=format&fit=crop",
+      coverUri: "https://images.unsplash.com/photo-1600100397608-f010f4439c2e?q=80&w=1200&auto=format&fit=crop",
       themeColor: "#16845B",
       secondaryColor: "#D97706",
       city: "Hampi",
       country: "India",
-      notes:
-        "Exploring the 14th-century Vijayanagara ruins, granite boulder hills, and ancient river crossings.",
+      notes: "Exploring the 14th-century Vijayanagara ruins, granite boulder hills, and ancient river crossings.",
       createdAt: "2026-10-14T05:00:00Z",
-      updatedAt: "2026-10-16T18:00:00Z",
-    },
-    {
-      id: "trip-2",
-      title: "Autumn Across Tokyo & Kyoto",
-      startDate: "2025-11-02",
-      endDate: "2025-11-12",
-      status: "completed",
-      privacy: "link_only",
-      shareSlug: "kyoto-autumn-momiji-2025",
-      coverUri:
-        "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1200&auto=format&fit=crop",
-      themeColor: "#BE123C",
-      secondaryColor: "#1E293B",
-      city: "Kyoto",
-      country: "Japan",
-      notes:
-        "Chasing momiji autumn foliage, quiet zen gardens, and evening ramen alleys.",
-      createdAt: "2025-11-02T04:00:00Z",
-      updatedAt: "2025-11-12T20:00:00Z",
-    },
+      updatedAt: "2026-10-16T18:00:00Z"
+    }
   ],
-  moments: [
-    {
-      id: "m-1-1",
-      tripId: "trip-1",
-      takenAt: "2026-10-15T06:15:00Z",
-      title: "Dawn over Virupaksha Gopuram",
-      text: "First golden light illuminating the 50-meter gopuram. The temple elephant Lakshmi gave a morning blessing by the riverside.",
-      placeName: "Virupaksha Temple, Hampi Bazaar",
-      city: "Hampi",
-      country: "India",
-      latitude: 15.335,
-      longitude: 76.46,
-      weather: { temp: 24, condition: "Sunny", icon: "sunny" },
-      mediaUri:
-        "https://images.unsplash.com/photo-1600100397608-f010f4439c2e?q=80&w=1000&auto=format&fit=crop",
-      mediaType: "photo",
-      tags: ["temple", "sunrise", "heritage"],
-      isFavorite: true,
-      createdAt: "2026-10-15T06:20:00Z",
-      updatedAt: "2026-10-15T06:20:00Z",
-    },
-    {
-      id: "m-1-2",
-      tripId: "trip-1",
-      takenAt: "2026-10-15T09:45:00Z",
-      title: "Coracle Ride on the Tungabhadra",
-      text: "Spinning slowly across turbulent eddies in circular woven coracles. Giant granite boulders rise vertically out of the emerald water.",
-      placeName: "Tungabhadra River Ferry Point",
-      city: "Hampi",
-      country: "India",
-      latitude: 15.3385,
-      longitude: 76.4632,
-      weather: { temp: 28, condition: "Clear", icon: "sunny" },
-      mediaUri:
-        "https://images.unsplash.com/photo-1596401057633-54a8fe8ef647?q=80&w=1000&auto=format&fit=crop",
-      mediaType: "photo",
-      tags: ["river", "adventure", "coracle"],
-      isFavorite: false,
-      createdAt: "2026-10-15T10:00:00Z",
-      updatedAt: "2026-10-15T10:00:00Z",
-    },
-    {
-      id: "m-1-3",
-      tripId: "trip-1",
-      takenAt: "2026-10-15T17:40:00Z",
-      title: "Matanga Hill Golden Hour",
-      text: "Climbed 500 steps barefoot. Reached the peak right as the sky turned molten amber, casting mile-long shadows across the ruins complex.",
-      placeName: "Matanga Hill Summit",
-      city: "Hampi",
-      country: "India",
-      latitude: 15.3318,
-      longitude: 76.468,
-      weather: { temp: 27, condition: "Golden Hour", icon: "partly-sunny" },
-      mediaUri:
-        "https://images.unsplash.com/photo-1627894483216-2138af692e32?q=80&w=1000&auto=format&fit=crop",
-      mediaType: "photo",
-      tags: ["sunset", "panorama", "hiking"],
-      isFavorite: true,
-      createdAt: "2026-10-15T17:50:00Z",
-      updatedAt: "2026-10-15T17:50:00Z",
-    },
-  ],
-  diary_entries: [
-    {
-      id: "diary-1",
-      tripId: "trip-1",
-      dateKey: "2026-10-15",
-      mood: "blown_away",
-      text: "Climbing Matanga Hill in the late afternoon felt like ascending another planet. Granite boulders balancing on each other for miles, glowing in molten copper light.",
-      isPrivate: false,
-      createdAt: "2026-10-15T19:30:00Z",
-      updatedAt: "2026-10-15T19:30:00Z",
-    },
-  ],
-  breadcrumbs: [],
+  moments: [],
+  diary_entries: [],
+  breadcrumbs: []
 };
 
 function readDb() {
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(SEED_DATA, null, 2));
-    return SEED_DATA;
+  if (fs.existsSync(DATA_FILE)) {
+    try {
+      const raw = fs.readFileSync(DATA_FILE, "utf-8");
+      return JSON.parse(raw);
+    } catch (e) {
+      console.warn("[Server] Could not parse db.json, falling back to seed", e.message);
+    }
   }
-  try {
-    const raw = fs.readFileSync(DATA_FILE, "utf-8");
-    return JSON.parse(raw);
-  } catch (err) {
-    return SEED_DATA;
+
+  // Fallback to seed file
+  if (fs.existsSync(SEED_FILE)) {
+    try {
+      const raw = fs.readFileSync(SEED_FILE, "utf-8");
+      const seed = JSON.parse(raw);
+      fs.writeFileSync(DATA_FILE, JSON.stringify(seed, null, 2));
+      return seed;
+    } catch (e) {
+      console.warn("[Server] Could not parse db.seed.json", e.message);
+    }
   }
+
+  fs.writeFileSync(DATA_FILE, JSON.stringify(FALLBACK_SEED, null, 2));
+  return FALLBACK_SEED;
 }
 
 function writeDb(data) {
@@ -161,13 +169,43 @@ app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
     app: "Trip Moments Cloud Sync Engine",
-    version: "1.0.0",
+    version: "1.1.0",
     time: new Date().toISOString(),
   });
 });
 
-// 2. Sync Push Endpoint (Accepts outbox batches from mobile / web app)
-app.post("/api/sync/push", (req, res) => {
+// 2. Photo Upload Endpoint
+app.post("/api/photos/upload", authenticateSync, (req, res) => {
+  const { filename, base64Data, contentType = "image/jpeg" } = req.body;
+  if (!base64Data) {
+    return res.status(400).json({ error: "Missing base64Data in request body" });
+  }
+
+  try {
+    const ext = filename ? filename.split(".").pop() : "jpg";
+    const safeFilename = `photo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+    const filePath = path.join(UPLOADS_DIR, safeFilename);
+
+    const buffer = Buffer.from(base64Data, "base64");
+    fs.writeFileSync(filePath, buffer);
+
+    const host = req.get("host") || `localhost:${PORT}`;
+    const protocol = req.protocol || "http";
+    const photoUrl = `${protocol}://${host}/uploads/${safeFilename}`;
+
+    res.json({
+      success: true,
+      url: photoUrl,
+      filename: safeFilename,
+    });
+  } catch (err) {
+    console.error("[Server] Photo upload failed:", err);
+    res.status(500).json({ error: "Failed to save photo" });
+  }
+});
+
+// 3. Sync Push Endpoint (Protected with authenticateSync)
+app.post("/api/sync/push", authenticateSync, (req, res) => {
   const { queue } = req.body;
   if (!Array.isArray(queue)) {
     return res.status(400).json({ error: "Invalid queue array" });
@@ -231,47 +269,126 @@ app.post("/api/sync/push", (req, res) => {
   });
 });
 
-// 3. Sync Pull Endpoint
+// 4. Sync Pull Endpoint (Privacy-filtered if unauthenticated)
 app.get("/api/sync/pull", (req, res) => {
   const db = readDb();
+  const authenticated = isCallerAuthenticated(req);
+
+  if (authenticated) {
+    return res.json({
+      trips: db.trips || [],
+      moments: db.moments || [],
+      diary_entries: db.diary_entries || [],
+      breadcrumbs: db.breadcrumbs || [],
+      serverTime: new Date().toISOString(),
+    });
+  }
+
+  // Unauthenticated callers only receive public/link_only trips and non-private diaries
+  const visibleTrips = (db.trips || []).filter((t) => t.privacy !== "private");
+  const visibleTripIds = new Set(visibleTrips.map((t) => t.id));
+
+  const visibleMoments = (db.moments || []).filter((m) => visibleTripIds.has(m.tripId));
+  const visibleDiaries = (db.diary_entries || []).filter(
+    (d) => visibleTripIds.has(d.tripId) && !d.isPrivate
+  );
+  const visibleBreadcrumbs = (db.breadcrumbs || []).filter((b) => visibleTripIds.has(b.tripId));
+
   res.json({
-    trips: db.trips || [],
-    moments: db.moments || [],
-    diary_entries: db.diary_entries || [],
-    breadcrumbs: db.breadcrumbs || [],
+    trips: visibleTrips,
+    moments: visibleMoments,
+    diary_entries: visibleDiaries,
+    breadcrumbs: visibleBreadcrumbs,
     serverTime: new Date().toISOString(),
   });
 });
 
-// 4. Trips API
+// 5. Trips API
 app.get("/api/trips", (req, res) => {
   const db = readDb();
-  res.json(db.trips);
+  const authenticated = isCallerAuthenticated(req);
+  if (authenticated) {
+    return res.json(db.trips || []);
+  }
+  const publicTrips = (db.trips || []).filter((t) => t.privacy !== "private");
+  res.json(publicTrips);
 });
 
 app.get("/api/trips/:id", (req, res) => {
   const db = readDb();
-  const trip = db.trips.find(
+  const trip = (db.trips || []).find(
     (t) => t.id === req.params.id || t.shareSlug === req.params.id
   );
   if (!trip) return res.status(404).json({ error: "Trip not found" });
 
-  const moments = db.moments.filter((m) => m.tripId === trip.id);
+  const authenticated = isCallerAuthenticated(req);
+  if (trip.privacy === "private" && !authenticated) {
+    return res.status(403).json({ error: "This trip is private" });
+  }
+
+  const moments = (db.moments || []).filter((m) => m.tripId === trip.id);
   const breadcrumbs = (db.breadcrumbs || []).filter((b) => b.tripId === trip.id);
   res.json({ trip, moments, breadcrumbs });
 });
 
-// 5. REAL HOSTED SHARE PAGE (with Open Graph & Leaflet interactive map)
+// 6. REAL HOSTED SHARE PAGE (with HTML escaping, 404 for unknown slugs, 403 for private trips)
 app.get("/share/:slug", (req, res) => {
   const { slug } = req.params;
   const db = readDb();
 
-  const trip = db.trips.find((t) => t.shareSlug === slug || t.id === slug) || db.trips[0];
+  // Strict lookup: NO fallback to db.trips[0]
+  const trip = (db.trips || []).find((t) => t.shareSlug === slug || t.id === slug);
   if (!trip) {
-    return res.status(404).send(`<!DOCTYPE html><html><body style="font-family: sans-serif; text-align: center; padding: 50px;"><h2>Trip Not Found</h2><p>This expedition link may have expired or is set to private.</p></body></html>`);
+    return res.status(404).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trip Not Found — Trip Moments</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #F7F8F7; color: #1A1F1D; text-align: center; padding: 60px 20px; }
+    .card { max-width: 440px; margin: 0 auto; background: #FFF; border-radius: 20px; padding: 36px 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+    h1 { font-size: 22px; margin-bottom: 8px; }
+    p { color: #717D79; font-size: 14px; line-height: 1.5; }
+    a { display: inline-block; margin-top: 20px; color: #16845B; text-decoration: none; font-weight: 600; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="font-size: 48px; margin-bottom: 12px;">🧭</div>
+    <h1>Expedition Not Found</h1>
+    <p>This trip link could not be found or has been removed. Check the link or ask the traveler for an updated invite.</p>
+  </div>
+</body>
+</html>`);
   }
 
-  const moments = db.moments
+  // Privacy enforcement
+  if (trip.privacy === "private") {
+    return res.status(403).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Private Expedition — Trip Moments</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #F7F8F7; color: #1A1F1D; text-align: center; padding: 60px 20px; }
+    .card { max-width: 440px; margin: 0 auto; background: #FFF; border-radius: 20px; padding: 36px 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+    h1 { font-size: 22px; margin-bottom: 8px; }
+    p { color: #717D79; font-size: 14px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="font-size: 48px; margin-bottom: 12px;">🔒</div>
+    <h1>Private Expedition</h1>
+    <p>This travel journal is set to private by its author and cannot be viewed via public link.</p>
+  </div>
+</body>
+</html>`);
+  }
+
+  const moments = (db.moments || [])
     .filter((m) => m.tripId === trip.id)
     .sort((a, b) => new Date(a.takenAt) - new Date(b.takenAt));
 
@@ -279,32 +396,51 @@ app.get("/share/:slug", (req, res) => {
     (d) => d.tripId === trip.id && !d.isPrivate && !d.deletedAt
   );
 
-  const primaryColor = trip.themeColor || "#16845B";
-  const ogTitle = `${trip.title} · Trip Moments`;
-  const ogDescription = `Follow ${trip.city || "this"}, ${trip.country || "expedition"} live! ${moments.length} moments captured on Trip Moments.`;
-  const ogImage = trip.coverUri || "https://images.unsplash.com/photo-1600100397608-f010f4439c2e";
-  const shareUrl = `http://localhost:${PORT}/share/${trip.shareSlug || trip.id}`;
+  // Sanitized text values for HTML rendering
+  const safeTitle = escapeHtml(trip.title || "My Journey");
+  const safeCity = escapeHtml(trip.city || "Destination");
+  const safeCountry = escapeHtml(trip.country || "Earth");
+  const safeStartDate = escapeHtml(trip.startDate || "");
+  const safeEndDate = escapeHtml(trip.endDate || "");
+  const safeCoverUri = escapeHtml(trip.coverUri || "https://images.unsplash.com/photo-1600100397608-f010f4439c2e");
+  const safePrimaryColor = escapeHtml(trip.themeColor || "#16845B");
 
-  const momentsJson = JSON.stringify(moments);
+  const ogTitle = `${safeTitle} · Trip Moments`;
+  const ogDescription = `Follow ${safeCity}, ${safeCountry} live! ${moments.length} moments captured on Trip Moments.`;
+  const shareUrl = `http://localhost:${PORT}/share/${encodeURIComponent(trip.shareSlug || trip.id)}`;
+
+  // Safe JSON payload preventing script injection
+  const safeMomentsJson = safeJsonStringify(
+    moments.map((m) => ({
+      id: m.id,
+      title: m.title,
+      placeName: m.placeName,
+      city: m.city,
+      latitude: m.latitude,
+      longitude: m.longitude,
+      mediaUri: m.mediaUri,
+      text: m.text,
+    }))
+  );
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${trip.title} — Live Travel Story</title>
+  <title>${safeTitle} — Live Travel Story</title>
 
   <!-- Open Graph / WhatsApp Preview Meta Tags -->
   <meta property="og:type" content="article" />
-  <meta property="og:title" content="${ogTitle}" />
+  <meta property="og:title" content="${safeTitle} · Trip Moments" />
   <meta property="og:description" content="${ogDescription}" />
-  <meta property="og:image" content="${ogImage}" />
+  <meta property="og:image" content="${safeCoverUri}" />
   <meta property="og:url" content="${shareUrl}" />
   <meta property="og:site_name" content="Trip Moments" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${ogTitle}" />
+  <meta name="twitter:title" content="${safeTitle} · Trip Moments" />
   <meta name="twitter:description" content="${ogDescription}" />
-  <meta name="twitter:image" content="${ogImage}" />
+  <meta name="twitter:image" content="${safeCoverUri}" />
 
   <!-- Fonts & Leaflet Map Styles -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -326,7 +462,7 @@ app.get("/share/:slug", (req, res) => {
       padding: 12px 20px;
       display: flex;
       align-items: center;
-      justifyContent: space-between;
+      justify-content: space-between;
       position: sticky;
       top: 0;
       z-index: 1000;
@@ -342,8 +478,8 @@ app.get("/share/:slug", (req, res) => {
       text-decoration: none;
     }
     .live-badge {
-      background: ${primaryColor}18;
-      color: ${primaryColor};
+      background: ${safePrimaryColor}18;
+      color: ${safePrimaryColor};
       font-family: 'IBM Plex Mono', monospace;
       font-size: 11px;
       font-weight: 600;
@@ -356,7 +492,7 @@ app.get("/share/:slug", (req, res) => {
     .live-dot {
       width: 7px;
       height: 7px;
-      background: ${primaryColor};
+      background: ${safePrimaryColor};
       border-radius: 50%;
       animation: pulse 1.5s infinite;
     }
@@ -481,7 +617,7 @@ app.get("/share/:slug", (req, res) => {
     .moment-location {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 11px;
-      color: ${primaryColor};
+      color: ${safePrimaryColor};
       font-weight: 600;
       margin-bottom: 4px;
       display: flex;
@@ -501,8 +637,8 @@ app.get("/share/:slug", (req, res) => {
       line-height: 1.6;
     }
     .diary-note {
-      background: ${primaryColor}0C;
-      border-left: 3px solid ${primaryColor};
+      background: ${safePrimaryColor}0C;
+      border-left: 3px solid ${safePrimaryColor};
       padding: 14px 18px;
       border-radius: 12px;
       margin-top: 14px;
@@ -548,12 +684,12 @@ app.get("/share/:slug", (req, res) => {
 
   <div class="container">
     <header class="hero-banner">
-      <img src="${trip.coverUri}" class="hero-img" alt="${trip.title}" />
+      <img src="${safeCoverUri}" class="hero-img" alt="${safeTitle}" />
       <div class="hero-overlay"></div>
       <div class="hero-content">
-        <div class="hero-dates">${trip.startDate} — ${trip.endDate}</div>
-        <h1 class="hero-title">${trip.title}</h1>
-        <div class="hero-meta">📍 ${trip.city || "Destination"}, ${trip.country || "Earth"} · ${moments.length} moments recorded</div>
+        <div class="hero-dates">${safeStartDate} — ${safeEndDate}</div>
+        <h1 class="hero-title">${safeTitle}</h1>
+        <div class="hero-meta">📍 ${safeCity}, ${safeCountry} · ${moments.length} moments recorded</div>
       </div>
     </header>
 
@@ -563,7 +699,7 @@ app.get("/share/:slug", (req, res) => {
         <div class="stat-lbl">MOMENTS</div>
       </div>
       <div>
-        <div class="stat-val">${trip.country || "World"}</div>
+        <div class="stat-val">${safeCountry}</div>
         <div class="stat-lbl">COUNTRY</div>
       </div>
       <div>
@@ -581,11 +717,11 @@ app.get("/share/:slug", (req, res) => {
         .map(
           (m, idx) => `
         <article class="moment-card">
-          <img src="${m.mediaUri}" class="moment-img" alt="${m.title}" loading="lazy" />
+          <img src="${escapeHtml(m.mediaUri || "")}" class="moment-img" alt="${escapeHtml(m.title || "Moment")}" loading="lazy" />
           <div class="moment-body">
-            <div class="moment-location">📍 ${m.placeName || m.city || "Stop"} · STOP #${idx + 1}</div>
-            <h2 class="moment-title">${m.title}</h2>
-            ${m.text ? `<p class="moment-desc">${m.text}</p>` : ""}
+            <div class="moment-location">📍 ${escapeHtml(m.placeName || m.city || "Stop")} · STOP #${idx + 1}</div>
+            <h2 class="moment-title">${escapeHtml(m.title || "Moment")}</h2>
+            ${m.text ? `<p class="moment-desc">${escapeHtml(m.text)}</p>` : ""}
           </div>
         </article>
       `
@@ -596,7 +732,7 @@ app.get("/share/:slug", (req, res) => {
         .map(
           (d) => `
         <div class="diary-note">
-          "${d.text}"
+          "${escapeHtml(d.text || "")}"
         </div>
       `
         )
@@ -616,8 +752,8 @@ app.get("/share/:slug", (req, res) => {
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const moments = ${momentsJson};
-    const primaryColor = "${primaryColor}";
+    const moments = ${safeMomentsJson};
+    const primaryColor = "${safePrimaryColor}";
 
     const map = L.map('map-box', { zoomControl: true, attributionControl: false });
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -633,7 +769,7 @@ app.get("/share/:slug", (req, res) => {
 
         const iconHtml = '<div style="width:34px; height:34px; border-radius:17px; background-size:cover; background-image:url(' + m.mediaUri + '); border:3px solid #FFF; box-shadow:0 4px 10px rgba(0,0,0,0.35);"></div>';
         const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [34, 34], iconAnchor: [17, 17] });
-        L.marker(pos, { icon: icon }).bindPopup('<b>' + m.title + '</b><br><small>' + (m.placeName || m.city) + '</small>').addTo(map);
+        L.marker(pos, { icon: icon }).bindPopup('<b>' + m.title + '</b><br><small>' + (m.placeName || m.city || '') + '</small>').addTo(map);
       }
     });
 
@@ -650,7 +786,12 @@ app.get("/share/:slug", (req, res) => {
   res.send(html);
 });
 
-app.listen(PORT, () => {
-  console.log(`[TripMoments Server] Running on http://localhost:${PORT}`);
-  console.log(`[TripMoments Server] Hosted share page ready at http://localhost:${PORT}/share/hampi-golden-sunrise-2026`);
-});
+// Start listening if run directly as script
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`[TripMoments Server] Running on http://localhost:${PORT}`);
+    console.log(`[TripMoments Server] Hosted share page ready at http://localhost:${PORT}/share/hampi-golden-sunrise-2026`);
+  });
+}
+
+module.exports = app;

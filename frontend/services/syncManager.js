@@ -80,8 +80,15 @@ class SyncManager {
 
     const targetUrl =
       endpointUrl ||
-      (typeof process !== "undefined" && process.env?.SYNC_ENDPOINT) ||
+      (typeof process !== "undefined" &&
+        (process.env?.EXPO_PUBLIC_SYNC_ENDPOINT ||
+          process.env?.SYNC_ENDPOINT)) ||
       "http://localhost:3001/api/sync/push";
+
+    const syncKey =
+      (typeof process !== "undefined" &&
+        (process.env?.EXPO_PUBLIC_SYNC_KEY || process.env?.SYNC_KEY)) ||
+      "dev-sync-token-secret";
 
     try {
       let isSynced = false;
@@ -97,7 +104,10 @@ class SyncManager {
 
           const response = await fetch(targetUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${syncKey}`,
+            },
             body: JSON.stringify({ queue }),
             signal: controller ? controller.signal : undefined,
           });

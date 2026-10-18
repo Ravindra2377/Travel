@@ -39,3 +39,6 @@ Thumbs.db
 comparex
 comparex_app
 comparez
+
+# Server dynamic runtime database
+server/data/db.json

@@ -23,8 +23,12 @@ import { FONTS, SPACING, RADIUS, SHADOWS } from "../config/theme";
 import LiquidGlass from "../components/LiquidGlass";
 import GlassCard from "../components/GlassCard";
 import { Ionicons } from "../components/Icon";
+import InteractiveMap, { getTripCoordinates } from "../components/InteractiveMap";
+import BottomSheet from "../components/BottomSheet";
+import TripCreateModal from "../components/TripCreateModal";
+import PermissionPrePrompt from "../components/PermissionPrePrompt";
 
-const { width } = Dimensions.get("window");
+const { width, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const PRESET_COLORS = [
   { primary: "#16845B", secondary: "#D97706", name: "Forest & Amber" },
@@ -70,14 +74,16 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newCity, setNewCity] = useState("");
-  const [newCountry, setNewCountry] = useState("");
-  const [newStartDate, setNewStartDate] = useState("2026-10-18");
-  const [newEndDate, setNewEndDate] = useState("2026-10-24");
-  const [newNotes, setNewNotes] = useState("");
-  const [selectedColorIndex, setSelectedColorIndex] = useState(0);
-  const [selectedCoverIndex, setSelectedCoverIndex] = useState(0);
+  const [permissionPromptVisible, setPermissionPromptVisible] = useState(false);
+  const [permissionType, setPermissionType] = useState("location");
+  const [flyToLocation, setFlyToLocation] = useState(null);
+
+  const handleSelectTrip = (trip) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveTrip(trip);
+    const coords = getTripCoordinates(trip);
+    setFlyToLocation({ latitude: coords.lat, longitude: coords.lng, zoom: 11 });
+  };
 
   // Active Trip Moments
   const activeMoments = useMemo(() => {
@@ -92,210 +98,279 @@ const HomeScreen = ({ navigation }) => {
     return favorite || moments[0];
   }, [moments]);
 
-  const handleCreateTrip = async () => {
-    if (!newTitle.trim()) {
-      Alert.alert("Missing Title", "Please give your trip a title.");
-      return;
-    }
-    const colorPreset = PRESET_COLORS[selectedColorIndex];
-    const coverUri = PRESET_COVERS[selectedCoverIndex];
-
+  const handleCreateTripModalSubmit = async (tripData) => {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const created = await addTrip({
-        title: newTitle.trim(),
-        city: newCity.trim() || "Wanderland",
-        country: newCountry.trim() || "Earth",
-        startDate: newStartDate,
-        endDate: newEndDate,
-        status: "active",
-        privacy: "link_only",
-        coverUri,
-        themeColor: colorPreset.primary,
-        secondaryColor: colorPreset.secondary,
-        notes: newNotes.trim(),
-      });
-
+      const created = await addTrip(tripData);
       setCreateModalVisible(false);
-      setNewTitle("");
-      setNewCity("");
-      setNewCountry("");
-      setNewNotes("");
-
       navigation.navigate("TripCover", { tripId: created.id });
     } catch (e) {
       Alert.alert("Error", "Could not create trip.");
     }
   };
 
+  const handlePermissionAccepted = () => {
+    setPermissionPromptVisible(false);
+  };
+
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: themeColors.paper }]}
-      edges={["top"]}
-    >
+    <View style={[styles.container, { backgroundColor: themeColors.paper }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
 
-      {/* Top Header */}
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text
-            style={[
-              FONTS.captionBold,
-              styles.subtitle,
-              { color: themeColors.primary },
-            ]}
-          >
-            {t("journalDiscovery")}
-          </Text>
-          <Text
-            style={[
-              FONTS.h1,
-              styles.headerTitle,
-              { color: themeColors.ink },
-            ]}
-            numberOfLines={1}
-          >
-            {t("appTitle")}
-          </Text>
-        </View>
+      {/* ── BACKGROUND CANVAS: INTERACTIVE WORLD EXPEDITION MAP ─────── */}
+      <InteractiveMap
+        mode="trips"
+        trips={trips}
+        activeTripId={activeTrip?.id}
+        flyToLocation={flyToLocation}
+        onSelectTrip={(tripId) => {
+          const target = trips.find((t) => t.id === tripId);
+          if (target) handleSelectTrip(target);
+        }}
+        style={StyleSheet.absoluteFillObject}
+      />
 
-        <View style={styles.headerRight}>
-          {/* Language Switcher Pill */}
-          <TouchableOpacity
-            style={[
-              styles.langToggleBtn,
-              {
-                backgroundColor: isDark
-                  ? "rgba(255,255,255,0.08)"
-                  : "rgba(0,0,0,0.04)",
-                borderColor: isDark
-                  ? "rgba(255,255,255,0.12)"
-                  : "rgba(0,0,0,0.08)",
-              },
-            ]}
-            onPress={handleToggleLanguage}
-          >
-            <Ionicons name="language" size={14} color={themeColors.primary} />
+      {/* ── FLOATING TOP HEADER ─────────────────────────────────────── */}
+      <SafeAreaView
+        edges={["top"]}
+        style={styles.floatingHeaderArea}
+        pointerEvents="box-none"
+      >
+        <View
+          style={[
+            styles.floatingHeader,
+            {
+              backgroundColor: isDark
+                ? "rgba(18, 26, 22, 0.88)"
+                : "rgba(255, 255, 255, 0.88)",
+              borderColor: isDark
+                ? "rgba(255, 255, 255, 0.12)"
+                : "rgba(0, 0, 0, 0.08)",
+            },
+            SHADOWS.md,
+          ]}
+        >
+          <View style={{ flex: 1 }}>
             <Text
               style={[
-                FONTS.monoBold,
-                styles.langToggleText,
+                FONTS.captionBold,
+                styles.subtitle,
                 { color: themeColors.primary },
               ]}
             >
-              {language === "hi" ? "हिन्दी" : "EN"}
+              {t("journalDiscovery")}
             </Text>
-          </TouchableOpacity>
+            <Text
+              style={[
+                FONTS.h1,
+                styles.headerTitle,
+                { color: themeColors.ink },
+              ]}
+              numberOfLines={1}
+            >
+              {t("appTitle")}
+            </Text>
+          </View>
 
-          <TouchableOpacity
-            style={[
-              styles.newTripBtn,
-              { backgroundColor: themeColors.primary },
-            ]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setCreateModalVisible(true);
-            }}
-          >
-            <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.newTripBtnText}>{t("newTrip")}</Text>
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            {/* Language Switcher Pill */}
+            <TouchableOpacity
+              style={[
+                styles.langToggleBtn,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(255,255,255,0.08)"
+                    : "rgba(0,0,0,0.04)",
+                  borderColor: isDark
+                    ? "rgba(255,255,255,0.12)"
+                    : "rgba(0,0,0,0.08)",
+                },
+              ]}
+              onPress={handleToggleLanguage}
+            >
+              <Ionicons name="language" size={14} color={themeColors.primary} />
+              <Text
+                style={[
+                  FONTS.monoBold,
+                  styles.langToggleText,
+                  { color: themeColors.primary },
+                ]}
+              >
+                {language === "hi" ? "हिन्दी" : "EN"}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.iconBtn,
-              {
-                backgroundColor: isDark
-                  ? "rgba(255,255,255,0.08)"
-                  : "rgba(0,0,0,0.04)",
-              },
-            ]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              navigation.navigate("Search");
-            }}
-          >
-            <Ionicons name="search" size={20} color={themeColors.ink} />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.newTripBtn,
+                { backgroundColor: themeColors.primary },
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setCreateModalVisible(true);
+              }}
+            >
+              <Ionicons name="add" size={18} color="#FFFFFF" />
+              <Text style={styles.newTripBtnText}>{t("newTrip")}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.iconBtn,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(255,255,255,0.08)"
+                    : "rgba(0,0,0,0.04)",
+                },
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.navigate("Search");
+              }}
+            >
+              <Ionicons name="search" size={20} color={themeColors.ink} />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Sync Status Row */}
-      <View style={styles.syncStatusRow}>
-        <TouchableOpacity
-          onPress={handleManualSync}
-          activeOpacity={0.8}
-          style={[
-            styles.syncStatusPill,
-            {
-              backgroundColor:
-                syncState.pendingCount > 0
-                  ? isDark
-                    ? "#2D1B06"
-                    : "#FEF3C7"
-                  : syncState.status === SYNC_STATUS.SYNCING
-                  ? isDark
-                    ? "#082F49"
-                    : "#E0F2FE"
-                  : isDark
-                  ? "rgba(255,255,255,0.05)"
-                  : "rgba(0,0,0,0.03)",
-              borderColor:
-                syncState.pendingCount > 0
-                  ? "#F59E0B"
-                  : syncState.status === SYNC_STATUS.SYNCING
-                  ? "#0284C7"
-                  : isDark
-                  ? "rgba(255,255,255,0.08)"
-                  : "rgba(0,0,0,0.05)",
-            },
-          ]}
-        >
-          <Ionicons
-            name={
-              syncState.pendingCount > 0
-                ? "cloud-offline-outline"
-                : syncState.status === SYNC_STATUS.SYNCING
-                ? "sync-outline"
-                : "cloud-done-outline"
-            }
-            size={12}
-            color={
-              syncState.pendingCount > 0
-                ? "#D97706"
-                : syncState.status === SYNC_STATUS.SYNCING
-                ? "#0284C7"
-                : themeColors.primary
-            }
-          />
-          <Text
+        {/* Floating Sync Status Pill */}
+        <View style={styles.syncStatusRowFloating}>
+          <TouchableOpacity
+            onPress={handleManualSync}
+            activeOpacity={0.8}
             style={[
-              FONTS.mono,
+              styles.syncStatusPill,
               {
-                fontSize: 10,
-                marginLeft: 5,
-                color:
+                backgroundColor:
                   syncState.pendingCount > 0
-                    ? "#D97706"
+                    ? isDark
+                      ? "#2D1B06"
+                      : "#FEF3C7"
+                    : syncState.status === SYNC_STATUS.SYNCING
+                    ? isDark
+                      ? "#082F49"
+                      : "#E0F2FE"
+                    : isDark
+                    ? "rgba(18, 26, 22, 0.88)"
+                    : "rgba(255, 255, 255, 0.88)",
+                borderColor:
+                  syncState.pendingCount > 0
+                    ? "#F59E0B"
                     : syncState.status === SYNC_STATUS.SYNCING
                     ? "#0284C7"
-                    : themeColors.primary,
+                    : isDark
+                    ? "rgba(255,255,255,0.12)"
+                    : "rgba(0,0,0,0.08)",
               },
+              SHADOWS.sm,
             ]}
           >
-            {syncState.pendingCount > 0
-              ? `${syncState.pendingCount} ${t("queuedOffline")}`
-              : syncState.status === SYNC_STATUS.SYNCING
-              ? t("syncingChanges")
-              : t("allSynced")}
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <Ionicons
+              name={
+                syncState.pendingCount > 0
+                  ? "cloud-offline-outline"
+                  : syncState.status === SYNC_STATUS.SYNCING
+                  ? "sync-outline"
+                  : "cloud-done-outline"
+              }
+              size={12}
+              color={
+                syncState.pendingCount > 0
+                  ? "#D97706"
+                  : syncState.status === SYNC_STATUS.SYNCING
+                  ? "#0284C7"
+                  : themeColors.primary
+              }
+            />
+            <Text
+              style={[
+                FONTS.mono,
+                {
+                  fontSize: 10,
+                  marginLeft: 5,
+                  color:
+                    syncState.pendingCount > 0
+                      ? "#D97706"
+                      : syncState.status === SYNC_STATUS.SYNCING
+                      ? "#0284C7"
+                      : themeColors.primary,
+                },
+              ]}
+            >
+              {syncState.pendingCount > 0
+                ? `${syncState.pendingCount} ${t("queuedOffline")}`
+                : syncState.status === SYNC_STATUS.SYNCING
+                ? t("syncingChanges")
+                : t("allSynced")}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+      {/* ── FOREGROUND: SPRING-DRIVEN TRIPS BOTTOM SHEET ────────────── */}
+      <BottomSheet
+        snapPoints={[120, SCREEN_HEIGHT * 0.48, SCREEN_HEIGHT * 0.88]}
+        initialSnap={1}
+        renderHeader={({ snapIndex, snapTo }) => (
+          <View style={styles.sheetHeaderTeaser}>
+            <View style={styles.teaserLeft}>
+              <Image
+                source={{ uri: activeTrip?.coverUri || PRESET_COVERS[0] }}
+                style={styles.teaserThumb}
+                contentFit="cover"
+              />
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text
+                  style={[
+                    FONTS.ticketStamp,
+                    { color: themeColors.primary, fontSize: 10 },
+                  ]}
+                >
+                  {activeTrip ? t("activeExpedition") : t("allJourneys")} · {trips.length} EXPEDITIONS
+                </Text>
+                <Text
+                  style={[
+                    FONTS.h3,
+                    { color: themeColors.ink, fontSize: 15 },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {activeTrip?.title || "Choose an expedition"}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                snapTo(snapIndex === 0 ? 1 : 0);
+              }}
+              style={[
+                styles.mapTogglePill,
+                { backgroundColor: `${themeColors.primary}18` },
+              ]}
+            >
+              <Ionicons
+                name={snapIndex === 0 ? "chevron-up" : "map"}
+                size={14}
+                color={themeColors.primary}
+              />
+              <Text
+                style={[
+                  FONTS.captionBold,
+                  { color: themeColors.primary, fontSize: 11, marginLeft: 4 },
+                ]}
+              >
+                {snapIndex === 0 ? "Browse" : "Explore Map"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Active Trip Banner */}
         {activeTrip ? (
           <View style={styles.section}>
@@ -434,6 +509,17 @@ const HomeScreen = ({ navigation }) => {
                   >
                     <Ionicons name="map-outline" size={16} color="#FFFFFF" />
                     <Text style={styles.heroActionGhostText}>{t("routeMap")}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.heroActionGhostBtn, { backgroundColor: "rgba(245, 158, 11, 0.25)" }]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      navigation.navigate("TripRecap", { tripId: activeTrip.id });
+                    }}
+                  >
+                    <Ionicons name="sparkles" size={16} color="#F59E0B" />
+                    <Text style={[styles.heroActionGhostText, { color: "#F59E0B" }]}>Story</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -736,296 +822,23 @@ const HomeScreen = ({ navigation }) => {
 
         <View style={{ height: 120 }} />
       </ScrollView>
+    </BottomSheet>
 
-      {/* New Trip Creation Modal */}
-      <Modal
+      {/* Stacked-Card Trip Creation Wizard */}
+      <TripCreateModal
         visible={createModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setCreateModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalContainer,
-              { backgroundColor: themeColors.surface },
-            ]}
-          >
-            <View style={styles.modalHeader}>
-              <View>
-                <Text
-                  style={[
-                    FONTS.ticketStamp,
-                    { color: themeColors.primary },
-                  ]}
-                >
-                  NEW CHAPTER
-                </Text>
-                <Text
-                  style={[
-                    FONTS.h2,
-                    styles.modalTitle,
-                    { color: themeColors.ink },
-                  ]}
-                >
-                  Create a Trip
-                </Text>
-              </View>
+        onClose={() => setCreateModalVisible(false)}
+        onCreateTrip={handleCreateTripModalSubmit}
+      />
 
-              <TouchableOpacity
-                onPress={() => setCreateModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <Ionicons name="close" size={22} color={themeColors.ink} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text
-                style={[
-                  FONTS.captionBold,
-                  styles.fieldLabel,
-                  { color: themeColors.ink },
-                ]}
-              >
-                TRIP TITLE
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    color: themeColors.ink,
-                    borderColor: isDark
-                      ? "rgba(255,255,255,0.15)"
-                      : "rgba(0,0,0,0.1)",
-                    backgroundColor: isDark ? "#1E293B" : "#F8FAF8",
-                  },
-                ]}
-                placeholder="e.g. Lost in the Himalayan Valleys"
-                placeholderTextColor={themeColors.inkFaint}
-                value={newTitle}
-                onChangeText={setNewTitle}
-              />
-
-              <View style={styles.formRow}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text
-                    style={[
-                      FONTS.captionBold,
-                      styles.fieldLabel,
-                      { color: themeColors.ink },
-                    ]}
-                  >
-                    PRIMARY CITY
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        color: themeColors.ink,
-                        borderColor: isDark
-                          ? "rgba(255,255,255,0.15)"
-                          : "rgba(0,0,0,0.1)",
-                        backgroundColor: isDark ? "#1E293B" : "#F8FAF8",
-                      },
-                    ]}
-                    placeholder="e.g. Manali"
-                    placeholderTextColor={themeColors.inkFaint}
-                    value={newCity}
-                    onChangeText={setNewCity}
-                  />
-                </View>
-
-                <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text
-                    style={[
-                      FONTS.captionBold,
-                      styles.fieldLabel,
-                      { color: themeColors.ink },
-                    ]}
-                  >
-                    COUNTRY
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        color: themeColors.ink,
-                        borderColor: isDark
-                          ? "rgba(255,255,255,0.15)"
-                          : "rgba(0,0,0,0.1)",
-                        backgroundColor: isDark ? "#1E293B" : "#F8FAF8",
-                      },
-                    ]}
-                    placeholder="e.g. India"
-                    placeholderTextColor={themeColors.inkFaint}
-                    value={newCountry}
-                    onChangeText={setNewCountry}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.formRow}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text
-                    style={[
-                      FONTS.captionBold,
-                      styles.fieldLabel,
-                      { color: themeColors.ink },
-                    ]}
-                  >
-                    START DATE
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        color: themeColors.ink,
-                        borderColor: isDark
-                          ? "rgba(255,255,255,0.15)"
-                          : "rgba(0,0,0,0.1)",
-                        backgroundColor: isDark ? "#1E293B" : "#F8FAF8",
-                      },
-                    ]}
-                    value={newStartDate}
-                    onChangeText={setNewStartDate}
-                  />
-                </View>
-
-                <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text
-                    style={[
-                      FONTS.captionBold,
-                      styles.fieldLabel,
-                      { color: themeColors.ink },
-                    ]}
-                  >
-                    END DATE
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        color: themeColors.ink,
-                        borderColor: isDark
-                          ? "rgba(255,255,255,0.15)"
-                          : "rgba(0,0,0,0.1)",
-                        backgroundColor: isDark ? "#1E293B" : "#F8FAF8",
-                      },
-                    ]}
-                    value={newEndDate}
-                    onChangeText={setNewEndDate}
-                  />
-                </View>
-              </View>
-
-              <Text
-                style={[
-                  FONTS.captionBold,
-                  styles.fieldLabel,
-                  { color: themeColors.ink },
-                ]}
-              >
-                TRIP STORY / INTENTION
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    height: 70,
-                    textAlignVertical: "top",
-                    color: themeColors.ink,
-                    borderColor: isDark
-                      ? "rgba(255,255,255,0.15)"
-                      : "rgba(0,0,0,0.1)",
-                    backgroundColor: isDark ? "#1E293B" : "#F8FAF8",
-                  },
-                ]}
-                placeholder="What is this trip about?"
-                placeholderTextColor={themeColors.inkFaint}
-                multiline
-                value={newNotes}
-                onChangeText={setNewNotes}
-              />
-
-              <Text
-                style={[
-                  FONTS.captionBold,
-                  styles.fieldLabel,
-                  { color: themeColors.ink },
-                ]}
-              >
-                COVER PHOTO THEME
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.coverSelectorRow}
-              >
-                {PRESET_COVERS.map((uri, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    onPress={() => setSelectedCoverIndex(idx)}
-                    style={[
-                      styles.coverChoice,
-                      selectedCoverIndex === idx && {
-                        borderColor: themeColors.primary,
-                        borderWidth: 3,
-                      },
-                    ]}
-                  >
-                    <Image
-                      source={{ uri }}
-                      style={StyleSheet.absoluteFill}
-                      contentFit="cover"
-                    />
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <Text
-                style={[
-                  FONTS.captionBold,
-                  styles.fieldLabel,
-                  { color: themeColors.ink },
-                ]}
-              >
-                ACCENT PALETTE
-              </Text>
-              <View style={styles.colorPaletteRow}>
-                {PRESET_COLORS.map((preset, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    onPress={() => setSelectedColorIndex(idx)}
-                    style={[
-                      styles.colorCircle,
-                      { backgroundColor: preset.primary },
-                      selectedColorIndex === idx && {
-                        borderWidth: 3,
-                        borderColor: themeColors.ink,
-                        transform: [{ scale: 1.15 }],
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-
-              <TouchableOpacity
-                style={[
-                  styles.createSubmitBtn,
-                  { backgroundColor: themeColors.primary },
-                ]}
-                onPress={handleCreateTrip}
-              >
-                <Text style={styles.createSubmitBtnText}>
-                  Begin This Story
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+      {/* Permission Pre-Prompt Modal */}
+      <PermissionPrePrompt
+        visible={permissionPromptVisible}
+        type={permissionType}
+        onAccept={handlePermissionAccepted}
+        onDecline={() => setPermissionPromptVisible(false)}
+      />
+    </View>
   );
 };
 
@@ -1070,6 +883,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 8,
     alignItems: "flex-start",
+  },
+  floatingHeaderArea: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  floatingHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginHorizontal: 16,
+    marginTop: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+  },
+  syncStatusRowFloating: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    alignItems: "flex-start",
+  },
+  sheetHeaderTeaser: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
+  teaserLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: 10,
+  },
+  teaserThumb: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  mapTogglePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
   },
   syncStatusPill: {
     flexDirection: "row",

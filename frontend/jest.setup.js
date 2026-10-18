@@ -117,3 +117,36 @@ jest.mock("react-native-safe-area-context", () => ({
 
 // Global fetch mock
 global.fetch = jest.fn();
+
+// Mock react-native-reanimated (self-contained for Jest without native worklets)
+jest.mock("react-native-reanimated", () => {
+  const React = require("react");
+  const { View, Text, Image, ScrollView } = require("react-native");
+  const Animated = {
+    View,
+    Text,
+    Image,
+    ScrollView,
+    createAnimatedComponent: (component) => component,
+  };
+  return {
+    __esModule: true,
+    default: Animated,
+    ...Animated,
+    useSharedValue: (init) => ({ value: init }),
+    useAnimatedStyle: (cb) => (cb ? cb() : {}),
+    withTiming: (toValue) => toValue,
+    withSpring: (toValue) => toValue,
+    withSequence: (...anims) => anims[anims.length - 1],
+    cancelAnimation: jest.fn(),
+    interpolate: jest.fn((val, [inMin, inMax], [outMin, outMax]) => outMin),
+    Easing: {
+      linear: (t) => t,
+      ease: (t) => t,
+      bezier: () => (t) => t,
+    },
+    runOnJS: (fn) => fn,
+  };
+});
+
+

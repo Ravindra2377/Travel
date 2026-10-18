@@ -153,6 +153,57 @@ const PassportScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {/* World Exploration Tracker */}
+        <View
+          style={[
+            styles.worldExploredCard,
+            {
+              backgroundColor: themeColors.surface,
+              borderColor: isDark
+                ? "rgba(255,255,255,0.1)"
+                : "rgba(0,0,0,0.06)",
+            },
+            SHADOWS.sm,
+          ]}
+        >
+          <View style={styles.worldExploredTop}>
+            <View style={styles.worldExploredHeader}>
+              <Ionicons name="earth" size={18} color={themeColors.primary} />
+              <Text style={[FONTS.captionBold, { color: themeColors.primary, marginLeft: 6 }]}>
+                WORLD EXPLORATION TRACKER
+              </Text>
+            </View>
+            <Text style={[FONTS.captionBold, { color: themeColors.ink }]}>
+              {((((passportStats?.countriesCount || 2) / 195) * 100).toFixed(1))}% EXPLORED
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.worldProgressBarTrack,
+              {
+                backgroundColor: isDark
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(0,0,0,0.06)",
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.worldProgressBarFill,
+                {
+                  width: `${Math.max((((passportStats?.countriesCount || 2) / 195) * 100), 2)}%`,
+                  backgroundColor: themeColors.primary,
+                },
+              ]}
+            />
+          </View>
+
+          <Text style={[FONTS.caption, { color: themeColors.textSecondary, marginTop: 8 }]}>
+            You have logged footsteps across {passportStats?.countriesCount || 2} of 195 countries globally.
+          </Text>
+        </View>
+
         {/* Passport Stamps Section */}
         <View style={styles.section}>
           <Text style={[FONTS.ticketStamp, { color: themeColors.inkSoft, marginBottom: 12 }]}>
@@ -554,6 +605,32 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "rgba(0,0,0,0.05)",
     marginVertical: 4,
+  },
+  worldExploredCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 18,
+    marginHorizontal: 20,
+    marginTop: 18,
+  },
+  worldExploredTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  worldExploredHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  worldProgressBarTrack: {
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  worldProgressBarFill: {
+    height: "100%",
+    borderRadius: 4,
   },
 });
 
