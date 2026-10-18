@@ -54,4 +54,4 @@ npx expo start -c
 cd frontend
 npm test
 ```
-All 18 test suites (127 unit tests) validate storage CRUD, diary entries, distance calculation, theme tokens, and screen mounting.
+All 9 test suites (49 unit tests) validate storage CRUD, diary entries, distance calculation, theme tokens, and travel screen mounting.

@@ -27,8 +27,6 @@ import {
 
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { TripProvider } from "./context/TripContext";
-import { AuthProvider, AuthContext } from "./context/AuthContext";
-import { WishlistProvider } from "./context/WishlistContext";
 import { COLORS } from "./config/theme";
 
 import CustomTabBar from "./components/CustomTabBar";
@@ -190,11 +188,7 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <TripProvider>
-          <AuthProvider>
-            <WishlistProvider>
-              <AppNav />
-            </WishlistProvider>
-          </AuthProvider>
+          <AppNav />
         </TripProvider>
       </ThemeProvider>
     </SafeAreaProvider>

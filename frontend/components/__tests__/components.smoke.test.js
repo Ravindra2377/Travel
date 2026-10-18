@@ -1,5 +1,8 @@
-import ProductCard from "../ProductCard";
-import PlatformRow from "../PlatformRow";
+import CustomTabBar from "../CustomTabBar";
+import LiquidGlass from "../LiquidGlass";
+import GlassCard from "../GlassCard";
+import DiaryEntryCard from "../DiaryEntryCard";
+import DiaryEditorModal from "../DiaryEditorModal";
 import SearchBar from "../SearchBar";
 import {
   SurfaceCard,
@@ -13,9 +16,12 @@ import {
 } from "../SharedUI";
 
 describe("Component module exports", () => {
-  it("default components are defined", () => {
-    expect(ProductCard).toBeDefined();
-    expect(PlatformRow).toBeDefined();
+  it("travel components are defined", () => {
+    expect(CustomTabBar).toBeDefined();
+    expect(LiquidGlass).toBeDefined();
+    expect(GlassCard).toBeDefined();
+    expect(DiaryEntryCard).toBeDefined();
+    expect(DiaryEditorModal).toBeDefined();
     expect(SearchBar).toBeDefined();
   });
 
