@@ -10,8 +10,52 @@ const DATA_FILE = path.join(DATA_DIR, "db.json");
 const SEED_FILE = path.join(DATA_DIR, "db.seed.json");
 const UPLOADS_DIR = path.join(__dirname, "uploads");
 
-// Authentication key for syncing mutations
-const SYNC_API_KEY = process.env.SYNC_API_KEY || "dev-sync-token-secret";
+// Enable trust proxy so rate limiting and IP tracking work accurately behind reverse proxies
+app.set("trust proxy", 1);
+
+// Environment & Sync API Key
+const IS_PROD = process.env.NODE_ENV === "production";
+const SYNC_API_KEY = process.env.SYNC_API_KEY || (IS_PROD ? null : "dev-sync-token-secret");
+
+if (IS_PROD && !process.env.SYNC_API_KEY) {
+  console.error("FATAL: SYNC_API_KEY environment variable is required in production. Refusing to start with insecure defaults.");
+  process.exit(1);
+}
+
+// Security: Verify image magic bytes to prevent stored XSS and malicious file uploads
+function detectImageFormat(buffer) {
+  if (!buffer || buffer.length < 12) return null;
+
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+    return { mime: "image/jpeg", ext: "jpg" };
+  }
+
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47 &&
+    buffer[4] === 0x0D && buffer[5] === 0x0A && buffer[6] === 0x1A && buffer[7] === 0x0A
+  ) {
+    return { mime: "image/png", ext: "png" };
+  }
+
+  // GIF: GIF87a or GIF89a (47 49 46 38)
+  if (
+    buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38
+  ) {
+    return { mime: "image/gif", ext: "gif" };
+  }
+
+  // WEBP: RIFF....WEBP (52 49 46 46 .... 57 45 42 50)
+  if (
+    buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+    buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50
+  ) {
+    return { mime: "image/webp", ext: "webp" };
+  }
+
+  return null;
+}
 
 // Rate limiting: simple in-memory window limiter
 const rateLimitMap = new Map();
@@ -86,8 +130,8 @@ function isCallerAuthenticated(req) {
 app.use(rateLimiter(60000, 250));
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(",")
-    : true,
+    ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+    : (IS_PROD ? false : true),
   methods: ["GET", "POST", "OPTIONS"],
 }));
 app.use(express.json({ limit: "5mb" }));
@@ -101,8 +145,17 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-// Static route for uploaded photos
-app.use("/uploads", express.static(UPLOADS_DIR));
+// Static route for uploaded photos with security headers preventing stored XSS
+app.use("/uploads", express.static(UPLOADS_DIR, {
+  dotfiles: "ignore",
+  index: false,
+  setHeaders: (res) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  },
+}));
 
 // Initial seed data fallback
 const FALLBACK_SEED = {
@@ -174,19 +227,36 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// 2. Photo Upload Endpoint
+// 2. Photo Upload Endpoint (Protected with authenticateSync & magic-byte validation)
 app.post("/api/photos/upload", authenticateSync, (req, res) => {
-  const { filename, base64Data, contentType = "image/jpeg" } = req.body;
-  if (!base64Data) {
-    return res.status(400).json({ error: "Missing base64Data in request body" });
+  const { base64Data } = req.body;
+  if (!base64Data || typeof base64Data !== "string") {
+    return res.status(400).json({ error: "Missing or invalid base64Data in request body" });
   }
 
   try {
-    const ext = filename ? filename.split(".").pop() : "jpg";
-    const safeFilename = `photo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+    // Strip optional data URI prefix if passed (e.g. "data:image/jpeg;base64,...")
+    const cleanBase64 = base64Data.includes(";base64,")
+      ? base64Data.split(";base64,").pop()
+      : base64Data;
+
+    const buffer = Buffer.from(cleanBase64, "base64");
+    if (buffer.length === 0) {
+      return res.status(400).json({ error: "Empty image payload" });
+    }
+
+    // Verify magic bytes: must be a legitimate image (JPEG, PNG, GIF, WEBP)
+    const detected = detectImageFormat(buffer);
+    if (!detected) {
+      return res.status(400).json({
+        error: "Invalid file format: only valid JPEG, PNG, WEBP, or GIF images are allowed.",
+      });
+    }
+
+    // Always use the validated extension derived strictly from magic bytes, never the client filename
+    const safeFilename = `photo_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${detected.ext}`;
     const filePath = path.join(UPLOADS_DIR, safeFilename);
 
-    const buffer = Buffer.from(base64Data, "base64");
     fs.writeFileSync(filePath, buffer);
 
     const host = req.get("host") || `localhost:${PORT}`;
@@ -197,6 +267,8 @@ app.post("/api/photos/upload", authenticateSync, (req, res) => {
       success: true,
       url: photoUrl,
       filename: safeFilename,
+      mimeType: detected.mime,
+      sizeBytes: buffer.length,
     });
   } catch (err) {
     console.error("[Server] Photo upload failed:", err);
@@ -284,8 +356,8 @@ app.get("/api/sync/pull", (req, res) => {
     });
   }
 
-  // Unauthenticated callers only receive public/link_only trips and non-private diaries
-  const visibleTrips = (db.trips || []).filter((t) => t.privacy !== "private");
+  // Unauthenticated callers ONLY receive public trips (link_only and private trips are unlisted)
+  const visibleTrips = (db.trips || []).filter((t) => t.privacy === "public");
   const visibleTripIds = new Set(visibleTrips.map((t) => t.id));
 
   const visibleMoments = (db.moments || []).filter((m) => visibleTripIds.has(m.tripId));
@@ -303,14 +375,15 @@ app.get("/api/sync/pull", (req, res) => {
   });
 });
 
-// 5. Trips API
+// 5. Trips API: Unauthenticated callers ONLY receive public trips
 app.get("/api/trips", (req, res) => {
   const db = readDb();
   const authenticated = isCallerAuthenticated(req);
   if (authenticated) {
     return res.json(db.trips || []);
   }
-  const publicTrips = (db.trips || []).filter((t) => t.privacy !== "private");
+  // Link-only and private trips are EXCLUDED from public directory listings
+  const publicTrips = (db.trips || []).filter((t) => t.privacy === "public");
   res.json(publicTrips);
 });
 

@@ -40,5 +40,7 @@ comparex
 comparex_app
 comparez
 
-# Server dynamic runtime database
+# Server dynamic runtime database and user uploads
 server/data/db.json
+server/uploads/*
+!server/uploads/.gitkeep

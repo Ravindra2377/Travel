@@ -195,3 +195,120 @@ test("7. Unauthenticated pull strips private trips and private diary entries", a
   const foundPrivateDiary = unauthData.diary_entries.find((d) => d.id === "diary-secret");
   assert.equal(foundPrivateDiary, undefined);
 });
+
+test("8. Unauthenticated /api/trips and /api/sync/pull exclude link_only trips", async () => {
+  // Push a link_only trip
+  await request(
+    app,
+    {
+      path: "/api/sync/push",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer dev-sync-token-secret",
+      },
+    },
+    {
+      queue: [
+        {
+          id: "sec_test_link_only",
+          entityType: "trip",
+          action: "create",
+          payload: {
+            id: "trip-link-only-unlisted",
+            title: "Unlisted Secret Hideaway",
+            privacy: "link_only",
+            shareSlug: "unlisted-secret-hideaway",
+          },
+        },
+      ],
+    }
+  );
+
+  // Unauthenticated /api/trips must not return it
+  const tripsRes = await request(app, { path: "/api/trips" });
+  assert.equal(tripsRes.statusCode, 200);
+  const trips = JSON.parse(tripsRes.body);
+  const foundInTrips = trips.find((t) => t.id === "trip-link-only-unlisted");
+  assert.equal(foundInTrips, undefined, "link_only trip must not appear in public /api/trips");
+
+  // Unauthenticated /api/sync/pull must not return it
+  const pullRes = await request(app, { path: "/api/sync/pull" });
+  assert.equal(pullRes.statusCode, 200);
+  const pullData = JSON.parse(pullRes.body);
+  const foundInPull = pullData.trips.find((t) => t.id === "trip-link-only-unlisted");
+  assert.equal(foundInPull, undefined, "link_only trip must not appear in unauthenticated /api/sync/pull");
+});
+
+test("9. Direct lookup for link_only trip by slug/id succeeds", async () => {
+  // Direct trip API lookup
+  const tripRes = await request(app, { path: "/api/trips/unlisted-secret-hideaway" });
+  assert.equal(tripRes.statusCode, 200);
+  const tripData = JSON.parse(tripRes.body);
+  assert.equal(tripData.trip.id, "trip-link-only-unlisted");
+
+  // Direct share page lookup
+  const shareRes = await request(app, { path: "/share/unlisted-secret-hideaway" });
+  assert.equal(shareRes.statusCode, 200);
+  assert.ok(shareRes.body.includes("Unlisted Secret Hideaway"));
+});
+
+test("10. Photo upload rejects non-image payload (e.g. HTML or malicious script) with 400 Bad Request", async () => {
+  const maliciousHtml = Buffer.from("<script>alert('xss')</script>").toString("base64");
+  const res = await request(
+    app,
+    {
+      path: "/api/photos/upload",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer dev-sync-token-secret",
+      },
+    },
+    {
+      filename: "exploit.html",
+      base64Data: maliciousHtml,
+    }
+  );
+  assert.equal(res.statusCode, 400);
+  const data = JSON.parse(res.body);
+  assert.match(data.error, /Invalid file format/i);
+});
+
+test("11. Valid JPEG image upload succeeds and /uploads sets nosniff header", async () => {
+  // Valid minimal JPEG binary with standard SOI (FF D8 FF E0) and EOI (FF D9)
+  const validJpegBuffer = Buffer.from([
+    0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+    0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
+    0x00, 0xFF, 0xD9,
+  ]);
+  const res = await request(
+    app,
+    {
+      path: "/api/photos/upload",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer dev-sync-token-secret",
+      },
+    },
+    {
+      filename: "client_tried_html.html",
+      base64Data: validJpegBuffer.toString("base64"),
+    }
+  );
+  assert.equal(res.statusCode, 200);
+  const data = JSON.parse(res.body);
+  assert.equal(data.success, true);
+  assert.ok(data.filename.endsWith(".jpg"), "File extension must be derived from verified image format, not client name");
+
+  // Fetch the uploaded photo and verify security headers
+  const photoRes = await request(app, { path: `/uploads/${data.filename}` });
+  assert.equal(photoRes.statusCode, 200);
+  assert.equal(photoRes.headers["x-content-type-options"], "nosniff");
+  assert.ok(photoRes.headers["content-security-policy"].includes("default-src 'none'"));
+});
+
+test("12. Trust proxy is configured on Express instance", () => {
+  assert.equal(app.get("trust proxy"), 1);
+});
