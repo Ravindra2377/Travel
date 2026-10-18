@@ -24,6 +24,8 @@ export const INITIAL_TRIPS = [
     secondaryColor: "#D97706", // Warm amber
     city: "Hampi",
     country: "India",
+    latitude: 15.3350,
+    longitude: 76.4600,
     notes:
       "Exploring the 14th-century Vijayanagara ruins, granite boulder hills, and ancient river crossings.",
     createdAt: "2026-10-14T05:00:00Z",
@@ -43,6 +45,8 @@ export const INITIAL_TRIPS = [
     secondaryColor: "#1E293B", // Indigo slate
     city: "Kyoto",
     country: "Japan",
+    latitude: 35.0116,
+    longitude: 135.7680,
     notes:
       "Chasing momiji autumn foliage, quiet zen gardens, and evening ramen alleys.",
     createdAt: "2025-11-02T04:00:00Z",
@@ -62,6 +66,8 @@ export const INITIAL_TRIPS = [
     secondaryColor: "#F59E0B", // Sunlit lemon
     city: "Positano",
     country: "Italy",
+    latitude: 40.6281,
+    longitude: 14.4850,
     notes:
       "Driving the dramatic coastline from Positano to Ravello, lemon groves, and sea caves.",
     createdAt: "2026-08-01T10:00:00Z",

@@ -1,6 +1,17 @@
-import React, { useMemo, useRef, useEffect } from "react";
-import { View, StyleSheet, Platform, ActivityIndicator } from "react-native";
+import React, { useMemo, useRef, useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  ActivityIndicator,
+  TouchableOpacity,
+} from "react-native";
 import { WebView } from "react-native-webview";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { useTheme } from "../context/ThemeContext";
+import { FONTS, SHADOWS } from "../config/theme";
 
 /**
  * City coordinates lookup table for trips without explicit GPS coordinates
@@ -9,6 +20,20 @@ const CITY_COORDINATES = {
   hampi: { lat: 15.3350, lng: 76.4600 },
   kyoto: { lat: 35.0116, lng: 135.7680 },
   tokyo: { lat: 35.6762, lng: 139.6503 },
+  positano: { lat: 40.6281, lng: 14.4850 },
+  amalfi: { lat: 40.6340, lng: 14.6027 },
+  italy: { lat: 40.6281, lng: 14.4850 },
+  rome: { lat: 41.9028, lng: 12.4964 },
+  paris: { lat: 48.8566, lng: 2.3522 },
+  london: { lat: 51.5074, lng: -0.1278 },
+  newyork: { lat: 40.7128, lng: -74.0060 },
+  bali: { lat: -8.4095, lng: 115.1889 },
+  sydney: { lat: -33.8688, lng: 151.2093 },
+  cairo: { lat: 30.0444, lng: 31.2357 },
+  bangkok: { lat: 13.7563, lng: 100.5018 },
+  singapore: { lat: 1.3521, lng: 103.8198 },
+  barcelona: { lat: 41.3851, lng: 2.1734 },
+  santorini: { lat: 36.3932, lng: 25.4615 },
   goa: { lat: 15.2993, lng: 74.1240 },
   manali: { lat: 32.2432, lng: 77.1892 },
   ladakh: { lat: 34.1526, lng: 77.5771 },
@@ -17,31 +42,38 @@ const CITY_COORDINATES = {
   udaipur: { lat: 24.5854, lng: 73.7125 },
   varanasi: { lat: 25.3176, lng: 82.9739 },
   kerala: { lat: 9.9312, lng: 76.2673 },
-  paris: { lat: 48.8566, lng: 2.3522 },
-  rome: { lat: 41.9028, lng: 12.4964 },
 };
 
 export function getTripCoordinates(trip) {
-  if (typeof trip?.latitude === "number" && typeof trip?.longitude === "number") {
+  if (
+    typeof trip?.latitude === "number" &&
+    typeof trip?.longitude === "number" &&
+    !isNaN(trip.latitude) &&
+    !isNaN(trip.longitude)
+  ) {
     return { lat: trip.latitude, lng: trip.longitude };
   }
   const cityKey = (trip?.city || "").trim().toLowerCase();
   if (CITY_COORDINATES[cityKey]) {
     return CITY_COORDINATES[cityKey];
   }
-  // Fallback defaults
+  const countryKey = (trip?.country || "").trim().toLowerCase();
+  if (CITY_COORDINATES[countryKey]) {
+    return CITY_COORDINATES[countryKey];
+  }
+  // Default to Hampi
   return { lat: 15.3350, lng: 76.4600 };
 }
 
 /**
  * InteractiveMap
- * High-performance real geographic tile map using Leaflet.
- * Features:
- * - Camera flyTo animations with smooth easing
- * - Progressive animated route drawing
- * - Bouncing pin drop animations
- * - Dual mode: Trip Expedition Pins (Home) or Moment Stops & Route (Detail)
- * - Multi-layer tiles (Carto Voyager, OpenStreetMap, Esri Satellite)
+ * Supports:
+ * 1. 3D Interactive Travel Globe (Polarsteps style with Three.js / Globe.GL)
+ *    - Real spherical Earth (no world duplication; Asia only appears once!)
+ *    - 3D curved flight arcs connecting expeditions
+ *    - Bouncing photo pins with pulse rings and title tags
+ * 2. 2D Cartographic Map (Leaflet with noWrap)
+ *    - For detail route trails and street-level exploration
  */
 export const InteractiveMap = ({
   moments = [],
@@ -53,31 +85,25 @@ export const InteractiveMap = ({
   onSelectMoment,
   onSelectTrip,
   themeColor = "#16845B",
-  tileStyle = "voyager", // "voyager" | "osm" | "satellite"
-  flyToLocation = null,  // { latitude, longitude, zoom }
+  tileStyle = "voyager",
+  flyToLocation = null,
   style,
 }) => {
+  const { isDark } = useTheme();
   const webViewRef = useRef(null);
 
-  // Generate HTML payload for Leaflet
-  const mapHtml = useMemo(() => {
-    const validMoments = moments.filter(
-      (m) =>
-        typeof m.latitude === "number" &&
-        typeof m.longitude === "number" &&
-        !isNaN(m.latitude) &&
-        !isNaN(m.longitude)
-    );
+  // Default to 3D Globe for trip overview, and 2D Flat Map for moments/route detail
+  const [mapType, setMapType] = useState(mode === "trips" ? "globe" : "flat");
 
-    const validBreadcrumbs = breadcrumbs.filter(
-      (b) =>
-        typeof b.latitude === "number" &&
-        typeof b.longitude === "number" &&
-        !isNaN(b.latitude) &&
-        !isNaN(b.longitude)
-    );
+  // Synchronize mapType if mode changes externally
+  useEffect(() => {
+    if (mode === "moments") {
+      setMapType("flat");
+    }
+  }, [mode]);
 
-    const preparedTrips = trips.map((t) => {
+  const preparedTrips = useMemo(() => {
+    return trips.map((t) => {
       const coords = getTripCoordinates(t);
       return {
         id: t.id,
@@ -90,7 +116,222 @@ export const InteractiveMap = ({
         longitude: coords.lng,
       };
     });
+  }, [trips, themeColor]);
 
+  const validMoments = useMemo(() => {
+    return moments.filter(
+      (m) =>
+        typeof m.latitude === "number" &&
+        typeof m.longitude === "number" &&
+        !isNaN(m.latitude) &&
+        !isNaN(m.longitude)
+    );
+  }, [moments]);
+
+  const validBreadcrumbs = useMemo(() => {
+    return breadcrumbs.filter(
+      (b) =>
+        typeof b.latitude === "number" &&
+        typeof b.longitude === "number" &&
+        !isNaN(b.latitude) &&
+        !isNaN(b.longitude)
+    );
+  }, [breadcrumbs]);
+
+  // Generate 3D Globe HTML (Three.js / Globe.gl)
+  const globeHtml = useMemo(() => {
+    const tripsJson = JSON.stringify(preparedTrips);
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <script src="https://unpkg.com/globe.gl@2.46.2/dist/globe.gl.min.js"></script>
+  <style>
+    html, body, #globeViz {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #0B130E;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .globe-pin {
+      position: relative;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transform: translate(-50%, -50%);
+      pointer-events: auto;
+      user-select: none;
+    }
+    .globe-pin-bubble {
+      width: 44px;
+      height: 44px;
+      border-radius: 22px;
+      border: 3px solid #FFFFFF;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.60);
+      background-size: cover;
+      background-position: center;
+      background-color: ${themeColor};
+      transition: transform 0.25s ease, border-color 0.25s ease;
+    }
+    .pin-selected .globe-pin-bubble {
+      transform: scale(1.24);
+      border-color: #F59E0B;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.7);
+    }
+    .pulse-ring {
+      position: absolute;
+      top: -4px;
+      left: 50%;
+      margin-left: -26px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 2.5px solid ${themeColor};
+      animation: pulse 2s infinite ease-out;
+      pointer-events: none;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.85); opacity: 0.95; }
+      100% { transform: scale(1.65); opacity: 0; }
+    }
+    .globe-pin-label {
+      margin-top: 6px;
+      background: rgba(15, 23, 42, 0.90);
+      backdrop-filter: blur(6px);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 8px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+  </style>
+</head>
+<body>
+  <div id="globeViz"></div>
+  <script>
+    const trips = ${tripsJson};
+    let activeTripId = "${activeTripId || ""}";
+
+    // Arcs between consecutive trips
+    const arcs = [];
+    for (let i = 0; i < trips.length - 1; i++) {
+      arcs.push({
+        startLat: trips[i].latitude,
+        startLng: trips[i].longitude,
+        endLat: trips[i+1].latitude,
+        endLng: trips[i+1].longitude,
+        color: trips[i].themeColor || '#F59E0B'
+      });
+    }
+
+    const postToApp = (data) => {
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(data));
+      } else {
+        window.parent.postMessage(JSON.stringify(data), "*");
+      }
+    };
+
+    const globe = Globe()
+      .globeImageUrl('https://unpkg.com/three-globe@2.45.6/example/img/earth-blue-marble.jpg')
+      .bumpImageUrl('https://unpkg.com/three-globe@2.45.6/example/img/earth-topology.png')
+      .backgroundColor('rgba(11, 19, 14, 1)')
+      .showAtmosphere(true)
+      .atmosphereColor('#6EE7B7')
+      .atmosphereAltitude(0.18)
+      .arcsData(arcs)
+      .arcColor(d => [d.color || '#F59E0B', '#34D399'])
+      .arcAltitude(0.24)
+      .arcStroke(1.8)
+      .arcDashLength(0.4)
+      .arcDashGap(0.2)
+      .arcDashAnimateTime(2200)
+      .htmlElementsData(trips)
+      .htmlLat(d => d.latitude)
+      .htmlLng(d => d.longitude)
+      .htmlElement(d => {
+        const isSelected = d.id === activeTripId;
+        const el = document.createElement('div');
+        el.className = 'globe-pin ' + (isSelected ? 'pin-selected' : '');
+        el.id = 'pin-' + d.id;
+        
+        const pulse = document.createElement('div');
+        pulse.className = 'pulse-ring';
+        pulse.style.borderColor = d.themeColor || '${themeColor}';
+        el.appendChild(pulse);
+
+        const bubble = document.createElement('div');
+        bubble.className = 'globe-pin-bubble';
+        if (d.coverUri) {
+          bubble.style.backgroundImage = 'url(' + d.coverUri + ')';
+        }
+        bubble.style.borderColor = isSelected ? (d.themeColor || '#F59E0B') : '#FFFFFF';
+        el.appendChild(bubble);
+
+        const label = document.createElement('div');
+        label.className = 'globe-pin-label';
+        label.innerText = d.title;
+        el.appendChild(label);
+
+        el.onclick = () => {
+          selectPin(d.id, d.latitude, d.longitude);
+          postToApp({ type: 'SELECT_TRIP', tripId: d.id });
+        };
+        return el;
+      })
+      (document.getElementById('globeViz'));
+
+    function selectPin(tripId, lat, lng) {
+      activeTripId = tripId;
+      document.querySelectorAll('.globe-pin').forEach(p => p.classList.remove('pin-selected'));
+      const activeEl = document.getElementById('pin-' + tripId);
+      if (activeEl) activeEl.classList.add('pin-selected');
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        globe.pointOfView({ lat: lat, lng: lng, altitude: 2.1 }, 1200);
+      }
+    }
+
+    // Initial camera position centered on active trip or India/Asia
+    const initialTrip = trips.find(t => t.id === activeTripId) || trips[0];
+    if (initialTrip) {
+      globe.pointOfView({ lat: initialTrip.latitude, lng: initialTrip.longitude, altitude: 2.2 }, 0);
+    } else {
+      globe.pointOfView({ lat: 22.0, lng: 78.0, altitude: 2.4 }, 0);
+    }
+
+    globe.controls().autoRotate = true;
+    globe.controls().autoRotateSpeed = 0.35;
+    globe.controls().enableZoom = true;
+
+    // Listen for flyTo messages from React
+    window.addEventListener('message', (event) => {
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data.type === 'FLY_TO_TRIP') {
+          const target = trips.find(t => t.id === data.tripId);
+          if (target) selectPin(target.id, target.latitude, target.longitude);
+        } else if (data.type === 'FLY_TO_COORDS' && data.latitude && data.longitude) {
+          globe.pointOfView({ lat: data.latitude, lng: data.longitude, altitude: data.zoom ? (12 / data.zoom) : 2.0 }, 1200);
+        }
+      } catch (err) {}
+    });
+  </script>
+</body>
+</html>`;
+  }, [preparedTrips, activeTripId, themeColor]);
+
+  // Generate 2D Flat Map HTML (Leaflet with noWrap)
+  const flatHtml = useMemo(() => {
     const momentsJson = JSON.stringify(validMoments);
     const breadcrumbsJson = JSON.stringify(validBreadcrumbs);
     const tripsJson = JSON.stringify(preparedTrips);
@@ -206,7 +447,6 @@ export const InteractiveMap = ({
       pointer-events: none;
       box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     }
-    /* Animated progressive route line */
     .animated-route-line {
       stroke-dasharray: 10, 10;
       animation: dash 20s linear infinite;
@@ -230,23 +470,49 @@ export const InteractiveMap = ({
     let initialIndex = ${selectedIndex};
     let activeTripId = "${activeTripId || ""}";
 
-    // Initialize Map
+    // Initialize Map with strict world boundaries so Asia never duplicates
     const map = L.map('map', {
       zoomControl: false,
-      attributionControl: false
+      attributionControl: false,
+      minZoom: 2,
+      maxBounds: [[-85, -180], [85, 180]],
+      maxBoundsViscosity: 1.0
     });
 
     L.tileLayer('${activeTileUrl}', {
       maxZoom: 19,
-      subdomains: 'abcd',
+      noWrap: true,
+      bounds: [[-85, -180], [85, 180]],
       attribution: '${activeAttribution}'
     }).addTo(map);
 
     const markers = [];
     const latLngs = [];
 
+    const postToApp = (data) => {
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(data));
+      } else {
+        window.parent.postMessage(JSON.stringify(data), "*");
+      }
+    };
+
+    function selectTripPin(tripId, pos) {
+      activeTripId = tripId;
+      document.querySelectorAll('.custom-pin').forEach(p => p.classList.remove('pin-selected'));
+      const activeEl = document.getElementById('trip-pin-' + tripId);
+      if (activeEl) activeEl.classList.add('pin-selected');
+      if (pos) map.flyTo(pos, 6, { duration: 1.2 });
+    }
+
+    function selectMomentPin(idx) {
+      document.querySelectorAll('.custom-pin').forEach(p => p.classList.remove('pin-selected'));
+      const activeEl = document.getElementById('pin-' + idx);
+      if (activeEl) activeEl.classList.add('pin-selected');
+      if (latLngs[idx]) map.flyTo(latLngs[idx], 13, { duration: 1.0 });
+    }
+
     if (isTripsMode) {
-      // ── TRIPS MAP SHELL MODE ──────────────────────────────────────────
       trips.forEach((t, idx) => {
         const pos = [t.latitude, t.longitude];
         latLngs.push(pos);
@@ -275,14 +541,13 @@ export const InteractiveMap = ({
       });
 
       if (latLngs.length > 1) {
-        map.fitBounds(L.latLngBounds(latLngs), { padding: [80, 80], maxZoom: 12 });
+        map.fitBounds(L.latLngBounds(latLngs), { padding: [80, 80], maxZoom: 8 });
       } else if (latLngs.length === 1) {
-        map.setView(latLngs[0], 11);
+        map.setView(latLngs[0], 6);
       } else {
-        map.setView([20.5937, 78.9629], 5);
+        map.setView([22.0, 78.0], 4);
       }
     } else {
-      // ── MOMENTS & ROUTE DETAIL MODE ──────────────────────────────────
       if (breadcrumbs && breadcrumbs.length > 1) {
         const trailPoints = breadcrumbs.map(b => [b.latitude, b.longitude]);
         L.polyline(trailPoints, {
@@ -320,62 +585,9 @@ export const InteractiveMap = ({
       });
 
       if (latLngs.length > 1) {
-        // Smooth animated route polyline
-        const poly = L.polyline(latLngs, {
-          color: themeColor,
-          weight: 4.5,
-          opacity: 0.9,
-          className: 'animated-route-line',
-          smoothFactor: 1
-        }).addTo(map);
-        map.fitBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: 15 });
+        map.fitBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: 14 });
       } else if (latLngs.length === 1) {
-        map.setView(latLngs[0], 13);
-      } else {
-        map.setView([15.3350, 76.4600], 12);
-      }
-    }
-
-    function selectMomentPin(idx) {
-      markers.forEach((m, i) => {
-        const el = document.getElementById('pin-' + i);
-        if (el) {
-          if (i === idx) {
-            el.classList.add('pin-selected');
-          } else {
-            el.classList.remove('pin-selected');
-          }
-        }
-      });
-      if (markers[idx] && markers[idx].getLatLng) {
-        map.flyTo(markers[idx].getLatLng(), Math.max(map.getZoom(), 14), {
-          duration: 1.0,
-          easeLinearity: 0.25
-        });
-      }
-    }
-
-    function selectTripPin(tripId, pos) {
-      trips.forEach(t => {
-        const el = document.getElementById('trip-pin-' + t.id);
-        if (el) {
-          if (t.id === tripId) {
-            el.classList.add('pin-selected');
-          } else {
-            el.classList.remove('pin-selected');
-          }
-        }
-      });
-      if (pos) {
-        map.flyTo(pos, 11, { duration: 1.2 });
-      }
-    }
-
-    function postToApp(msg) {
-      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
-      } else if (window.parent) {
-        window.parent.postMessage(JSON.stringify(msg), '*');
+        map.setView(latLngs[0], 12);
       }
     }
 
@@ -384,21 +596,34 @@ export const InteractiveMap = ({
       try {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         if (data.type === 'FLY_TO_INDEX') {
-          selectMomentPin(data.index);
+          if (typeof data.index === 'number') {
+            selectMomentPin(data.index);
+          }
         } else if (data.type === 'FLY_TO_TRIP') {
           const target = markers.find(m => m.id === data.tripId);
           if (target) selectTripPin(data.tripId, target.pos);
         } else if (data.type === 'FLY_TO_COORDS' && data.latitude && data.longitude) {
-          map.flyTo([data.latitude, data.longitude], data.zoom || 11, { duration: 1.2 });
+          map.flyTo([data.latitude, data.longitude], data.zoom || 8, { duration: 1.2 });
         }
       } catch (err) {}
     });
   </script>
 </body>
 </html>`;
-  }, [moments, breadcrumbs, trips, mode, themeColor, tileStyle, selectedIndex, activeTripId]);
+  }, [
+    validMoments,
+    validBreadcrumbs,
+    preparedTrips,
+    mode,
+    themeColor,
+    tileStyle,
+    selectedIndex,
+    activeTripId,
+  ]);
 
-  // Two-way sync: Notify Leaflet map when selection or flyTo updates
+  const activeHtml = mapType === "globe" ? globeHtml : flatHtml;
+
+  // Two-way sync: Notify WebView when selection or flyTo updates
   useEffect(() => {
     const msg =
       mode === "trips"
@@ -412,22 +637,27 @@ export const InteractiveMap = ({
     if (!msg) return;
 
     if (Platform.OS === "web") {
-      const iframe = document.getElementById("leaflet-map-iframe");
+      const iframe = document.getElementById("travel-map-iframe");
       if (iframe && iframe.contentWindow) {
         iframe.contentWindow.postMessage(JSON.stringify(msg), "*");
       }
     } else if (webViewRef.current) {
       webViewRef.current.postMessage(JSON.stringify(msg));
     }
-  }, [selectedIndex, activeTripId, flyToLocation, mode]);
+  }, [selectedIndex, activeTripId, flyToLocation, mode, mapType]);
 
   // Listen for message on Web
   useEffect(() => {
     if (Platform.OS === "web") {
       const handleWebMessage = (e) => {
         try {
-          const data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
-          if (data && data.type === "SELECT_MOMENT" && typeof data.index === "number") {
+          const data =
+            typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+          if (
+            data &&
+            data.type === "SELECT_MOMENT" &&
+            typeof data.index === "number"
+          ) {
             onSelectMoment && onSelectMoment(data.index);
           } else if (data && data.type === "SELECT_TRIP" && data.tripId) {
             onSelectTrip && onSelectTrip(data.tripId);
@@ -442,7 +672,10 @@ export const InteractiveMap = ({
   const handleNativeMessage = (event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === "SELECT_MOMENT" && typeof data.index === "number") {
+      if (
+        data.type === "SELECT_MOMENT" &&
+        typeof data.index === "number"
+      ) {
         onSelectMoment && onSelectMoment(data.index);
       } else if (data.type === "SELECT_TRIP" && data.tripId) {
         onSelectTrip && onSelectTrip(data.tripId);
@@ -452,13 +685,13 @@ export const InteractiveMap = ({
     }
   };
 
-  if (Platform.OS === "web") {
-    return (
-      <View style={[styles.container, style]}>
+  return (
+    <View style={[styles.container, style]}>
+      {Platform.OS === "web" ? (
         <iframe
-          id="leaflet-map-iframe"
+          id="travel-map-iframe"
           title="Interactive Travel Map"
-          srcDoc={mapHtml}
+          srcDoc={activeHtml}
           style={{
             width: "100%",
             height: "100%",
@@ -466,28 +699,63 @@ export const InteractiveMap = ({
             display: "block",
           }}
         />
-      </View>
-    );
-  }
+      ) : (
+        <WebView
+          ref={webViewRef}
+          originWhitelist={["*"]}
+          source={{ html: activeHtml }}
+          style={styles.webView}
+          javaScriptEnabled
+          domStorageEnabled
+          scrollEnabled={false}
+          onMessage={handleNativeMessage}
+          renderLoading={() => (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={themeColor} />
+            </View>
+          )}
+          startInLoadingState
+        />
+      )}
 
-  return (
-    <View style={[styles.container, style]}>
-      <WebView
-        ref={webViewRef}
-        originWhitelist={["*"]}
-        source={{ html: mapHtml }}
-        style={styles.webView}
-        javaScriptEnabled
-        domStorageEnabled
-        scrollEnabled={false}
-        onMessage={handleNativeMessage}
-        renderLoading={() => (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={themeColor} />
-          </View>
-        )}
-        startInLoadingState
-      />
+      {/* Floating 3D Globe / 2D Map Switcher Pill */}
+      {mode === "trips" && (
+        <View style={styles.togglePillContainer} pointerEvents="box-none">
+          <TouchableOpacity
+            style={[
+              styles.togglePill,
+              {
+                backgroundColor: isDark
+                  ? "rgba(18, 26, 22, 0.88)"
+                  : "rgba(255, 255, 255, 0.92)",
+                borderColor: isDark
+                  ? "rgba(255, 255, 255, 0.15)"
+                  : "rgba(0, 0, 0, 0.08)",
+              },
+              SHADOWS.md,
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setMapType((prev) => (prev === "globe" ? "flat" : "globe"));
+            }}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name={mapType === "globe" ? "globe" : "map"}
+              size={14}
+              color={themeColor}
+            />
+            <Text
+              style={[
+                FONTS.captionBold,
+                { color: themeColor, fontSize: 11, marginLeft: 5 },
+              ]}
+            >
+              {mapType === "globe" ? "3D Globe" : "2D Map"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -496,7 +764,7 @@ const styles = StyleSheet.create({
   container: {
     width: "100%",
     height: "100%",
-    backgroundColor: "#E8ECE9",
+    backgroundColor: "#0B130E",
     overflow: "hidden",
     zIndex: 1,
   },
@@ -508,7 +776,21 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#E8ECE9",
+    backgroundColor: "#0B130E",
+  },
+  togglePillContainer: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 116 : 96,
+    right: 18,
+    zIndex: 40,
+  },
+  togglePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
   },
 });
 
