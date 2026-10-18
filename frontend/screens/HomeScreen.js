@@ -27,6 +27,7 @@ import InteractiveMap, { getTripCoordinates } from "../components/InteractiveMap
 import BottomSheet from "../components/BottomSheet";
 import TripCreateModal from "../components/TripCreateModal";
 import PermissionPrePrompt from "../components/PermissionPrePrompt";
+import { SkeletonTripCard } from "../components/SkeletonLoader";
 import trackingService from "../services/trackingService";
 
 const { width, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -49,7 +50,7 @@ const PRESET_COVERS = [
 
 const HomeScreen = ({ navigation }) => {
   const { themeColors, isDark } = useTheme();
-  const { trips, activeTrip, setActiveTrip, moments, addTrip } = useTrips();
+  const { trips, activeTrip, setActiveTrip, moments, addTrip, loading } = useTrips();
   const { t, language, setLanguage } = useI18n();
 
   const [syncState, setSyncState] = useState({
@@ -748,7 +749,14 @@ const HomeScreen = ({ navigation }) => {
             </Text>
           </View>
 
-          {trips.map((trip) => {
+          {loading && trips.length === 0 ? (
+            <>
+              <SkeletonTripCard />
+              <SkeletonTripCard />
+              <SkeletonTripCard />
+            </>
+          ) : (
+            trips.map((trip) => {
             const tripMomentsCount = moments.filter(
               (m) => m.tripId === trip.id
             ).length;
@@ -851,7 +859,8 @@ const HomeScreen = ({ navigation }) => {
                 </View>
               </TouchableOpacity>
             );
-          })}
+          })
+          )}
         </View>
 
         <View style={{ height: 120 }} />

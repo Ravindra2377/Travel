@@ -140,12 +140,34 @@ jest.mock("react-native-reanimated", () => {
     withSequence: (...anims) => anims[anims.length - 1],
     cancelAnimation: jest.fn(),
     interpolate: jest.fn((val, [inMin, inMax], [outMin, outMax]) => outMin),
+    Extrapolation: { CLAMP: "clamp", EXTEND: "extend", IDENTITY: "identity" },
+    Extrapolate: { CLAMP: "clamp", EXTEND: "extend", IDENTITY: "identity" },
     Easing: {
       linear: (t) => t,
       ease: (t) => t,
       bezier: () => (t) => t,
     },
     runOnJS: (fn) => fn,
+  };
+});
+
+// Mock react-native-gesture-handler for Jest
+jest.mock("react-native-gesture-handler", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  return {
+    GestureHandlerRootView: ({ children, style }) => React.createElement(View, { style }, children),
+    GestureDetector: ({ children }) => children,
+    Gesture: {
+      Pan: () => {
+        const handler = {
+          onStart: () => handler,
+          onUpdate: () => handler,
+          onEnd: () => handler,
+        };
+        return handler;
+      },
+    },
   };
 });
 

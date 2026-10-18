@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AccessibilityInfo, Platform } from "react-native";
+import { AccessibilityInfo, Platform, Easing } from "react-native";
 
 /**
  * Trip Moments Centralized Motion Design System
@@ -46,9 +46,14 @@ export const SPRINGS = {
 };
 
 export const EASINGS = {
-  standard: "cubic-bezier(0.2, 0.0, 0, 1.0)",
-  decelerate: "cubic-bezier(0.0, 0.0, 0.2, 1.0)",
-  accelerate: "cubic-bezier(0.4, 0.0, 1.0, 1.0)",
+  standard: Easing.bezier(0.2, 0.0, 0.0, 1.0),
+  decelerate: Easing.bezier(0.0, 0.0, 0.2, 1.0),
+  accelerate: Easing.bezier(0.4, 0.0, 1.0, 1.0),
+  css: {
+    standard: "cubic-bezier(0.2, 0.0, 0, 1.0)",
+    decelerate: "cubic-bezier(0.0, 0.0, 0.2, 1.0)",
+    accelerate: "cubic-bezier(0.4, 0.0, 1.0, 1.0)",
+  },
 };
 
 /**

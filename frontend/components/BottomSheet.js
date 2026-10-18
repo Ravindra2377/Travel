@@ -1,13 +1,21 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   StyleSheet,
   Dimensions,
   useWindowDimensions,
-  Animated,
-  PanResponder,
   TouchableOpacity,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "../context/ThemeContext";
 import { RADIUS, SHADOWS } from "../config/theme";
@@ -16,7 +24,8 @@ import { SPRINGS, useReducedMotion } from "../config/motion";
 const { height: DEFAULT_SCREEN_HEIGHT } = Dimensions.get("window");
 
 /**
- * Spring-driven, gesture-controlled Bottom Sheet Component.
+ * Spring-driven, native gesture-controlled Bottom Sheet Component.
+ * Powered by React Native Reanimated 4 & Gesture Handler on the UI thread (60/120fps).
  * Anchored to the bottom of the viewport with calibrated snap points.
  */
 export const BottomSheet = ({
@@ -38,117 +47,140 @@ export const BottomSheet = ({
       ? snapPoints
       : [220, Math.round(screenHeight * 0.52), Math.round(screenHeight * 0.85)];
 
-  // Maximum sheet height corresponds to the largest snap point
   const sheetMaxHeight = effectiveSnapPoints[effectiveSnapPoints.length - 1];
 
-  // For any visible height H from the bottom, translateY is: sheetMaxHeight - H
-  const getSnapTranslateY = (snapIndex) => {
-    const visibleH =
-      effectiveSnapPoints[snapIndex] ?? effectiveSnapPoints[1];
-    return Math.max(0, sheetMaxHeight - visibleH);
-  };
+  const getSnapTranslateY = useCallback(
+    (snapIndex) => {
+      "worklet";
+      const visibleH =
+        effectiveSnapPoints[snapIndex] ?? effectiveSnapPoints[1];
+      return Math.max(0, sheetMaxHeight - visibleH);
+    },
+    [effectiveSnapPoints, sheetMaxHeight]
+  );
 
-  const currentSnapIndexRef = useRef(initialSnap);
   const [currentSnapIndex, setCurrentSnapIndex] = useState(initialSnap);
+  const translateY = useSharedValue(getSnapTranslateY(initialSnap));
+  const startY = useSharedValue(getSnapTranslateY(initialSnap));
 
-  const initialTranslateY = getSnapTranslateY(initialSnap);
-  const translateY = useRef(new Animated.Value(initialTranslateY)).current;
-  const currentYRef = useRef(initialTranslateY);
+  const notifySnapChange = useCallback(
+    (index) => {
+      setCurrentSnapIndex(index);
+      if (onSnapChange) onSnapChange(index);
+    },
+    [onSnapChange]
+  );
 
-  useEffect(() => {
-    const id = translateY.addListener(({ value }) => {
-      currentYRef.current = value;
-    });
-    return () => translateY.removeListener(id);
-  }, [translateY]);
+  const snapTo = useCallback(
+    (index) => {
+      const clampedIndex = Math.max(
+        0,
+        Math.min(effectiveSnapPoints.length - 1, index)
+      );
+      const targetTranslateY = getSnapTranslateY(clampedIndex);
 
-  // Animate to snap index with spring physics
-  const snapTo = (index) => {
-    const clampedIndex = Math.max(
-      0,
-      Math.min(effectiveSnapPoints.length - 1, index)
-    );
-    const targetTranslateY = getSnapTranslateY(clampedIndex);
+      if (reducedMotion) {
+        translateY.value = withTiming(
+          targetTranslateY,
+          { duration: 200 },
+          () => {
+            runOnJS(notifySnapChange)(clampedIndex);
+          }
+        );
+      } else {
+        translateY.value = withSpring(
+          targetTranslateY,
+          {
+            damping: SPRINGS.snappy.damping,
+            mass: SPRINGS.snappy.mass,
+            stiffness: SPRINGS.snappy.stiffness,
+            overshootClamping: false,
+          },
+          () => {
+            runOnJS(notifySnapChange)(clampedIndex);
+          }
+        );
+      }
+    },
+    [effectiveSnapPoints, getSnapTranslateY, reducedMotion, translateY, notifySnapChange]
+  );
 
-    if (reducedMotion) {
-      Animated.timing(translateY, {
-        toValue: targetTranslateY,
-        duration: 200,
-        useNativeDriver: false,
-      }).start();
-    } else {
-      Animated.spring(translateY, {
-        toValue: targetTranslateY,
-        damping: SPRINGS.snappy.damping,
-        mass: SPRINGS.snappy.mass,
-        stiffness: SPRINGS.snappy.stiffness,
-        useNativeDriver: false,
-      }).start();
-    }
-
-    currentSnapIndexRef.current = clampedIndex;
-    setCurrentSnapIndex(clampedIndex);
-    if (onSnapChange) onSnapChange(clampedIndex);
-  };
-
-  // Pan gesture tracking
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dy) > 4;
-      },
-      onPanResponderGrant: () => {
-        translateY.extractOffset();
-      },
-      onPanResponderMove: (_, gestureState) => {
-        translateY.setValue(gestureState.dy);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        translateY.flattenOffset();
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-        const currentY = currentYRef.current;
-        const velocity = gestureState.vy;
-
-        let targetIndex = currentSnapIndexRef.current;
-
-        // Fling upwards (negative dy/vy) -> expand (higher index)
-        if (velocity < -0.35) {
-          targetIndex = Math.min(
-            effectiveSnapPoints.length - 1,
-            targetIndex + 1
-          );
-        } else if (velocity > 0.35) {
-          // Fling downwards (positive dy/vy) -> collapse (lower index)
-          targetIndex = Math.max(0, targetIndex - 1);
-        } else {
-          // Snap to closest target height
-          let closestIndex = 0;
-          let minDiff = Infinity;
-          effectiveSnapPoints.forEach((_, idx) => {
-            const snapY = getSnapTranslateY(idx);
-            const diff = Math.abs(currentY - snapY);
-            if (diff < minDiff) {
-              minDiff = diff;
-              closestIndex = idx;
-            }
-          });
-          targetIndex = closestIndex;
-        }
-
-        snapTo(targetIndex);
-      },
+  const panGesture = Gesture.Pan()
+    .onStart(() => {
+      startY.value = translateY.value;
     })
-  ).current;
+    .onUpdate((event) => {
+      const nextY = startY.value + event.translationY;
+      const minY = getSnapTranslateY(effectiveSnapPoints.length - 1);
+      const maxY = getSnapTranslateY(0);
+      translateY.value = Math.max(minY - 20, Math.min(maxY + 30, nextY));
+    })
+    .onEnd((event) => {
+      const currentY = translateY.value;
+      const velocity = event.velocityY;
+      let targetIndex = currentSnapIndex;
 
-  // Backdrop opacity: 0 at peek, 0.45 at full expansion
+      if (velocity < -400) {
+        // Fast fling upwards -> expand
+        targetIndex = Math.min(effectiveSnapPoints.length - 1, targetIndex + 1);
+      } else if (velocity > 400) {
+        // Fast fling downwards -> collapse
+        targetIndex = Math.max(0, targetIndex - 1);
+      } else {
+        // Snap to closest target height
+        let closestIndex = 0;
+        let minDiff = Infinity;
+        for (let i = 0; i < effectiveSnapPoints.length; i++) {
+          const snapY = getSnapTranslateY(i);
+          const diff = Math.abs(currentY - snapY);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestIndex = i;
+          }
+        }
+        targetIndex = closestIndex;
+      }
+
+      const targetTranslateY = getSnapTranslateY(targetIndex);
+
+      if (reducedMotion) {
+        translateY.value = withTiming(
+          targetTranslateY,
+          { duration: 200 },
+          () => {
+            runOnJS(notifySnapChange)(targetIndex);
+          }
+        );
+      } else {
+        translateY.value = withSpring(
+          targetTranslateY,
+          {
+            damping: SPRINGS.snappy.damping,
+            mass: SPRINGS.snappy.mass,
+            stiffness: SPRINGS.snappy.stiffness,
+          },
+          () => {
+            runOnJS(notifySnapChange)(targetIndex);
+          }
+        );
+      }
+    });
+
+  const animatedSheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
   const peekY = getSnapTranslateY(0);
   const fullY = getSnapTranslateY(effectiveSnapPoints.length - 1);
-  const backdropOpacity = translateY.interpolate({
-    inputRange: fullY < peekY ? [fullY, peekY] : [peekY, fullY],
-    outputRange: [0.45, 0],
-    extrapolate: "clamp",
+
+  const animatedBackdropStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      translateY.value,
+      fullY < peekY ? [fullY, peekY] : [peekY, fullY],
+      [0.45, 0],
+      Extrapolation.CLAMP
+    );
+    return { opacity };
   });
 
   return (
@@ -156,12 +188,7 @@ export const BottomSheet = ({
       {/* Dimming Backdrop */}
       {showBackdrop && currentSnapIndex > 0 && (
         <Animated.View
-          style={[
-            styles.backdrop,
-            {
-              opacity: backdropOpacity,
-            },
-          ]}
+          style={[styles.backdrop, animatedBackdropStyle]}
           pointerEvents={
             currentSnapIndex === effectiveSnapPoints.length - 1
               ? "auto"
@@ -186,27 +213,29 @@ export const BottomSheet = ({
               ? "rgba(255,255,255,0.12)"
               : "rgba(0,0,0,0.06)",
             height: sheetMaxHeight,
-            transform: [{ translateY }],
           },
           SHADOWS.lg,
           style,
+          animatedSheetStyle,
         ]}
       >
-        {/* Drag Handle Bar */}
-        <View {...panResponder.panHandlers} style={styles.handleArea}>
-          <View
-            style={[
-              styles.handlePill,
-              {
-                backgroundColor: isDark
-                  ? "rgba(255,255,255,0.22)"
-                  : "rgba(0,0,0,0.18)",
-              },
-            ]}
-          />
-          {renderHeader &&
-            renderHeader({ snapIndex: currentSnapIndex, snapTo })}
-        </View>
+        {/* Native Gesture Detector strictly on handle area (leaves map and body scroll gestures free) */}
+        <GestureDetector gesture={panGesture}>
+          <View style={styles.handleArea}>
+            <View
+              style={[
+                styles.handlePill,
+                {
+                  backgroundColor: isDark
+                    ? "rgba(255,255,255,0.22)"
+                    : "rgba(0,0,0,0.18)",
+                },
+              ]}
+            />
+            {renderHeader &&
+              renderHeader({ snapIndex: currentSnapIndex, snapTo })}
+          </View>
+        </GestureDetector>
 
         {/* Content Body */}
         <View style={styles.contentBody}>{children}</View>
