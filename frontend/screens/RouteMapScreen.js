@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   Dimensions,
   ScrollView,
+  Alert,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Path, Circle, Line, Text as SvgText, G } from "react-native-svg";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "../context/ThemeContext";
@@ -17,10 +17,12 @@ import { FONTS, SPACING, RADIUS, SHADOWS } from "../config/theme";
 import LiquidGlass from "../components/LiquidGlass";
 import GlassCard from "../components/GlassCard";
 import { Ionicons } from "../components/Icon";
+import InteractiveMap from "../components/InteractiveMap";
+import trackingService from "../services/trackingService";
 
 const { width, height } = Dimensions.get("window");
 const MAP_WIDTH = width - 40;
-const MAP_HEIGHT = 380;
+const MAP_HEIGHT = 400;
 
 const RouteMapScreen = ({ route, navigation }) => {
   const { tripId } = route.params || {};
@@ -46,57 +48,40 @@ const RouteMapScreen = ({ route, navigation }) => {
 
   // Scrub index
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [tileStyle, setTileStyle] = useState("voyager"); // "voyager" | "satellite" | "osm"
+  const [breadcrumbs, setBreadcrumbs] = useState([]);
+  const [isTracking, setIsTracking] = useState(false);
 
-  // Project coordinates into SVG coordinates
-  const projectedPoints = useMemo(() => {
-    if (tripMoments.length === 0) return [];
-
-    let minLat = Infinity,
-      maxLat = -Infinity,
-      minLng = Infinity,
-      maxLng = -Infinity;
-
-    tripMoments.forEach((m) => {
-      if (m.latitude < minLat) minLat = m.latitude;
-      if (m.latitude > maxLat) maxLat = m.latitude;
-      if (m.longitude < minLng) minLng = m.longitude;
-      if (m.longitude > maxLng) maxLng = m.longitude;
-    });
-
-    const latSpan = Math.max(maxLat - minLat, 0.005);
-    const lngSpan = Math.max(maxLng - minLng, 0.005);
-    const padding = 45;
-
-    return tripMoments.map((m, index) => {
-      // Invert lat because higher lat is up (lower Y in SVG)
-      const x = padding + ((m.longitude - minLng) / lngSpan) * (MAP_WIDTH - padding * 2);
-      const y = padding + ((maxLat - m.latitude) / latSpan) * (MAP_HEIGHT - padding * 2);
-      return {
-        x,
-        y,
-        moment: m,
-        index,
-      };
-    });
-  }, [tripMoments]);
-
-  // SVG Path string for the route line
-  const routePathD = useMemo(() => {
-    if (projectedPoints.length < 2) return "";
-    let d = `M ${projectedPoints[0].x} ${projectedPoints[0].y}`;
-    for (let i = 1; i < projectedPoints.length; i++) {
-      // Smooth curve between waypoints
-      const prev = projectedPoints[i - 1];
-      const curr = projectedPoints[i];
-      const midX = (prev.x + curr.x) / 2;
-      const midY = (prev.y + curr.y) / 2;
-      d += ` Q ${prev.x} ${prev.y}, ${midX} ${midY} T ${curr.x} ${curr.y}`;
+  // Load GPS Breadcrumbs and subscribe to tracking updates
+  useEffect(() => {
+    if (currentTrip?.id) {
+      trackingService.getBreadcrumbs(currentTrip.id).then(setBreadcrumbs);
     }
-    return d;
-  }, [projectedPoints]);
+    const unsubscribe = trackingService.subscribe((state) => {
+      setIsTracking(state.isTracking && state.currentTripId === currentTrip?.id);
+      if (currentTrip?.id) {
+        trackingService.getBreadcrumbs(currentTrip.id).then(setBreadcrumbs);
+      }
+    });
+    return () => unsubscribe();
+  }, [currentTrip?.id]);
 
-  const selectedPoint = projectedPoints[selectedIndex] || projectedPoints[0];
-  const selectedMoment = selectedPoint?.moment || tripMoments[0];
+  const handleToggleTracking = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (isTracking) {
+      await trackingService.stopTracking();
+      Alert.alert("Tracking Paused", "GPS breadcrumb recording has been paused.");
+    } else {
+      const res = await trackingService.startTracking(currentTrip.id);
+      if (res.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Alert.alert("Permission Required", res.error || "Could not start GPS tracking.");
+      }
+    }
+  };
+
+  const selectedMoment = tripMoments[selectedIndex] || tripMoments[0];
 
   return (
     <SafeAreaView
@@ -156,116 +141,111 @@ const RouteMapScreen = ({ route, navigation }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Map Canvas Card */}
-        <View
-          style={[
-            styles.mapCard,
-            {
-              backgroundColor: isDark ? "#121A15" : "#EAF1EC",
-              borderColor: isDark
-                ? "rgba(255,255,255,0.1)"
-                : "rgba(0,0,0,0.06)",
-            },
-            SHADOWS.md,
-          ]}
-        >
-          {/* Subtle Grid Lines */}
-          <Svg width={MAP_WIDTH} height={MAP_HEIGHT} style={StyleSheet.absoluteFill}>
-            <Line
-              x1="0"
-              y1={MAP_HEIGHT * 0.25}
-              x2={MAP_WIDTH}
-              y2={MAP_HEIGHT * 0.25}
-              stroke={isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}
-              strokeDasharray="4 4"
+        {/* Map Controls: Tracking Pill & Tile Style Switcher */}
+        <View style={styles.mapControlBar}>
+          <TouchableOpacity
+            onPress={handleToggleTracking}
+            activeOpacity={0.8}
+            style={[
+              styles.trackingPill,
+              {
+                backgroundColor: isTracking
+                  ? isDark
+                    ? "#0A2F1D"
+                    : "#DCFCE7"
+                  : isDark
+                  ? "rgba(255,255,255,0.06)"
+                  : "rgba(0,0,0,0.04)",
+                borderColor: isTracking ? "#22C55E" : isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.trackingDot,
+                { backgroundColor: isTracking ? "#22C55E" : themeColors.inkFaint },
+              ]}
             />
-            <Line
-              x1="0"
-              y1={MAP_HEIGHT * 0.5}
-              x2={MAP_WIDTH}
-              y2={MAP_HEIGHT * 0.5}
-              stroke={isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}
-              strokeDasharray="4 4"
-            />
-            <Line
-              x1="0"
-              y1={MAP_HEIGHT * 0.75}
-              x2={MAP_WIDTH}
-              y2={MAP_HEIGHT * 0.75}
-              stroke={isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"}
-              strokeDasharray="4 4"
-            />
-
-            {/* Route connecting line */}
-            {routePathD ? (
-              <Path
-                d={routePathD}
-                stroke={primaryTint}
-                strokeWidth={3}
-                strokeDasharray="6 3"
-                fill="none"
-              />
-            ) : null}
-
-            {/* Pins */}
-            {projectedPoints.map((pt) => {
-              const isSelected = pt.index === selectedIndex;
-              return (
-                <G key={pt.index}>
-                  {isSelected && (
-                    <Circle
-                      cx={pt.x}
-                      cy={pt.y}
-                      r={18}
-                      fill={primaryTint}
-                      opacity={0.25}
-                    />
-                  )}
-                  <Circle
-                    cx={pt.x}
-                    cy={pt.y}
-                    r={isSelected ? 10 : 7}
-                    fill={isSelected ? primaryTint : "#FFFFFF"}
-                    stroke={primaryTint}
-                    strokeWidth={isSelected ? 3 : 2}
-                  />
-                  <SvgText
-                    x={pt.x}
-                    y={pt.y - 14}
-                    fill={isDark ? "#FFFFFF" : themeColors.ink}
-                    fontSize={10}
-                    fontWeight="bold"
-                    textAnchor="middle"
-                  >
-                    #{pt.index + 1}
-                  </SvgText>
-                </G>
-              );
-            })}
-          </Svg>
-
-          {/* Map Top Badge */}
-          <View style={styles.mapCompassBadge}>
-            <Ionicons name="compass" size={16} color={primaryTint} />
             <Text
               style={[
-                FONTS.ticketStamp,
-                { color: themeColors.ink, fontSize: 10, marginLeft: 4 },
+                FONTS.captionBold,
+                {
+                  color: isTracking ? (isDark ? "#86EFAC" : "#15803D") : themeColors.inkSoft,
+                  fontSize: 11,
+                  marginLeft: 5,
+                },
               ]}
             >
-              {currentTrip?.city?.toUpperCase() || "TERRAIN"}
+              {isTracking ? "Recording GPS" : "Record Route"}
             </Text>
+          </TouchableOpacity>
+
+          <View
+            style={[
+              styles.tileSwitchGroup,
+              {
+                backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+              },
+            ]}
+          >
+            {[
+              { id: "voyager", label: "Voyager" },
+              { id: "osm", label: "Streets" },
+              { id: "satellite", label: "Satellite" },
+            ].map((t) => {
+              const active = tileStyle === t.id;
+              return (
+                <TouchableOpacity
+                  key={t.id}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setTileStyle(t.id);
+                  }}
+                  style={[
+                    styles.tileSwitchBtn,
+                    active && { backgroundColor: primaryTint },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      FONTS.captionBold,
+                      {
+                        color: active ? "#FFFFFF" : themeColors.inkSoft,
+                        fontSize: 10,
+                      },
+                    ]}
+                  >
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
+
+        {/* Real Interactive Map */}
+        <InteractiveMap
+          moments={tripMoments}
+          breadcrumbs={breadcrumbs}
+          selectedIndex={selectedIndex}
+          onSelectMoment={(idx) => {
+            Haptics.selectionAsync();
+            setSelectedIndex(idx);
+          }}
+          themeColor={primaryTint}
+          tileStyle={tileStyle}
+          style={styles.mapCard}
+        />
 
         {/* Route Scrub Controller */}
         <View style={styles.scrubberSection}>
           <View style={styles.scrubberHeader}>
             <Text style={[FONTS.ticketStamp, { color: primaryTint }]}>
-              ROUTE SCRUBBER · STOP {selectedIndex + 1} OF {projectedPoints.length}
+              ROUTE SCRUBBER · STOP {selectedIndex + 1} OF {tripMoments.length}
             </Text>
             <Text style={[FONTS.mono, { color: themeColors.inkFaint, fontSize: 11 }]}>
-              Swipe or tap along path
+              Tap pin or swipe stops
             </Text>
           </View>
 
@@ -275,14 +255,14 @@ const RouteMapScreen = ({ route, navigation }) => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.stopsList}
           >
-            {projectedPoints.map((pt) => {
-              const isSelected = pt.index === selectedIndex;
+            {tripMoments.map((moment, idx) => {
+              const isSelected = idx === selectedIndex;
               return (
                 <TouchableOpacity
-                  key={pt.index}
+                  key={moment.id || idx}
                   onPress={() => {
                     Haptics.selectionAsync();
-                    setSelectedIndex(pt.index);
+                    setSelectedIndex(idx);
                   }}
                   style={[
                     styles.stopStepBtn,
@@ -304,7 +284,7 @@ const RouteMapScreen = ({ route, navigation }) => {
                       },
                     ]}
                   >
-                    {pt.index + 1}
+                    {idx + 1}
                   </Text>
                 </TouchableOpacity>
               );
@@ -433,6 +413,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
+  mapControlBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+    gap: 8,
+  },
+  trackingPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+  },
+  trackingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  tileSwitchGroup: {
+    flexDirection: "row",
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    padding: 2,
+    gap: 2,
+  },
+  tileSwitchBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+  },
   mapCard: {
     width: MAP_WIDTH,
     height: MAP_HEIGHT,
@@ -440,7 +452,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: "hidden",
     position: "relative",
-    marginTop: 10,
   },
   mapCompassBadge: {
     position: "absolute",

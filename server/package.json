@@ -1,0 +1,13 @@
+{
+  "name": "trip-moments-server",
+  "version": "1.0.0",
+  "description": "Backend API, cloud sync, and hosted public share page for Trip Moments",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

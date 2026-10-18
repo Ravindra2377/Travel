@@ -31,7 +31,14 @@ export const WhatsAppShareModal = ({
   const [copied, setCopied] = useState(false);
 
   const shareSlug = trip?.shareSlug || `trip-${trip?.id || "share"}`;
-  const shareUrl = `https://tripmoments.app/share/${shareSlug}`;
+  const isLocalEnv =
+    typeof window !== "undefined" &&
+    (window.location?.hostname === "localhost" ||
+      window.location?.hostname === "127.0.0.1");
+  const shareBaseUrl = isLocalEnv
+    ? "http://localhost:3001"
+    : "https://tripmoments.app";
+  const shareUrl = `${shareBaseUrl}/share/${shareSlug}`;
 
   const momentsCount = moments.length;
   const primaryTint = trip?.themeColor || themeColors.primary;
@@ -345,7 +352,11 @@ export const WhatsAppShareModal = ({
                 <TouchableOpacity
                   onPress={() => {
                     onClose();
-                    onOpenWebViewer && onOpenWebViewer(trip);
+                    if (typeof window !== "undefined" && window.open) {
+                      window.open(shareUrl, "_blank");
+                    } else if (onOpenWebViewer) {
+                      onOpenWebViewer(trip);
+                    }
                   }}
                   style={[
                     styles.secondaryActionBtn,

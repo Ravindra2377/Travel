@@ -20,6 +20,7 @@ import { useTrips } from "../context/TripContext";
 import { FONTS, SPACING, RADIUS, SHADOWS } from "../config/theme";
 import LiquidGlass from "../components/LiquidGlass";
 import { Ionicons } from "../components/Icon";
+import photoStorage from "../services/photoStorage";
 
 const { width } = Dimensions.get("window");
 
@@ -206,6 +207,9 @@ const MomentCaptureScreen = ({ route, navigation }) => {
         .map((t) => t.trim().replace(/^#/, ""))
         .filter(Boolean);
 
+      // Persist photo to permanent document directory
+      const permanentUri = await photoStorage.persistPhoto(photoUri);
+
       await addMoment({
         tripId: selectedTripId,
         title: title.trim() || placeName || "Trip Moment",
@@ -216,7 +220,7 @@ const MomentCaptureScreen = ({ route, navigation }) => {
         latitude: Number(latitude) || 15.335,
         longitude: Number(longitude) || 76.46,
         weather,
-        mediaUri: photoUri,
+        mediaUri: permanentUri || photoUri,
         mediaType: "photo",
         tags,
         isFavorite,

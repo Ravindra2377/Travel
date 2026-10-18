@@ -5,6 +5,7 @@ import DiaryEntryCard from "../DiaryEntryCard";
 import DiaryEditorModal from "../DiaryEditorModal";
 import SearchBar from "../SearchBar";
 import WhatsAppShareModal from "../WhatsAppShareModal";
+import InteractiveMap from "../InteractiveMap";
 import {
   SurfaceCard,
   AppButton,
@@ -25,6 +26,7 @@ describe("Component module exports", () => {
     expect(DiaryEditorModal).toBeDefined();
     expect(SearchBar).toBeDefined();
     expect(WhatsAppShareModal).toBeDefined();
+    expect(InteractiveMap).toBeDefined();
   });
 
   it("shared UI named exports are defined", () => {
