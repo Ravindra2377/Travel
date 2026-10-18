@@ -315,61 +315,105 @@ const HomeScreen = ({ navigation }) => {
       <BottomSheet
         snapPoints={[120, SCREEN_HEIGHT * 0.48, SCREEN_HEIGHT * 0.88]}
         initialSnap={1}
-        renderHeader={({ snapIndex, snapTo }) => (
-          <View style={styles.sheetHeaderTeaser}>
-            <View style={styles.teaserLeft}>
-              <Image
-                source={{ uri: activeTrip?.coverUri || PRESET_COVERS[0] }}
-                style={styles.teaserThumb}
-                contentFit="cover"
-              />
-              <View style={{ marginLeft: 10, flex: 1 }}>
+        renderHeader={({ snapIndex, snapTo }) => {
+          if (snapIndex === 0) {
+            return (
+              <View style={styles.sheetHeaderTeaser}>
+                <View style={styles.teaserLeft}>
+                  <Image
+                    source={{ uri: activeTrip?.coverUri || PRESET_COVERS[0] }}
+                    style={styles.teaserThumb}
+                    contentFit="cover"
+                  />
+                  <View style={{ marginLeft: 10, flex: 1 }}>
+                    <Text
+                      style={[
+                        FONTS.ticketStamp,
+                        { color: themeColors.primary, fontSize: 10 },
+                      ]}
+                    >
+                      {activeTrip ? t("activeExpedition") : t("allJourneys")} · {trips.length} {t("expeditions").toUpperCase()}
+                    </Text>
+                    <Text
+                      style={[
+                        FONTS.h3,
+                        { color: themeColors.ink, fontSize: 15 },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {activeTrip?.title || "Choose an expedition"}
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    snapTo(1);
+                  }}
+                  style={[
+                    styles.mapTogglePill,
+                    { backgroundColor: `${themeColors.primary}18` },
+                  ]}
+                >
+                  <Ionicons
+                    name="chevron-up"
+                    size={14}
+                    color={themeColors.primary}
+                  />
+                  <Text
+                    style={[
+                      FONTS.captionBold,
+                      { color: themeColors.primary, fontSize: 11, marginLeft: 4 },
+                    ]}
+                  >
+                    {t("browse")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }
+
+          return (
+            <View style={styles.sheetHeaderExpanded}>
+              <View style={styles.expandedHeaderLeft}>
                 <Text
                   style={[
                     FONTS.ticketStamp,
-                    { color: themeColors.primary, fontSize: 10 },
+                    { color: themeColors.primary, fontSize: 11 },
                   ]}
                 >
-                  {activeTrip ? t("activeExpedition") : t("allJourneys")} · {trips.length} EXPEDITIONS
-                </Text>
-                <Text
-                  style={[
-                    FONTS.h3,
-                    { color: themeColors.ink, fontSize: 15 },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {activeTrip?.title || "Choose an expedition"}
+                  {t("allJourneys").toUpperCase()} · {trips.length} {t("expeditions").toUpperCase()}
                 </Text>
               </View>
-            </View>
 
-            <TouchableOpacity
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                snapTo(snapIndex === 0 ? 1 : 0);
-              }}
-              style={[
-                styles.mapTogglePill,
-                { backgroundColor: `${themeColors.primary}18` },
-              ]}
-            >
-              <Ionicons
-                name={snapIndex === 0 ? "chevron-up" : "map"}
-                size={14}
-                color={themeColors.primary}
-              />
-              <Text
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  snapTo(0);
+                }}
                 style={[
-                  FONTS.captionBold,
-                  { color: themeColors.primary, fontSize: 11, marginLeft: 4 },
+                  styles.mapTogglePill,
+                  { backgroundColor: `${themeColors.primary}18` },
                 ]}
               >
-                {snapIndex === 0 ? "Browse" : "Explore Map"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+                <Ionicons
+                  name="map-outline"
+                  size={14}
+                  color={themeColors.primary}
+                />
+                <Text
+                  style={[
+                    FONTS.captionBold,
+                    { color: themeColors.primary, fontSize: 11, marginLeft: 4 },
+                  ]}
+                >
+                  {t("exploreMap")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -894,6 +938,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 8,
   },
+  sheetHeaderExpanded: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingHorizontal: 20,
+    paddingBottom: 4,
+    paddingTop: 2,
+  },
+  expandedHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   teaserLeft: {
     flexDirection: "row",
     alignItems: "center",
@@ -947,7 +1004,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   section: {
-    marginTop: 20,
+    marginTop: 14,
   },
   sectionHeader: {
     flexDirection: "row",

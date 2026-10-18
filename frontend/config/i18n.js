@@ -44,6 +44,9 @@ export const translations = {
     allSynced: "All Synced",
     syncingChanges: "Syncing changes...",
     queuedOffline: "Queued offline",
+    exploreMap: "Explore Map",
+    browse: "Browse",
+    expeditions: "Expeditions",
   },
   hi: {
     appTitle: "ट्रिप मोमेंट्स",
@@ -85,6 +88,9 @@ export const translations = {
     allSynced: "सब सिंक हो गया",
     syncingChanges: "बदलाव सिंक हो रहे हैं...",
     queuedOffline: "ऑफ़लाइन सुरक्षित",
+    exploreMap: "मैप देखें",
+    browse: "देखें",
+    expeditions: "यात्राएं",
   },
 };
 

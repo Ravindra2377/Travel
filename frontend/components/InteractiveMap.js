@@ -97,16 +97,23 @@ export const InteractiveMap = ({
 
     const tileUrls = {
       voyager:
-        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-      osm: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+      topo:
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+      natgeo:
+        "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",
       satellite:
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      osm:
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
     };
 
     const tileAttributions = {
-      voyager: "&copy; OpenStreetMap &copy; CARTO",
-      osm: "&copy; OpenStreetMap contributors",
-      satellite: "Tiles &copy; Esri",
+      voyager: "Tiles &copy; Esri &mdash; Street Map",
+      topo: "Tiles &copy; Esri &mdash; Topo Map",
+      natgeo: "Tiles &copy; Esri &mdash; NatGeo World Map",
+      satellite: "Tiles &copy; Esri &mdash; Satellite Imagery",
+      osm: "Tiles &copy; Esri",
     };
 
     const activeTileUrl = tileUrls[tileStyle] || tileUrls.voyager;
