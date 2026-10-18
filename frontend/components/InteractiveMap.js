@@ -457,7 +457,7 @@ export const InteractiveMap = ({
       .globeImageUrl('https://unpkg.com/three-globe@2.45.6/example/img/earth-blue-marble.jpg')
       .globeTileEngineUrl((x, y, l) => {
         if (Array.isArray(x)) { l = x[2]; y = x[1]; x = x[0]; }
-        return 'https://basemaps.cartocdn.com/rastertiles/voyager/' + l + '/' + x + '/' + y + '.png';
+        return 'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/' + l + '/' + y + '/' + x;
       })
       .bumpImageUrl('https://unpkg.com/three-globe@2.45.6/example/img/earth-topology.png')
       .backgroundImageUrl('https://unpkg.com/three-globe@2.45.6/example/img/night-sky.png')
@@ -566,7 +566,7 @@ export const InteractiveMap = ({
           } else {
             globe.globeTileEngineUrl((x, y, l) => {
               if (Array.isArray(x)) { l = x[2]; y = x[1]; x = x[0]; }
-              return 'https://basemaps.cartocdn.com/rastertiles/voyager/' + l + '/' + x + '/' + y + '.png';
+              return 'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/' + l + '/' + y + '/' + x;
             });
           }
         } else if (data.type === 'FLY_TO_TRIP') {
@@ -590,7 +590,7 @@ export const InteractiveMap = ({
 
     const tileUrls = {
       voyager:
-        "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+        "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",
       topo:
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
       natgeo:
@@ -598,15 +598,15 @@ export const InteractiveMap = ({
       satellite:
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       osm:
-        "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     };
 
     const tileAttributions = {
-      voyager: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> &copy; <a href='https://carto.com/attributions'>CARTO</a>",
+      voyager: "Tiles &copy; National Geographic, Esri &mdash; World Map",
       topo: "Tiles &copy; Esri &mdash; Topo Map",
       natgeo: "Tiles &copy; Esri &mdash; NatGeo World Map",
       satellite: "Tiles &copy; Esri &mdash; Satellite Imagery",
-      osm: "&copy; OpenStreetMap &copy; CARTO",
+      osm: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors",
     };
 
     const activeTileUrl = tileUrls[tileStyle] || tileUrls.voyager;
