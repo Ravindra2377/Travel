@@ -17,6 +17,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "../context/ThemeContext";
 import { useTrips } from "../context/TripContext";
+import { useI18n } from "../config/i18n";
+import syncManager, { SYNC_STATUS } from "../services/syncManager";
 import { FONTS, SPACING, RADIUS, SHADOWS } from "../config/theme";
 import LiquidGlass from "../components/LiquidGlass";
 import GlassCard from "../components/GlassCard";
@@ -43,6 +45,29 @@ const PRESET_COVERS = [
 const HomeScreen = ({ navigation }) => {
   const { themeColors, isDark } = useTheme();
   const { trips, activeTrip, setActiveTrip, moments, addTrip } = useTrips();
+  const { t, language, setLanguage } = useI18n();
+
+  const [syncState, setSyncState] = useState({
+    status: SYNC_STATUS.IDLE,
+    pendingCount: 0,
+  });
+
+  React.useEffect(() => {
+    const unsubscribe = syncManager.subscribe((state) => {
+      setSyncState(state);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleManualSync = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await syncManager.syncPending();
+  };
+
+  const handleToggleLanguage = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setLanguage(language === "en" ? "hi" : "en");
+  };
 
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -84,6 +109,7 @@ const HomeScreen = ({ navigation }) => {
         startDate: newStartDate,
         endDate: newEndDate,
         status: "active",
+        privacy: "link_only",
         coverUri,
         themeColor: colorPreset.primary,
         secondaryColor: colorPreset.secondary,
@@ -111,7 +137,7 @@ const HomeScreen = ({ navigation }) => {
 
       {/* Top Header */}
       <View style={styles.header}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text
             style={[
               FONTS.captionBold,
@@ -119,7 +145,7 @@ const HomeScreen = ({ navigation }) => {
               { color: themeColors.primary },
             ]}
           >
-            JOURNAL & DISCOVERY
+            {t("journalDiscovery")}
           </Text>
           <Text
             style={[
@@ -127,12 +153,40 @@ const HomeScreen = ({ navigation }) => {
               styles.headerTitle,
               { color: themeColors.ink },
             ]}
+            numberOfLines={1}
           >
-            Trip Moments
+            {t("appTitle")}
           </Text>
         </View>
 
         <View style={styles.headerRight}>
+          {/* Language Switcher Pill */}
+          <TouchableOpacity
+            style={[
+              styles.langToggleBtn,
+              {
+                backgroundColor: isDark
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(0,0,0,0.04)",
+                borderColor: isDark
+                  ? "rgba(255,255,255,0.12)"
+                  : "rgba(0,0,0,0.08)",
+              },
+            ]}
+            onPress={handleToggleLanguage}
+          >
+            <Ionicons name="language" size={14} color={themeColors.primary} />
+            <Text
+              style={[
+                FONTS.monoBold,
+                styles.langToggleText,
+                { color: themeColors.primary },
+              ]}
+            >
+              {language === "hi" ? "हिन्दी" : "EN"}
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[
               styles.newTripBtn,
@@ -144,7 +198,7 @@ const HomeScreen = ({ navigation }) => {
             }}
           >
             <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.newTripBtnText}>New Trip</Text>
+            <Text style={styles.newTripBtnText}>{t("newTrip")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -164,6 +218,78 @@ const HomeScreen = ({ navigation }) => {
             <Ionicons name="search" size={20} color={themeColors.ink} />
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Sync Status Row */}
+      <View style={styles.syncStatusRow}>
+        <TouchableOpacity
+          onPress={handleManualSync}
+          activeOpacity={0.8}
+          style={[
+            styles.syncStatusPill,
+            {
+              backgroundColor:
+                syncState.pendingCount > 0
+                  ? isDark
+                    ? "#2D1B06"
+                    : "#FEF3C7"
+                  : syncState.status === SYNC_STATUS.SYNCING
+                  ? isDark
+                    ? "#082F49"
+                    : "#E0F2FE"
+                  : isDark
+                  ? "rgba(255,255,255,0.05)"
+                  : "rgba(0,0,0,0.03)",
+              borderColor:
+                syncState.pendingCount > 0
+                  ? "#F59E0B"
+                  : syncState.status === SYNC_STATUS.SYNCING
+                  ? "#0284C7"
+                  : isDark
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(0,0,0,0.05)",
+            },
+          ]}
+        >
+          <Ionicons
+            name={
+              syncState.pendingCount > 0
+                ? "cloud-offline-outline"
+                : syncState.status === SYNC_STATUS.SYNCING
+                ? "sync-outline"
+                : "cloud-done-outline"
+            }
+            size={12}
+            color={
+              syncState.pendingCount > 0
+                ? "#D97706"
+                : syncState.status === SYNC_STATUS.SYNCING
+                ? "#0284C7"
+                : themeColors.primary
+            }
+          />
+          <Text
+            style={[
+              FONTS.mono,
+              {
+                fontSize: 10,
+                marginLeft: 5,
+                color:
+                  syncState.pendingCount > 0
+                    ? "#D97706"
+                    : syncState.status === SYNC_STATUS.SYNCING
+                    ? "#0284C7"
+                    : themeColors.primary,
+              },
+            ]}
+          >
+            {syncState.pendingCount > 0
+              ? `${syncState.pendingCount} ${t("queuedOffline")}`
+              : syncState.status === SYNC_STATUS.SYNCING
+              ? t("syncingChanges")
+              : t("allSynced")}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -187,7 +313,7 @@ const HomeScreen = ({ navigation }) => {
                     { color: themeColors.primary },
                   ]}
                 >
-                  ACTIVE EXPEDITION
+                  {t("activeExpedition")}
                 </Text>
               </View>
 
@@ -212,7 +338,7 @@ const HomeScreen = ({ navigation }) => {
                     { color: themeColors.primary, marginLeft: 6 },
                   ]}
                 >
-                  Capture
+                  {t("capture")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -296,7 +422,7 @@ const HomeScreen = ({ navigation }) => {
                     }}
                   >
                     <Ionicons name="journal" size={16} color="#FFFFFF" />
-                    <Text style={styles.heroActionBtnText}>View Journal</Text>
+                    <Text style={styles.heroActionBtnText}>{t("viewJournal")}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -307,7 +433,7 @@ const HomeScreen = ({ navigation }) => {
                     }}
                   >
                     <Ionicons name="map-outline" size={16} color="#FFFFFF" />
-                    <Text style={styles.heroActionGhostText}>Route Map</Text>
+                    <Text style={styles.heroActionGhostText}>{t("routeMap")}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -351,7 +477,7 @@ const HomeScreen = ({ navigation }) => {
                         { color: themeColors.primary, fontSize: 10 },
                       ]}
                     >
-                      DAILY DIARY
+                      {t("dailyDiary")}
                     </Text>
                     <View
                       style={[
@@ -367,7 +493,7 @@ const HomeScreen = ({ navigation }) => {
                       { color: themeColors.ink },
                     ]}
                   >
-                    Write today's diary entry
+                    {t("writeTodayDiary")}
                   </Text>
                   <Text
                     style={[
@@ -376,7 +502,7 @@ const HomeScreen = ({ navigation }) => {
                       { color: themeColors.inkSoft },
                     ]}
                   >
-                    Capture your mood, food discoveries, and reflections
+                    {t("diarySubtitle")}
                   </Text>
                 </View>
               </View>
@@ -393,7 +519,7 @@ const HomeScreen = ({ navigation }) => {
                     { color: themeColors.primary, marginRight: 2 },
                   ]}
                 >
-                  Write
+                  {t("writeBtn")}
                 </Text>
                 <Ionicons
                   name="chevron-forward"
@@ -415,7 +541,7 @@ const HomeScreen = ({ navigation }) => {
                   { color: themeColors.inkSoft },
                 ]}
               >
-                ON THIS DAY · PAST MEMORIES
+                {t("onThisDay")}
               </Text>
             </View>
 
@@ -498,7 +624,7 @@ const HomeScreen = ({ navigation }) => {
                 { color: themeColors.inkSoft },
               ]}
             >
-              ALL JOURNEYS ({trips.length})
+              {t("allJourneys").toUpperCase()} ({trips.length})
             </Text>
           </View>
 
@@ -920,33 +1046,58 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 23,
     fontFamily: "FrauncesBold",
   },
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+  },
+  langToggleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 3,
+  },
+  langToggleText: {
+    fontSize: 11,
+  },
+  syncStatusRow: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    alignItems: "flex-start",
+  },
+  syncStatusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
   },
   iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
   newTripBtn: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    height: 40,
-    borderRadius: 20,
+    paddingHorizontal: 11,
+    height: 36,
+    borderRadius: 18,
     gap: 4,
   },
   newTripBtnText: {
     color: "#FFFFFF",
     fontFamily: "InterSemiBold",
-    fontSize: 13,
+    fontSize: 12,
   },
   scrollContent: {
     paddingHorizontal: 20,

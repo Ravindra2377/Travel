@@ -27,6 +27,7 @@ import {
 
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { TripProvider } from "./context/TripContext";
+import { I18nProvider } from "./config/i18n";
 import { COLORS } from "./config/theme";
 
 import CustomTabBar from "./components/CustomTabBar";
@@ -42,6 +43,7 @@ import MomentDetailScreen from "./screens/MomentDetailScreen";
 import TripRecapScreen from "./screens/TripRecapScreen";
 import PassportScreen from "./screens/PassportScreen";
 import SearchScreen from "./screens/SearchScreen";
+import PublicTripViewerScreen from "./screens/PublicTripViewerScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -169,6 +171,11 @@ const AppNav = () => {
             component={SearchScreen}
             options={{ animation: "slide_from_right" }}
           />
+          <Stack.Screen
+            name="PublicTripViewer"
+            component={PublicTripViewerScreen}
+            options={{ animation: "slide_from_right" }}
+          />
         </Stack.Navigator>
       </View>
     </NavigationContainer>
@@ -187,9 +194,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <TripProvider>
-          <AppNav />
-        </TripProvider>
+        <I18nProvider>
+          <TripProvider>
+            <AppNav />
+          </TripProvider>
+        </I18nProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

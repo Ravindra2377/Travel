@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import syncManager from "./syncManager";
 
 const STORAGE_KEYS = {
   TRIPS: "@trip_moments_trips_v1",
@@ -15,6 +16,8 @@ export const INITIAL_TRIPS = [
     startDate: "2026-10-14",
     endDate: "2026-10-18",
     status: "active",
+    privacy: "link_only",
+    shareSlug: "hampi-golden-sunrise-2026",
     coverUri:
       "https://images.unsplash.com/photo-1600100397608-f010f4439c2e?q=80&w=1200&auto=format&fit=crop",
     themeColor: "#16845B", // Forest green
@@ -32,6 +35,8 @@ export const INITIAL_TRIPS = [
     startDate: "2025-11-02",
     endDate: "2025-11-12",
     status: "completed",
+    privacy: "link_only",
+    shareSlug: "kyoto-autumn-momiji-2025",
     coverUri:
       "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1200&auto=format&fit=crop",
     themeColor: "#BE123C", // Autumn maple red
@@ -49,6 +54,8 @@ export const INITIAL_TRIPS = [
     startDate: "2027-06-12",
     endDate: "2027-06-20",
     status: "planned",
+    privacy: "private",
+    shareSlug: "amalfi-cliffside-2027",
     coverUri:
       "https://images.unsplash.com/photo-1533105079780-92b9be482077?q=80&w=1200&auto=format&fit=crop",
     themeColor: "#0284C7", // Azure sea
@@ -337,15 +344,26 @@ export const tripStorage = {
 
   async addTrip(trip) {
     const trips = await this.getTrips();
+    const cleanTitle = (trip?.title || "trip")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
     const newTrip = {
       ...trip,
       id: trip?.id || `trip-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      privacy: trip?.privacy || "link_only",
+      shareSlug: trip?.shareSlug || `${cleanTitle}-${Math.random().toString(36).substring(2, 6)}`,
       status: trip?.status || "active",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     const updated = [newTrip, ...trips];
     await this.saveTrips(updated);
+    try {
+      await syncManager.enqueue("trip", "create", newTrip);
+    } catch (e) {
+      // offline outbox handled internally
+    }
     return newTrip;
   },
 
@@ -355,7 +373,13 @@ export const tripStorage = {
       t.id === id ? { ...t, ...changes, updatedAt: new Date().toISOString() } : t
     );
     await this.saveTrips(updated);
-    return updated.find((t) => t.id === id);
+    const updatedTrip = updated.find((t) => t.id === id);
+    if (updatedTrip) {
+      try {
+        await syncManager.enqueue("trip", "update", updatedTrip);
+      } catch (e) {}
+    }
+    return updatedTrip;
   },
 
   async deleteTrip(id) {
@@ -372,6 +396,10 @@ export const tripStorage = {
     const diaryEntries = await this.getDiaryEntries();
     const updatedDiary = diaryEntries.filter((d) => d.tripId !== id);
     await this.saveDiaryEntries(updatedDiary);
+
+    try {
+      await syncManager.enqueue("trip", "delete", { id });
+    } catch (e) {}
 
     return true;
   },
@@ -390,6 +418,9 @@ export const tripStorage = {
     };
     const updated = [newMoment, ...moments];
     await this.saveMoments(updated);
+    try {
+      await syncManager.enqueue("moment", "create", newMoment);
+    } catch (e) {}
     return newMoment;
   },
 
@@ -399,13 +430,22 @@ export const tripStorage = {
       m.id === id ? { ...m, ...changes, updatedAt: new Date().toISOString() } : m
     );
     await this.saveMoments(updated);
-    return updated.find((m) => m.id === id);
+    const updatedMoment = updated.find((m) => m.id === id);
+    if (updatedMoment) {
+      try {
+        await syncManager.enqueue("moment", "update", updatedMoment);
+      } catch (e) {}
+    }
+    return updatedMoment;
   },
 
   async deleteMoment(id) {
     const moments = await this.getMoments();
     const updated = moments.filter((m) => m.id !== id);
     await this.saveMoments(updated);
+    try {
+      await syncManager.enqueue("moment", "delete", { id });
+    } catch (e) {}
     return true;
   },
 
@@ -581,6 +621,9 @@ export const tripStorage = {
     }
 
     await this.saveDiaryEntries(entries);
+    try {
+      await syncManager.enqueue("diary", existingIndex >= 0 ? "update" : "create", saved);
+    } catch (e) {}
     return saved;
   },
 
@@ -591,6 +634,9 @@ export const tripStorage = {
       e.id === id ? { ...e, deletedAt: new Date().toISOString() } : e
     );
     await this.saveDiaryEntries(updated);
+    try {
+      await syncManager.enqueue("diary", "delete", { id });
+    } catch (e) {}
     return true;
   },
 

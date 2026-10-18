@@ -13,6 +13,7 @@ import RouteMapScreen from "../RouteMapScreen";
 import MomentDetailScreen from "../MomentDetailScreen";
 import TripRecapScreen from "../TripRecapScreen";
 import PassportScreen from "../PassportScreen";
+import PublicTripViewerScreen from "../PublicTripViewerScreen";
 
 describe("Screen module exports", () => {
   it("all travel screen modules export components", () => {
@@ -25,5 +26,6 @@ describe("Screen module exports", () => {
     expect(MomentDetailScreen).toBeDefined();
     expect(TripRecapScreen).toBeDefined();
     expect(PassportScreen).toBeDefined();
+    expect(PublicTripViewerScreen).toBeDefined();
   });
 });

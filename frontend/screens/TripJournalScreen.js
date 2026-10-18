@@ -19,6 +19,7 @@ import GlassCard from "../components/GlassCard";
 import { Ionicons } from "../components/Icon";
 import DiaryEntryCard from "../components/DiaryEntryCard";
 import DiaryEditorModal from "../components/DiaryEditorModal";
+import WhatsAppShareModal from "../components/WhatsAppShareModal";
 
 const { width } = Dimensions.get("window");
 
@@ -35,10 +36,12 @@ const TripJournalScreen = ({ route, navigation }) => {
     saveDiaryEntry,
     deleteDiaryEntry,
     toggleFavoriteMoment,
+    updateTrip,
   } = useTrips();
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [activeEditorTarget, setActiveEditorTarget] = useState(null);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
 
   const currentTrip = useMemo(() => {
     if (tripId) {
@@ -170,16 +173,34 @@ const TripJournalScreen = ({ route, navigation }) => {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.addBtn, { backgroundColor: primaryTint }]}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            navigation.navigate("Capture", { tripId: currentTrip?.id });
-          }}
-        >
-          <Ionicons name="camera" size={17} color="#FFFFFF" />
-          <Text style={styles.addBtnText}>Capture</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={[
+              styles.shareIconBtn,
+              {
+                backgroundColor: isDark ? "#0A2618" : "#E8F8F0",
+                borderColor: "#25D36640",
+              },
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShareModalVisible(true);
+            }}
+          >
+            <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: primaryTint }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              navigation.navigate("Capture", { tripId: currentTrip?.id });
+            }}
+          >
+            <Ionicons name="camera" size={17} color="#FFFFFF" />
+            <Text style={styles.addBtnText}>Capture</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -543,6 +564,23 @@ const TripJournalScreen = ({ route, navigation }) => {
           primaryTint={primaryTint}
         />
       )}
+
+      {/* WhatsApp Share Modal */}
+      <WhatsAppShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        trip={currentTrip}
+        moments={moments.filter((m) => m.tripId === currentTrip?.id)}
+        onUpdatePrivacy={(newPrivacy) => {
+          updateTrip && updateTrip(currentTrip.id, { privacy: newPrivacy });
+        }}
+        onOpenWebViewer={(targetTrip) => {
+          navigation.navigate("PublicTripViewer", {
+            tripId: targetTrip.id,
+            trip: targetTrip,
+          });
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -563,6 +601,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  shareIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   backBtn: {
     width: 38,

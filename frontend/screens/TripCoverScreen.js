@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { FONTS, SPACING, RADIUS, SHADOWS } from "../config/theme";
 import LiquidGlass from "../components/LiquidGlass";
 import GlassCard from "../components/GlassCard";
 import { Ionicons } from "../components/Icon";
+import WhatsAppShareModal from "../components/WhatsAppShareModal";
 
 const { width } = Dimensions.get("window");
 
@@ -26,7 +27,8 @@ const TripCoverScreen = ({ route, navigation }) => {
   const { tripId } = route.params || {};
   const insets = useSafeAreaInsets();
   const { themeColors, isDark } = useTheme();
-  const { trips, moments, deleteTrip, setActiveTrip } = useTrips();
+  const { trips, moments, deleteTrip, updateTrip, setActiveTrip } = useTrips();
+  const [shareModalVisible, setShareModalVisible] = useState(false);
 
   const trip = useMemo(() => {
     return trips.find((t) => t.id === tripId) || trips[0];
@@ -60,15 +62,9 @@ const TripCoverScreen = ({ route, navigation }) => {
   const primaryTint = trip?.themeColor || themeColors.primary;
   const secondaryTint = trip?.secondaryColor || themeColors.turmeric;
 
-  const handleShare = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await Share.share({
-        message: `Reliving our trip: "${trip.title}" across ${trip.city || "places"}, with ${tripMoments.length} moments captured on Trip Moments!`,
-      });
-    } catch (e) {
-      // dismissed
-    }
+  const handleShare = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShareModalVisible(true);
   };
 
   const handleDelete = () => {
@@ -253,6 +249,22 @@ const TripCoverScreen = ({ route, navigation }) => {
                 Play Recap
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.secondaryActionBtn,
+                {
+                  backgroundColor: isDark ? "#0A2618" : "#E8F8F0",
+                  borderColor: "#25D36640",
+                },
+              ]}
+              onPress={handleShare}
+            >
+              <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+              <Text style={[styles.secondaryActionText, { color: isDark ? "#A7F3D0" : "#0D6832", fontWeight: "600" }]}>
+                Share
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -349,6 +361,22 @@ const TripCoverScreen = ({ route, navigation }) => {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <WhatsAppShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        trip={trip}
+        moments={tripMoments}
+        onUpdatePrivacy={(newPrivacy) => {
+          updateTrip(trip.id, { privacy: newPrivacy });
+        }}
+        onOpenWebViewer={(targetTrip) => {
+          navigation.navigate("PublicTripViewer", {
+            tripId: targetTrip.id,
+            trip: targetTrip,
+          });
+        }}
+      />
     </View>
   );
 };

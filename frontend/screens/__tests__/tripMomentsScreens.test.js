@@ -2,12 +2,14 @@ import React from "react";
 import { render } from "@testing-library/react-native";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { TripProvider } from "../../context/TripContext";
+import { I18nProvider } from "../../config/i18n";
 import HomeScreen from "../HomeScreen";
 import TripCoverScreen from "../TripCoverScreen";
 import TripJournalScreen from "../TripJournalScreen";
 import RouteMapScreen from "../RouteMapScreen";
 import PassportScreen from "../PassportScreen";
 import SearchScreen from "../SearchScreen";
+import PublicTripViewerScreen from "../PublicTripViewerScreen";
 
 const mockNavigation = {
   navigate: jest.fn(),
@@ -18,9 +20,11 @@ const mockNavigation = {
 const renderWithProviders = (Component, props = {}) => {
   return render(
     <ThemeProvider>
-      <TripProvider>
-        <Component navigation={mockNavigation} route={{ params: {} }} {...props} />
-      </TripProvider>
+      <I18nProvider>
+        <TripProvider>
+          <Component navigation={mockNavigation} route={{ params: {} }} {...props} />
+        </TripProvider>
+      </I18nProvider>
     </ThemeProvider>
   );
 };
@@ -58,5 +62,11 @@ describe("Trip Moments Screens Smoke Tests", () => {
     const { getByText, getByPlaceholderText } = renderWithProviders(SearchScreen);
     expect(getByPlaceholderText("Search moments, places, tags...")).toBeTruthy();
     expect(getByText("All Moments")).toBeTruthy();
+  });
+
+  test("PublicTripViewerScreen renders without crashing", () => {
+    const { getByText } = renderWithProviders(PublicTripViewerScreen);
+    expect(getByText("PUBLIC WEB VIEWER")).toBeTruthy();
+    expect(getByText("DAY-BY-DAY STORY")).toBeTruthy();
   });
 });
