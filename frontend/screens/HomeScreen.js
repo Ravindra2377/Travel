@@ -313,7 +313,7 @@ const HomeScreen = ({ navigation }) => {
 
       {/* ── FOREGROUND: SPRING-DRIVEN TRIPS BOTTOM SHEET ────────────── */}
       <BottomSheet
-        snapPoints={[190, SCREEN_HEIGHT * 0.52, SCREEN_HEIGHT * 0.88]}
+        snapPoints={[220, SCREEN_HEIGHT * 0.52, SCREEN_HEIGHT * 0.85]}
         initialSnap={1}
         renderHeader={({ snapIndex, snapTo }) => {
           if (snapIndex === 0) {

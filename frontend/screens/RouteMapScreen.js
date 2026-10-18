@@ -256,7 +256,7 @@ const RouteMapScreen = ({ route, navigation }) => {
 
       {/* ── FOREGROUND: SPRING-DRIVEN STOPS & ROUTE BOTTOM SHEET ─────── */}
       <BottomSheet
-        snapPoints={[130, SCREEN_HEIGHT * 0.44, SCREEN_HEIGHT * 0.85]}
+        snapPoints={[200, SCREEN_HEIGHT * 0.50, SCREEN_HEIGHT * 0.85]}
         initialSnap={0}
         renderHeader={({ snapIndex, snapTo }) => (
           <View style={styles.sheetHeaderTeaser}>
