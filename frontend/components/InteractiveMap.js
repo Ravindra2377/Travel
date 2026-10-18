@@ -498,6 +498,7 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: "#E8ECE9",
     overflow: "hidden",
+    zIndex: 1,
   },
   webView: {
     flex: 1,

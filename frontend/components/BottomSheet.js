@@ -3,6 +3,7 @@ import {
   View,
   StyleSheet,
   Dimensions,
+  useWindowDimensions,
   Animated,
   PanResponder,
   TouchableOpacity,
@@ -13,7 +14,7 @@ import { useTheme } from "../context/ThemeContext";
 import { RADIUS, SHADOWS } from "../config/theme";
 import { SPRINGS, useReducedMotion } from "../config/motion";
 
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+const { height: DEFAULT_SCREEN_HEIGHT } = Dimensions.get("window");
 
 /**
  * Spring-driven, gesture-controlled Bottom Sheet Component.
@@ -22,7 +23,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
  */
 export const BottomSheet = ({
   children,
-  snapPoints = [120, SCREEN_HEIGHT * 0.48, SCREEN_HEIGHT * 0.86],
+  snapPoints,
   initialSnap = 1, // 0 = peek, 1 = half, 2 = full
   onSnapChange,
   showBackdrop = true,
@@ -31,31 +32,58 @@ export const BottomSheet = ({
 }) => {
   const { themeColors, isDark } = useTheme();
   const reducedMotion = useReducedMotion();
+  const windowDims = useWindowDimensions();
+  const screenHeight = windowDims?.height || DEFAULT_SCREEN_HEIGHT;
+
+  const effectiveSnapPoints =
+    snapPoints && snapPoints.length > 0
+      ? snapPoints
+      : [190, screenHeight * 0.52, screenHeight * 0.88];
 
   // Convert snap points (heights) to translateY offsets from top of screen
   // Higher height = lower translateY (closer to top of screen)
   const getSnapOffsets = () => {
-    return snapPoints.map((h) => SCREEN_HEIGHT - h);
+    return effectiveSnapPoints.map((h) => screenHeight - h);
   };
 
   const snapOffsets = getSnapOffsets();
   const currentSnapIndexRef = useRef(initialSnap);
   const [currentSnapIndex, setCurrentSnapIndex] = useState(initialSnap);
 
-  const translateY = useRef(
-    new Animated.Value(snapOffsets[initialSnap] || snapOffsets[1])
-  ).current;
+  const initialOffset =
+    snapOffsets[initialSnap] ?? snapOffsets[1] ?? (screenHeight - 380);
+  const translateY = useRef(new Animated.Value(initialOffset)).current;
+  const currentYRef = useRef(initialOffset);
+
+  // Sync current value for PanResponder calculations without depending on internal _value
+  useEffect(() => {
+    const id = translateY.addListener(({ value }) => {
+      currentYRef.current = value;
+    });
+    return () => translateY.removeListener(id);
+  }, [translateY]);
+
+  // Adjust position when screen height changes
+  useEffect(() => {
+    const targetOffset =
+      snapOffsets[currentSnapIndexRef.current] ?? snapOffsets[1];
+    translateY.setValue(targetOffset);
+    currentYRef.current = targetOffset;
+  }, [screenHeight]);
 
   // Animate to snap index with spring physics
   const snapTo = (index) => {
-    const clampedIndex = Math.max(0, Math.min(snapPoints.length - 1, index));
+    const clampedIndex = Math.max(
+      0,
+      Math.min(effectiveSnapPoints.length - 1, index)
+    );
     const targetOffset = snapOffsets[clampedIndex];
 
     if (reducedMotion) {
       Animated.timing(translateY, {
         toValue: targetOffset,
         duration: 200,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     } else {
       Animated.spring(translateY, {
@@ -63,7 +91,7 @@ export const BottomSheet = ({
         damping: SPRINGS.snappy.damping,
         mass: SPRINGS.snappy.mass,
         stiffness: SPRINGS.snappy.stiffness,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     }
 
@@ -90,7 +118,7 @@ export const BottomSheet = ({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
         // Determine current position
-        const currentY = translateY._value;
+        const currentY = currentYRef.current;
         const velocity = gestureState.vy;
 
         let targetIndex = currentSnapIndexRef.current;
@@ -98,7 +126,10 @@ export const BottomSheet = ({
         // Velocity-based fling detection
         if (velocity < -0.4) {
           // Fling upwards -> expand
-          targetIndex = Math.min(snapPoints.length - 1, targetIndex + 1);
+          targetIndex = Math.min(
+            effectiveSnapPoints.length - 1,
+            targetIndex + 1
+          );
         } else if (velocity > 0.4) {
           // Fling downwards -> collapse
           targetIndex = Math.max(0, targetIndex - 1);
@@ -122,14 +153,17 @@ export const BottomSheet = ({
   ).current;
 
   // Backdrop opacity interpolator
+  const maxOffset = snapOffsets[effectiveSnapPoints.length - 1];
+  const minOffset = snapOffsets[0];
   const backdropOpacity = translateY.interpolate({
-    inputRange: [snapOffsets[snapPoints.length - 1], snapOffsets[0]],
+    inputRange:
+      minOffset < maxOffset ? [minOffset, maxOffset] : [maxOffset, minOffset],
     outputRange: [0.45, 0],
     extrapolate: "clamp",
   });
 
   return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+    <View style={styles.sheetRoot} pointerEvents="box-none">
       {/* Dimming Backdrop (tappable to collapse to peek) */}
       {showBackdrop && currentSnapIndex > 0 && (
         <Animated.View
@@ -139,7 +173,11 @@ export const BottomSheet = ({
               opacity: backdropOpacity,
             },
           ]}
-          pointerEvents={currentSnapIndex === snapPoints.length - 1 ? "auto" : "none"}
+          pointerEvents={
+            currentSnapIndex === effectiveSnapPoints.length - 1
+              ? "auto"
+              : "none"
+          }
         >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
@@ -155,8 +193,11 @@ export const BottomSheet = ({
           styles.sheetContainer,
           {
             backgroundColor: isDark ? "#121A16" : themeColors.surface,
-            borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.06)",
+            borderColor: isDark
+              ? "rgba(255,255,255,0.12)"
+              : "rgba(0,0,0,0.06)",
             transform: [{ translateY }],
+            height: screenHeight,
           },
           SHADOWS.lg,
           style,
@@ -174,7 +215,8 @@ export const BottomSheet = ({
               },
             ]}
           />
-          {renderHeader && renderHeader({ snapIndex: currentSnapIndex, snapTo })}
+          {renderHeader &&
+            renderHeader({ snapIndex: currentSnapIndex, snapTo })}
         </View>
 
         {/* Content Body */}
@@ -185,20 +227,27 @@ export const BottomSheet = ({
 };
 
 const styles = StyleSheet.create({
+  sheetRoot: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    elevation: 20,
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#000000",
+    zIndex: 22,
   },
   sheetContainer: {
     position: "absolute",
     left: 0,
     right: 0,
     top: 0,
-    height: SCREEN_HEIGHT,
     borderTopLeftRadius: RADIUS.xxl,
     borderTopRightRadius: RADIUS.xxl,
     borderWidth: 1,
     overflow: "hidden",
+    zIndex: 25,
+    elevation: 25,
   },
   handleArea: {
     width: "100%",

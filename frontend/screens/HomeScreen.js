@@ -313,7 +313,7 @@ const HomeScreen = ({ navigation }) => {
 
       {/* ── FOREGROUND: SPRING-DRIVEN TRIPS BOTTOM SHEET ────────────── */}
       <BottomSheet
-        snapPoints={[120, SCREEN_HEIGHT * 0.48, SCREEN_HEIGHT * 0.88]}
+        snapPoints={[190, SCREEN_HEIGHT * 0.52, SCREEN_HEIGHT * 0.88]}
         initialSnap={1}
         renderHeader={({ snapIndex, snapTo }) => {
           if (snapIndex === 0) {
@@ -912,7 +912,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 10,
+    zIndex: 30,
   },
   floatingHeader: {
     flexDirection: "row",
